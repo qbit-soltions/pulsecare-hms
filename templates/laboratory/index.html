@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Laboratory & Diagnostics{% endblock %}
+{% block header_title %}Clinical Pathology & Diagnostic Laboratory{% endblock %}
+
+{% block content %}
+
+<!-- LAB ORDERS QUEUE -->
+<div class="card-custom">
+  <div class="card-header-custom flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-moisture text-primary fs-5"></i>
+      <h6 class="fw-bold m-0">Diagnostic Orders & Test Queue ({{ orders|length }})</h6>
+    </div>
+
+    <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+      <form method="GET" action="{{ url_for('laboratory_index') }}" class="d-flex align-items-center gap-2">
+        <select name="status" class="form-select form-select-sm" style="width: 170px;" onchange="this.form.submit()">
+          <option value="">All Order Statuses</option>
+          <option value="Ordered" {% if status_filter == 'Ordered' %}selected{% endif %}>Ordered (Pending Sample)</option>
+          <option value="Sample Collected" {% if status_filter == 'Sample Collected' %}selected{% endif %}>Sample Collected / Testing</option>
+          <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed & Verified</option>
+        </select>
+        {% if status_filter %}
+        <a href="{{ url_for('laboratory_index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        {% endif %}
+      </form>
+
+      {% if current_user and current_user.role in ['admin', 'doctor', 'lab_tech'] %}
+      <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#newLabOrderModal">
+        <i class="bi bi-plus-lg me-1"></i> Order New Test
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card-body-custom p-0">
+    {% for lo in orders %}
+    <div class="border-bottom p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <div>
+          <span class="fw-bold fs-6 text-dark">{{ lo.order_number }}</span>
+          <span class="mx-2">•</span>
+          <a href="{{ url_for('patient_view', patient_id=lo.patient_id) }}" class="fw-bold text-primary text-decoration-none">
+            {{ lo.first_name }} {{ lo.last_name }} ({{ lo.patient_uid }})
+          </a>
+          <span class="text-muted fs-7 ms-2">Ordered by Dr. {{ lo.doctor_name }} on {{ lo.ordered_at | format_date("%b %d, %Y at %I:%M %p") }}</span>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center">
+          <span class="badge {% if lo.status == 'Completed' %}bg-success{% elif lo.status == 'Sample Collected' %}bg-info text-dark{% else %}bg-warning text-dark{% endif %} px-3 py-2">
+            {{ lo.status }}
+          </span>
+
+          {% if lo.status == 'Ordered' and current_user and current_user.role in ['admin', 'lab_tech', 'nurse'] %}
+          <form method="POST" action="{{ url_for('lab_collect_sample', order_id=lo.id) }}">
+            <button type="submit" class="btn btn-sm btn-outline-info">
+              <i class="bi bi-droplet-half me-1"></i> Collect Sample
+            </button>
+          </form>
+          {% endif %}
+
+          {% if lo.status == 'Completed' %}
+          <a href="{{ url_for('lab_report_view', order_id=lo.id) }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-file-earmark-medical me-1"></i> View Lab Report
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if lo.clinical_notes %}
+      <div class="text-muted fs-8 mb-2"><i class="bi bi-info-circle me-1"></i>Indication: {{ lo.clinical_notes }}</div>
+      {% endif %}
+
+      <!-- Test items in this order -->
+      <div class="table-responsive bg-light rounded p-2 mt-2">
+        <table class="table table-sm table-bordered bg-white align-middle mb-0 fs-7">
+          <thead class="table-light">
+            <tr>
+              <th>Test Name & Category</th>
+              <th>Specimen</th>
+              <th>Status</th>
+              <th>Cost</th>
+              <th class="text-end">Result Entry</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in lo.test_items %}
+            <tr>
+              <td>
+                <strong>{{ item.test_code }}</strong> - {{ item.test_name }}
+                <div class="text-muted fs-8">{{ item.test_category }}</div>
+              </td>
+              <td><span class="badge bg-light text-dark border">{{ item.specimen_type or 'Serum' }}</span></td>
+              <td>
+                <span class="badge {% if item.status == 'Completed' %}bg-success{% elif item.status == 'In Progress' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                  {{ item.status }}
+                </span>
+              </td>
+              <td>${{ "%.2f"|format(item.cost) }}</td>
+              <td class="text-end">
+                {% if item.status != 'Completed' and current_user and current_user.role in ['admin', 'lab_tech'] %}
+                <button class="btn btn-sm btn-primary py-1 px-3" data-bs-toggle="modal" data-bs-target="#resultModal_{{ item.id }}">
+                  <i class="bi bi-pencil-square me-1"></i> Enter Results
+                </button>
+                {% elif item.status == 'Completed' %}
+                <span class="text-success fw-semibold"><i class="bi bi-check2-all me-1"></i>Verified</span>
+                {% endif %}
+              </td>
+            </tr>
+
+            <!-- MODAL: RESULT ENTRY FOR THIS TEST ITEM -->
+            <div class="modal fade" id="resultModal_{{ item.id }}" tabindex="-1">
+              <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                  <form method="POST" action="{{ url_for('lab_save_result', item_id=item.id) }}">
+                    <div class="modal-header bg-light">
+                      <div>
+                        <h5 class="modal-title fw-bold fs-6">{{ item.test_name }} ({{ item.test_code }})</h5>
+                        <small class="text-muted">Patient: {{ lo.first_name }} {{ lo.last_name }} ({{ lo.patient_uid }})</small>
+                      </div>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body fs-7">
+                      <div class="alert alert-info py-2 fs-8 mb-3">
+                        <i class="bi bi-info-circle me-1"></i> Enter observed parameter values below. Mark abnormal flags where readings deviate from the reference interval.
+                      </div>
+
+                      <table class="table table-sm table-bordered fs-7 mb-3">
+                        <thead class="table-light">
+                          <tr>
+                            <th>Parameter Name</th>
+                            <th style="width: 25%;">Measured Value</th>
+                            <th>Unit</th>
+                            <th>Reference Interval</th>
+                            <th class="text-center">Abnormal?</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% set params = item.parameters_json | fromjson %}
+                          {% for p in params %}
+                          <tr>
+                            <td>
+                              <input type="hidden" name="param_name[]" value="{{ p.name }}">
+                              <strong>{{ p.name }}</strong>
+                            </td>
+                            <td>
+                              <input type="text" name="param_value[]" class="form-control form-control-sm" required placeholder="Enter value">
+                            </td>
+                            <td>
+                              <input type="hidden" name="param_unit[]" value="{{ p.unit }}">
+                              {{ p.unit }}
+                            </td>
+                            <td>
+                              <input type="hidden" name="param_range[]" value="{{ p.ref_range }}">
+                              <small class="text-muted">{{ p.ref_range }}</small>
+                            </td>
+                            <td class="text-center">
+                              <div class="form-check d-flex justify-content-center">
+                                <input class="form-check-input" type="checkbox" name="param_abnormal[]" value="{{ loop.index0 }}">
+                              </div>
+                            </td>
+                          </tr>
+                          {% else %}
+                          <tr>
+                            <td colspan="5">
+                              <input type="hidden" name="param_name[]" value="{{ item.test_name }}">
+                              <input type="hidden" name="param_unit[]" value="Observation">
+                              <input type="hidden" name="param_range[]" value="Normal">
+                              <label class="form-label fw-semibold">Diagnostic Observation / Result</label>
+                              <input type="text" name="param_value[]" class="form-control form-control-sm" required placeholder="Enter result summary">
+                            </td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">Pathologist / Technologist Clinical Interpretation</label>
+                        <textarea name="interpretation" class="form-control form-control-sm" rows="3" placeholder="e.g. Findings correlate with subacute inflammatory response..."></textarea>
+                      </div>
+                    </div>
+                    <div class="modal-footer bg-light py-2">
+                      <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-sm btn-success fw-semibold">Save & Verify Diagnostic Report</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-moisture fs-1 text-secondary d-block mb-2"></i>
+      No diagnostic lab orders found.
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- MODAL: NEW LAB ORDER -->
+<div class="modal fade" id="newLabOrderModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('lab_order_create') }}">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title fw-bold fs-6"><i class="bi bi-moisture text-primary me-2"></i>Create Diagnostic Lab Requisition</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body fs-7">
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Patient <span class="text-danger">*</span></label>
+              <select name="patient_id" class="form-select form-select-sm" required>
+                <option value="">-- Choose Patient --</option>
+                {% for p in patients %}
+                <option value="{{ p.id }}">{{ p.patient_uid }} - {{ p.first_name }} {{ p.last_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Ordering Doctor <span class="text-danger">*</span></label>
+              <select name="doctor_id" class="form-select form-select-sm" required>
+                <option value="">-- Choose Doctor --</option>
+                {% for doc in doctors %}
+                <option value="{{ doc.id }}">{{ doc.full_name }} ({{ doc.specialization }})</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Select Tests to Order <span class="text-danger">*</span></label>
+            <div class="row g-2" style="max-height: 250px; overflow-y: auto;">
+              {% for t in test_catalog %}
+              <div class="col-md-6">
+                <div class="form-check p-2 border rounded bg-light">
+                  <input class="form-check-input ms-0 me-2" type="checkbox" name="test_ids[]" value="{{ t.id }}" id="ord_test_{{ t.id }}">
+                  <label class="form-check-label fw-semibold" for="ord_test_{{ t.id }}">
+                    {{ t.code }} - {{ t.name }}
+                    <span class="text-muted d-block fs-8">{{ t.category }} • ${{ "%.2f"|format(t.cost) }}</span>
+                  </label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Clinical Indication / Notes</label>
+            <textarea name="clinical_notes" class="form-control form-control-sm" rows="2" placeholder="e.g. Pre-operative routine screening, rule out infection..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary">Generate Lab Order</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

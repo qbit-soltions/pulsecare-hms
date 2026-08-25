@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Patient Directory{% endblock %}
+{% block header_title %}Patient Directory & Electronic Health Records{% endblock %}
+
+{% block content %}
+<div class="card-custom">
+  <div class="card-header-custom flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-people-fill text-primary fs-5"></i>
+      <h6 class="fw-bold m-0">Registered Patients ({{ patients|length }})</h6>
+    </div>
+
+    <!-- Search & Filter Controls -->
+    <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+      <form method="GET" action="{{ url_for('patients_list') }}" class="d-flex align-items-center gap-2">
+        <div class="input-group input-group-sm" style="width: 260px;">
+          <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" name="q" class="form-control" placeholder="Search Name, UID, Phone..." value="{{ query }}">
+        </div>
+
+        <select name="status" class="form-select form-select-sm" style="width: 140px;" onchange="this.form.submit()">
+          <option value="">All Statuses</option>
+          <option value="Outpatient" {% if status_filter == 'Outpatient' %}selected{% endif %}>Outpatient</option>
+          <option value="Inpatient" {% if status_filter == 'Inpatient' %}selected{% endif %}>Inpatient</option>
+          <option value="Discharged" {% if status_filter == 'Discharged' %}selected{% endif %}>Discharged</option>
+        </select>
+
+        {% if query or status_filter %}
+        <a href="{{ url_for('patients_list') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        {% endif %}
+      </form>
+
+      {% if current_user and current_user.role in ['admin', 'receptionist', 'doctor', 'nurse'] %}
+      <a href="{{ url_for('patient_create') }}" class="btn btn-sm btn-primary rounded-pill px-3">
+        <i class="bi bi-plus-lg me-1"></i> Register Patient
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 fs-7" id="patients-table">
+      <thead class="table-light">
+        <tr>
+          <th>Patient UID</th>
+          <th>Name & Contact</th>
+          <th>Age / Gender</th>
+          <th>Blood Group</th>
+          <th>Allergies</th>
+          <th>Care Status</th>
+          <th>Appointments</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in patients %}
+        <tr>
+          <td>
+            <span class="badge bg-light text-dark border fw-bold">{{ p.patient_uid }}</span>
+          </td>
+          <td>
+            <a href="{{ url_for('patient_view', patient_id=p.id) }}" class="fw-bold text-dark text-decoration-none">
+              {{ p.first_name }} {{ p.last_name }}
+            </a>
+            <div class="text-muted fs-8"><i class="bi bi-telephone me-1"></i>{{ p.phone }}</div>
+          </td>
+          <td>
+            {{ p.dob | format_date }}
+            <div class="text-muted fs-8">{{ p.gender }}</div>
+          </td>
+          <td>
+            <span class="badge bg-danger bg-opacity-10 text-danger fw-bold">{{ p.blood_group }}</span>
+          </td>
+          <td>
+            {% if p.allergies and p.allergies != 'None' %}
+              <span class="badge bg-warning text-dark" title="{{ p.allergies }}">
+                <i class="bi bi-exclamation-circle me-1"></i>{{ p.allergies }}
+              </span>
+            {% else %}
+              <span class="text-muted">None</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.status == 'Inpatient' %}
+              <span class="badge bg-danger">
+                <i class="bi bi-hospital me-1"></i>Inpatient (Bed {{ p.current_bed or 'Assigned' }})
+              </span>
+            {% elif p.status == 'Discharged' %}
+              <span class="badge bg-secondary">Discharged</span>
+            {% else %}
+              <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
+                Outpatient
+              </span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge bg-light text-secondary border">{{ p.appointment_count }} visits</span>
+          </td>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm">
+              <a href="{{ url_for('patient_view', patient_id=p.id) }}" class="btn btn-outline-primary" title="View Patient 360 EHR">
+                <i class="bi bi-folder2-open me-1"></i> EHR
+              </a>
+              {% if current_user and current_user.role in ['admin', 'receptionist', 'doctor'] %}
+              <a href="{{ url_for('patient_edit', patient_id=p.id) }}" class="btn btn-outline-secondary" title="Edit Patient">
+                <i class="bi bi-pencil"></i>
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-5 text-muted">
+            <i class="bi bi-person-x fs-1 d-block mb-2 text-secondary"></i>
+            No matching patient records found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

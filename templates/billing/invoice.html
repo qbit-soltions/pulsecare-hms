@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Invoice - {{ invoice.invoice_number }}{% endblock %}
+{% block header_title %}Medical Invoice & Payment Receipt{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+
+    <!-- Action Bar (Hidden when printing) -->
+    <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+      <a href="{{ url_for('billing_index') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Back to Ledger
+      </a>
+      <div class="d-flex gap-2">
+        {% if invoice.status != 'Paid' and current_user and current_user.role in ['admin', 'receptionist'] %}
+        <button class="btn btn-sm btn-success px-3" data-bs-toggle="modal" data-bs-target="#payModal">
+          <i class="bi bi-cash-stack me-1"></i> Record Payment
+        </button>
+        {% endif %}
+        <button onclick="window.print()" class="btn btn-sm btn-primary px-4 shadow-sm">
+          <i class="bi bi-printer-fill me-1"></i> Print / Download Invoice
+        </button>
+      </div>
+    </div>
+
+    <!-- PRINTABLE INVOICE DOCUMENT -->
+    <div class="card-custom p-4 printable-document bg-white shadow-sm" style="border: 2px solid #cbd5e1; border-radius: 12px;">
+      
+      <!-- Hospital Letterhead -->
+      <div class="d-flex justify-content-between align-items-center border-bottom pb-4 mb-4">
+        <div class="d-flex align-items-center gap-3">
+          <div class="p-3 bg-primary text-white rounded-3">
+            <i class="bi bi-hospital fs-2"></i>
+          </div>
+          <div>
+            <h4 class="fw-bold mb-0 text-dark">{{ hospital_name }}</h4>
+            <div class="text-muted fs-7">742 Evergreen Healthcare Blvd, Medical District, NY 10001</div>
+            <div class="text-muted fs-8">Tax ID: TAX-99482-USA • Hotline: +1 (800) 911-PULSE</div>
+          </div>
+        </div>
+        <div class="text-end">
+          <span class="badge {% if invoice.status == 'Paid' %}bg-success{% elif invoice.status == 'Partially Paid' %}bg-warning text-dark{% else %}bg-danger{% endif %} px-3 py-2 fs-7 text-uppercase">
+            {{ invoice.status }}
+          </span>
+          <div class="fw-bold text-dark fs-5 mt-1">{{ invoice.invoice_number }}</div>
+          <small class="text-muted">Invoice Date: {{ invoice.created_at | format_date("%b %d, %Y") }}</small>
+        </div>
+      </div>
+
+      <!-- Bill To & Payment Info -->
+      <div class="bg-light rounded p-3 mb-4 border fs-7">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <strong class="text-muted text-uppercase fs-8 d-block mb-1">Billed To (Patient Information):</strong>
+            <div class="fw-bold fs-6 text-dark">{{ invoice.first_name }} {{ invoice.last_name }}</div>
+            <div class="text-primary fw-semibold">{{ invoice.patient_uid }}</div>
+            <div class="text-muted">{{ invoice.patient_phone }} • {{ invoice.patient_email or 'No email' }}</div>
+            <div class="text-muted">{{ invoice.patient_address or 'General Patient' }}</div>
+          </div>
+          <div class="col-md-6 border-start ps-md-4">
+            <strong class="text-muted text-uppercase fs-8 d-block mb-1">Payment & Insurance Details:</strong>
+            <div><strong>Payment Mode:</strong> {{ invoice.payment_method or 'Cash / Self' }}</div>
+            <div><strong>Insurance Provider:</strong> {{ invoice.insurance_provider or 'Direct Self-Pay' }}</div>
+            {% if invoice.insurance_policy_number %}
+            <div><strong>Policy / Claim #:</strong> {{ invoice.insurance_policy_number }}</div>
+            {% endif %}
+            <div><strong>Settlement Date:</strong> {{ invoice.paid_at | format_date("%b %d, %Y %I:%M %p") if invoice.paid_at else 'Pending Complete Settlement' }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Itemized Breakdown Table -->
+      <table class="table table-bordered align-middle fs-7 mb-4">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 5%;">#</th>
+            <th style="width: 25%;">Service Category</th>
+            <th style="width: 40%;">Description & Clinical Service</th>
+            <th style="width: 10%;" class="text-center">Qty / Days</th>
+            <th style="width: 10%;" class="text-end">Unit Rate ($)</th>
+            <th style="width: 10%;" class="text-end">Amount ($)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for itm in items %}
+          <tr>
+            <td class="text-center">{{ loop.index }}</td>
+            <td><span class="badge bg-light text-dark border">{{ itm.item_type }}</span></td>
+            <td class="fw-semibold text-dark">{{ itm.description }}</td>
+            <td class="text-center">{{ itm.quantity }}</td>
+            <td class="text-end">${{ "%.2f"|format(itm.unit_price) }}</td>
+            <td class="text-end fw-bold">${{ "%.2f"|format(itm.total_price) }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center py-2 text-muted">No items billed on this invoice.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- Financial Calculation Summary -->
+      <div class="row justify-content-end mb-4">
+        <div class="col-md-5">
+          <div class="border rounded p-3 bg-light fs-7">
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted">Subtotal:</span>
+              <span class="fw-semibold">${{ "%.2f"|format(invoice.subtotal) }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted">Tax ({{ invoice.tax_percent }}%):</span>
+              <span>+${{ "%.2f"|format(invoice.tax_amount) }}</span>
+            </div>
+            {% if invoice.discount_amount > 0 %}
+            <div class="d-flex justify-content-between py-1 border-bottom text-success">
+              <span>Discount / Rebate:</span>
+              <span>-${{ "%.2f"|format(invoice.discount_amount) }}</span>
+            </div>
+            {% endif %}
+            <div class="d-flex justify-content-between py-2 border-bottom fs-6 fw-bold text-dark">
+              <span>Grand Total:</span>
+              <span>${{ "%.2f"|format(invoice.total_amount) }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom text-success fw-semibold">
+              <span>Amount Paid:</span>
+              <span>${{ "%.2f"|format(invoice.amount_paid) }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-2 fs-6 fw-bold {% if (invoice.total_amount - invoice.amount_paid) > 0 %}text-danger{% else %}text-muted{% endif %}">
+              <span>Balance Due:</span>
+              <span>${{ "%.2f"|format(invoice.total_amount - invoice.amount_paid) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if invoice.notes %}
+      <div class="p-2 bg-light rounded border fs-8 mb-4">
+        <strong>Billing Remarks:</strong> {{ invoice.notes }}
+      </div>
+      {% endif %}
+
+      <!-- Official Stamp & Cashier Signatures -->
+      <div class="border-top pt-4 mt-4">
+        <div class="row text-center fs-7">
+          <div class="col-4">
+            <div class="text-muted fs-8 mb-4">Prepared By</div>
+            <div class="fw-bold text-dark">Emma Watson</div>
+            <small class="text-muted">Front Desk & Accounts Billing</small>
+          </div>
+          <div class="col-4">
+            <div class="text-muted fs-8 mb-2">Hospital Cashier Seal</div>
+            <div class="badge bg-primary bg-opacity-10 text-primary border border-primary p-2 rounded-circle">
+              <i class="bi bi-shield-check fs-3"></i>
+            </div>
+            <div class="fs-8 text-muted mt-1">Authorized Receipt</div>
+          </div>
+          <div class="col-4">
+            <div class="text-muted fs-8 mb-4">Patient / Attendant Signature</div>
+            <div class="border-bottom mx-auto" style="width: 140px; height: 20px;"></div>
+            <small class="text-muted d-block mt-1">Acknowledged & Accepted</small>
+          </div>
+        </div>
+
+        <div class="text-center text-muted fs-8 mt-4 pt-2 border-top">
+          Thank you for choosing {{ hospital_name }}. For billing queries, contact accounts@pulsecare.org.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: RECORD PAYMENT -->
+<div class="modal fade" id="payModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('billing_record_payment', invoice_id=invoice.id) }}">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title fw-bold fs-6"><i class="bi bi-cash-stack text-success me-2"></i>Record Bill Payment</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body fs-7">
+          <div class="alert alert-info py-2 fs-7 mb-3">
+            Outstanding Balance: <strong>${{ "%.2f"|format(invoice.total_amount - invoice.amount_paid) }}</strong>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Payment Amount ($) <span class="text-danger">*</span></label>
+            <input type="number" step="0.01" name="pay_amount" class="form-control form-control-sm" required value="{{ '%.2f'|format(invoice.total_amount - invoice.amount_paid) }}">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Payment Method</label>
+            <select name="payment_method" class="form-select form-select-sm">
+              <option value="Cash">Cash</option>
+              <option value="Credit Card">Credit Card</option>
+              <option value="Debit Card">Debit Card</option>
+              <option value="UPI / QR">UPI / QR Code</option>
+              <option value="Insurance">Insurance Settlement</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-success fw-semibold">Record Payment Receipt</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

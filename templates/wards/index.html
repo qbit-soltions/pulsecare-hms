@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Ward & Bed Matrix{% endblock %}
+{% block header_title %}Hospital Inpatient (IPD) Ward & Bed Occupancy Matrix{% endblock %}
+
+{% block content %}
+
+<!-- TOP WARD SUMMARY & LEGEND -->
+<div class="card-custom mb-4">
+  <div class="card-body-custom d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <span class="fw-bold fs-7 text-uppercase text-muted">Bed Status Legend:</span>
+      <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-50 px-3 py-2">
+        <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> Available
+      </span>
+      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-50 px-3 py-2">
+        <i class="bi bi-person-fill me-1"></i> Occupied (Admitted)
+      </span>
+      <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-50 px-3 py-2">
+        <i class="bi bi-wrench-adjustable me-1"></i> Under Cleaning / Maintenance
+      </span>
+    </div>
+
+    {% if current_user and current_user.role in ['admin', 'doctor', 'nurse', 'receptionist'] %}
+    <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#admitPatientModal">
+      <i class="bi bi-plus-lg me-1"></i> Admit Patient
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- WARDS ITERATION -->
+{% for ward in wards %}
+<div class="card-custom mb-4">
+  <div class="card-header-custom bg-light d-flex justify-content-between align-items-center flex-wrap">
+    <div>
+      <h6 class="fw-bold m-0 text-dark">
+        <i class="bi bi-hospital text-primary me-2"></i>{{ ward.name }}
+        <span class="badge bg-secondary ms-2 fw-normal fs-8">{{ ward.floor }}</span>
+        <span class="badge bg-info text-dark ms-1 fw-normal fs-8">${{ "%.0f"|format(ward.daily_rate) }}/day</span>
+      </h6>
+      <small class="text-muted">{{ ward.description }}</small>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-success">{{ ward.available_count }} Available</span>
+      <span class="badge bg-danger">{{ ward.occupied_count }} Occupied</span>
+      {% if ward.maintenance_count > 0 %}
+      <span class="badge bg-warning text-dark">{{ ward.maintenance_count }} Maintenance</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card-body-custom">
+    <div class="bed-grid">
+      {% for bed in ward.beds %}
+      <div class="bed-card {% if bed.status == 'Available' %}available{% elif bed.status == 'Occupied' %}occupied{% else %}maintenance{% endif %}">
+        <div class="bed-card-header">
+          <span class="bed-number">{{ bed.bed_number }}</span>
+          {% if bed.status == 'Available' %}
+            <span class="badge bg-success" style="font-size: 0.65rem;">VACANT</span>
+          {% elif bed.status == 'Occupied' %}
+            <span class="badge bg-danger" style="font-size: 0.65rem;">OCCUPIED</span>
+          {% else %}
+            <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">MAINTENANCE</span>
+          {% endif %}
+        </div>
+
+        {% if bed.status == 'Occupied' %}
+          <div class="bed-patient-name" title="{{ bed.first_name }} {{ bed.last_name }}">
+            <i class="bi bi-person-fill text-danger me-1"></i>{{ bed.first_name }} {{ bed.last_name }}
+          </div>
+          <div class="bed-meta mb-1">
+            <span>{{ bed.patient_uid }} • {{ bed.blood_group }}</span>
+          </div>
+          <div class="bed-meta text-muted mb-2 text-truncate" title="Dr. {{ bed.doctor_name }}">
+            <i class="bi bi-person-badge me-1"></i>Dr. {{ bed.doctor_name }}
+          </div>
+
+          <div class="d-flex gap-1 border-top pt-2 mt-2">
+            <a href="{{ url_for('patient_view', patient_id=bed.patient_id) }}" class="btn btn-xs btn-outline-primary w-50 py-1" style="font-size: 0.72rem;">
+              <i class="bi bi-folder2-open"></i> EHR
+            </a>
+            {% if current_user and current_user.role in ['admin', 'doctor', 'nurse'] %}
+            <button class="btn btn-xs btn-outline-danger w-50 py-1" style="font-size: 0.72rem;"
+                    data-bs-toggle="modal" data-bs-target="#dischargePatientModal"
+                    data-admission-id="{{ bed.admission_id }}"
+                    data-patient-name="{{ bed.first_name }} {{ bed.last_name }}"
+                    data-bed-number="{{ bed.bed_number }}">
+              <i class="bi bi-box-arrow-right"></i> Discharge
+            </button>
+            {% endif %}
+          </div>
+
+        {% elif bed.status == 'Available' %}
+          <div class="text-center py-3">
+            <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-1"></i>
+            <span class="text-success fw-semibold fs-8">Ready for Admission</span>
+          </div>
+          {% if current_user and current_user.role in ['admin', 'doctor', 'nurse', 'receptionist'] %}
+          <div class="d-flex gap-1 border-top pt-2">
+            <button class="btn btn-sm btn-outline-success w-100 py-1" style="font-size: 0.72rem;"
+                    data-bs-toggle="modal" data-bs-target="#admitPatientModal"
+                    data-bed-id="{{ bed.id }}">
+              <i class="bi bi-plus-circle me-1"></i> Quick Admit
+            </button>
+          </div>
+          {% endif %}
+
+        {% else %}
+          <div class="text-center py-3">
+            <i class="bi bi-tools text-warning fs-3 d-block mb-1"></i>
+            <span class="text-warning fw-semibold fs-8">Cleaning / Sanitizing</span>
+          </div>
+          {% if current_user and current_user.role in ['admin', 'nurse'] %}
+          <form method="POST" action="{{ url_for('toggle_bed_maintenance', bed_id=bed.id) }}" class="border-top pt-2">
+            <button type="submit" class="btn btn-sm btn-outline-secondary w-100 py-1" style="font-size: 0.72rem;">
+              <i class="bi bi-check2"></i> Mark Ready
+            </button>
+          </form>
+          {% endif %}
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<!-- MODAL: ADMIT PATIENT -->
+<div class="modal fade" id="admitPatientModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('ward_admit_patient') }}">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title fw-bold fs-6"><i class="bi bi-hospital text-primary me-2"></i>Inpatient Admission Workflow</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body fs-7">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Select Patient <span class="text-danger">*</span></label>
+            <select name="patient_id" class="form-select form-select-sm" required>
+              <option value="">-- Choose Patient --</option>
+              {% for p in patients %}
+              <option value="{{ p.id }}">{{ p.patient_uid }} - {{ p.first_name }} {{ p.last_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Select Bed <span class="text-danger">*</span></label>
+            <select name="bed_id" id="modal-admit-bed-select" class="form-select form-select-sm" required>
+              <option value="">-- Choose Bed --</option>
+              {% for b in available_beds %}
+              <option value="{{ b.id }}">{{ b.bed_number }} - {{ b.ward_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Attending Doctor <span class="text-danger">*</span></label>
+            <select name="doctor_id" class="form-select form-select-sm" required>
+              <option value="">-- Assign Doctor --</option>
+              {% for doc in doctors %}
+              <option value="{{ doc.id }}">{{ doc.full_name }} ({{ doc.specialization }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Reason for Admission / Initial Assessment <span class="text-danger">*</span></label>
+            <textarea name="admission_reason" class="form-control form-control-sm" rows="3" required placeholder="e.g. Unstable vitals, post-op observation, acute respiratory distress..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary fw-semibold">Confirm Bed Admission</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DISCHARGE PATIENT -->
+<div class="modal fade" id="dischargePatientModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title fw-bold fs-6 text-danger"><i class="bi bi-box-arrow-right me-2"></i>Discharge Inpatient</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body fs-7">
+          <div class="alert alert-info py-2 fs-7 mb-3">
+            Discharging: <strong id="discharge-patient-name">Patient</strong>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Condition Upon Discharge</label>
+            <select name="discharge_condition" class="form-select form-select-sm">
+              <option value="Recovered / Stable">Recovered / Stable</option>
+              <option value="Improved / Ambulatory">Improved / Ambulatory</option>
+              <option value="Transferred to Higher Care">Transferred to Higher Care</option>
+              <option value="Discharged Against Medical Advice (DAMA)">Discharged Against Medical Advice (DAMA)</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Clinical Discharge Summary & Home Care Advice</label>
+            <textarea name="discharge_summary" class="form-control form-control-sm" rows="4" required placeholder="e.g. Patient afebrile for 48 hours, surgical wound clean and healing, oral medications prescribed for 7 days..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-danger fw-semibold">Finalize Discharge & Release Bed</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Lab Report - {{ order.order_number }}{% endblock %}
+{% block header_title %}Official Diagnostic Pathology Report{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+
+    <!-- Action Bar (Hidden in Print) -->
+    <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+      <a href="{{ url_for('laboratory_index') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Back to Lab Orders
+      </a>
+      <button onclick="window.print()" class="btn btn-sm btn-primary px-4 shadow-sm">
+        <i class="bi bi-printer-fill me-1"></i> Print / Download PDF
+      </button>
+    </div>
+
+    <!-- PRINTABLE REPORT CARD -->
+    <div class="card-custom p-4 printable-document bg-white shadow-sm" style="border: 2px solid #cbd5e1; border-radius: 12px;">
+      
+      <!-- Hospital Official Header -->
+      <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+        <div class="d-flex align-items-center gap-3">
+          <div class="p-3 bg-primary text-white rounded-3">
+            <i class="bi bi-hospital fs-2"></i>
+          </div>
+          <div>
+            <h4 class="fw-bold mb-0 text-dark">{{ hospital_name }}</h4>
+            <div class="text-muted fs-7">Department of Clinical Pathology & Laboratory Medicine</div>
+            <div class="text-muted fs-8">JCI & CAP Accredited Testing Facility • Registration: REG-HOSP-2026-9842A</div>
+          </div>
+        </div>
+        <div class="text-end">
+          <span class="badge bg-success px-3 py-2 fs-7 text-uppercase">VERIFIED REPORT</span>
+          <div class="fw-bold text-dark fs-6 mt-1">{{ order.order_number }}</div>
+          <small class="text-muted">Date: {{ order.completed_at | format_date("%b %d, %Y") if order.completed_at else order.ordered_at | format_date("%b %d, %Y") }}</small>
+        </div>
+      </div>
+
+      <!-- Patient & Doctor Demographics Matrix -->
+      <div class="bg-light rounded p-3 mb-4 border fs-7">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <div class="row g-1">
+              <div class="col-4 text-muted">Patient Name:</div>
+              <div class="col-8 fw-bold text-dark">{{ order.first_name }} {{ order.last_name }}</div>
+              
+              <div class="col-4 text-muted">Patient UID:</div>
+              <div class="col-8 fw-semibold text-primary">{{ order.patient_uid }}</div>
+
+              <div class="col-4 text-muted">Age / Gender:</div>
+              <div class="col-8">{{ order.gender }} • DOB: {{ order.dob | format_date }}</div>
+
+              <div class="col-4 text-muted">Contact Phone:</div>
+              <div class="col-8">{{ order.patient_phone }}</div>
+            </div>
+          </div>
+
+          <div class="col-md-6 border-start ps-md-4">
+            <div class="row g-1">
+              <div class="col-4 text-muted">Referring Doctor:</div>
+              <div class="col-8 fw-bold text-dark">Dr. {{ order.doctor_name }}</div>
+
+              <div class="col-4 text-muted">Specialty:</div>
+              <div class="col-8">{{ order.doctor_spec }}</div>
+
+              <div class="col-4 text-muted">Sample Collected:</div>
+              <div class="col-8">{{ order.sample_collected_at | format_date("%b %d, %Y %I:%M %p") if order.sample_collected_at else 'At Inception' }}</div>
+
+              <div class="col-4 text-muted">Report Verified:</div>
+              <div class="col-8 text-success fw-semibold">{{ order.completed_at | format_date("%b %d, %Y %I:%M %p") if order.completed_at else 'Pending Final Release' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TEST RESULTS SECTION -->
+      {% for itm in items %}
+      <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center bg-secondary bg-opacity-10 p-2 rounded mb-2">
+          <h6 class="fw-bold m-0 text-dark">
+            <i class="bi bi-file-earmark-medical me-1 text-primary"></i>{{ itm.test_name }} ({{ itm.test_code }})
+          </h6>
+          <span class="badge bg-light text-dark border">Specimen: {{ itm.specimen_type or 'Serum' }}</span>
+        </div>
+
+        <table class="table table-bordered align-middle fs-7 mb-2">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 35%;">Investigation Parameter</th>
+              <th style="width: 25%;">Measured Result</th>
+              <th style="width: 15%;">Unit</th>
+              <th style="width: 25%;">Biological Reference Interval</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set results = itm.results_json | fromjson %}
+            {% for r in results %}
+            <tr {% if r.is_abnormal %}class="table-danger bg-opacity-25"{% endif %}>
+              <td class="fw-semibold">
+                {{ r.name }}
+                {% if r.is_abnormal %}
+                  <span class="badge bg-danger ms-1" style="font-size: 0.65rem;">HIGH / ABNORMAL</span>
+                {% endif %}
+              </td>
+              <td class="fw-bold {% if r.is_abnormal %}text-danger{% else %}text-dark{% endif %}">
+                {{ r.value }}
+              </td>
+              <td>{{ r.unit }}</td>
+              <td class="text-muted">{{ r.ref_range }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="text-center py-2 text-muted">Awaiting test processing.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        {% if itm.interpretation %}
+        <div class="p-2 bg-light rounded border fs-8 mb-2">
+          <strong>Pathologist Interpretation:</strong> {{ itm.interpretation }}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <!-- OFFICIAL SIGN-OFF FOOTER -->
+      <div class="border-top pt-4 mt-4">
+        <div class="row text-center fs-7">
+          <div class="col-4">
+            <div class="text-muted fs-8 mb-4">Sample Processed By</div>
+            <div class="fw-bold text-dark">Lisa Ray, MS</div>
+            <small class="text-muted d-block">Senior Clinical Technologist</small>
+          </div>
+          <div class="col-4">
+            <div class="text-muted fs-8 mb-2">Verification Seal</div>
+            <div class="badge bg-success bg-opacity-10 text-success border border-success p-2 rounded-circle">
+              <i class="bi bi-patch-check-fill fs-3"></i>
+            </div>
+            <div class="fs-8 text-muted mt-1">Digitally Authenticated</div>
+          </div>
+          <div class="col-4">
+            <div class="text-muted fs-8 mb-4">Report Verified & Approved By</div>
+            <div class="fw-bold text-dark">Dr. Arthur Vance, MD</div>
+            <small class="text-muted d-block">Chief Medical Officer</small>
+          </div>
+        </div>
+
+        <div class="text-center text-muted fs-8 mt-4 pt-2 border-top">
+          End of Laboratory Examination Report • PulseCare Hospital Clinical Laboratory System • Confidential Medical Record
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

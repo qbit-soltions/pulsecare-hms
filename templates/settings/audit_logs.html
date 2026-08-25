@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}System Audit Logs{% endblock %}
+{% block header_title %}Security Audit Trail & Activity Logs{% endblock %}
+
+{% block content %}
+<div class="card-custom">
+  <div class="card-header-custom">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-shield-check text-primary fs-5"></i>
+      <h6 class="fw-bold m-0">System Activity & Audit Log Stream (Last 100 Events)</h6>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 fs-7">
+      <thead class="table-light">
+        <tr>
+          <th>Timestamp</th>
+          <th>Staff / User</th>
+          <th>Module</th>
+          <th>Action</th>
+          <th>Details</th>
+          <th>IP Address</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in logs %}
+        <tr>
+          <td class="text-muted">{{ l.timestamp | format_date("%b %d, %Y %I:%M:%S %p") }}</td>
+          <td>
+            <span class="fw-semibold text-dark">{{ l.user_name or 'System Event' }}</span>
+            <span class="badge bg-light text-muted border text-uppercase fs-8">{{ l.user_role or 'system' }}</span>
+          </td>
+          <td><span class="badge bg-info bg-opacity-10 text-info">{{ l.module }}</span></td>
+          <td class="fw-bold text-dark">{{ l.action }}</td>
+          <td class="text-muted">{{ l.details }}</td>
+          <td><code>{{ l.ip_address or '127.0.0.1' }}</code></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center py-4 text-muted">No audit records found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

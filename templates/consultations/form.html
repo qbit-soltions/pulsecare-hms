@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Doctor Consultation & E-Prescription{% endblock %}
+{% block header_title %}Clinical Consultation Room - Patient: {{ patient.first_name }} {{ patient.last_name }}{% endblock %}
+
+{% block content %}
+<form method="POST">
+  <div class="row g-4">
+    
+    <!-- LEFT: PATIENT CLINICAL SUMMARY & VITALS -->
+    <div class="col-lg-4">
+      <div class="card-custom mb-3">
+        <div class="card-header-custom bg-primary text-white">
+          <h6 class="fw-bold m-0 text-white"><i class="bi bi-person-badge me-2"></i>Patient Profile</h6>
+          <span class="badge bg-light text-primary">{{ patient.patient_uid }}</span>
+        </div>
+        <div class="p-3 fs-7">
+          <div class="d-flex justify-content-between py-1 border-bottom">
+            <span class="text-muted">Full Name:</span>
+            <span class="fw-bold">{{ patient.first_name }} {{ patient.last_name }}</span>
+          </div>
+          <div class="d-flex justify-content-between py-1 border-bottom">
+            <span class="text-muted">Gender / DOB:</span>
+            <span>{{ patient.gender }}, {{ patient.dob | format_date }}</span>
+          </div>
+          <div class="d-flex justify-content-between py-1 border-bottom">
+            <span class="text-muted">Blood Group:</span>
+            <span class="fw-bold text-danger">{{ patient.blood_group }}</span>
+          </div>
+          <div class="d-flex justify-content-between py-1 border-bottom">
+            <span class="text-muted">Drug Allergies:</span>
+            <span class="fw-bold text-danger">{{ patient.allergies or 'None Reported' }}</span>
+          </div>
+          <div class="d-flex justify-content-between py-1">
+            <span class="text-muted">Chronic Illness:</span>
+            <span class="fw-semibold">{{ patient.chronic_conditions or 'None' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Latest Vital Signs Box -->
+      <div class="card-custom mb-3">
+        <div class="card-header-custom bg-light">
+          <h6 class="fw-bold m-0"><i class="bi bi-activity text-danger me-2"></i>Latest Vital Signs</h6>
+          <small class="text-muted">{{ latest_vitals.recorded_at | format_date("%b %d, %H:%M") if latest_vitals else 'No Vitals' }}</small>
+        </div>
+        <div class="p-3">
+          {% if latest_vitals %}
+          <div class="row g-2 text-center fs-7">
+            <div class="col-6">
+              <div class="p-2 border rounded bg-light">
+                <div class="text-muted fs-8">Blood Pressure</div>
+                <div class="fw-bold text-danger fs-6">{{ latest_vitals.blood_pressure_sys }}/{{ latest_vitals.blood_pressure_dia }} mmHg</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 border rounded bg-light">
+                <div class="text-muted fs-8">Heart Rate</div>
+                <div class="fw-bold text-primary fs-6">{{ latest_vitals.heart_rate_bpm }} bpm</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 border rounded bg-light">
+                <div class="text-muted fs-8">Temperature</div>
+                <div class="fw-bold text-warning fs-6">{{ latest_vitals.temperature_c }} °C</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 border rounded bg-light">
+                <div class="text-muted fs-8">SpO2 Oxygen</div>
+                <div class="fw-bold text-success fs-6">{{ latest_vitals.spo2_percent }} %</div>
+              </div>
+            </div>
+          </div>
+          {% else %}
+          <div class="text-muted text-center py-2 fs-7">No prior vitals recorded for this visit.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Past Diagnoses History -->
+      <div class="card-custom">
+        <div class="card-header-custom bg-light">
+          <h6 class="fw-bold m-0"><i class="bi bi-journal-medical text-primary me-2"></i>Past Medical History</h6>
+        </div>
+        <div class="p-3 fs-8">
+          {% for pc in past_consultations %}
+          <div class="mb-2 pb-2 border-bottom">
+            <div class="fw-bold text-dark">{{ pc.diagnosis }}</div>
+            <div class="text-muted">{{ pc.created_at | format_date }} • Dr. {{ pc.doctor_name }}</div>
+          </div>
+          {% else %}
+          <div class="text-muted text-center py-2">No prior consultations recorded.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: CLINICAL NOTES, E-PRESCRIPTION & LAB ORDERS -->
+    <div class="col-lg-8">
+      
+      <!-- 1. Clinical SOAP Notes -->
+      <div class="card-custom mb-4">
+        <div class="card-header-custom bg-primary bg-opacity-10">
+          <h6 class="fw-bold m-0 text-primary"><i class="bi bi-file-earmark-medical-fill me-2"></i>1. Clinical Assessment & SOAP Notes</h6>
+        </div>
+        <div class="card-body-custom fs-7">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Symptoms & Chief Complaints (Subjective) <span class="text-danger">*</span></label>
+              <textarea name="symptoms" class="form-control form-control-sm" rows="3" required placeholder="e.g. Acute retrosternal chest discomfort, breathlessness for 2 days..."></textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Clinical Examination Findings (Objective)</label>
+              <textarea name="examination_notes" class="form-control form-control-sm" rows="3" placeholder="e.g. S1/S2 heard, bilateral vesicular breath sounds, no pedal edema..."></textarea>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label fw-semibold">Primary Clinical Diagnosis (Assessment) <span class="text-danger">*</span></label>
+              <input type="text" name="diagnosis" class="form-control form-control-sm" required placeholder="e.g. Acute Coronary Syndrome (Non-STEMI) / Unstable Angina">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">ICD-10 Code</label>
+              <input type="text" name="icd_code" class="form-control form-control-sm" placeholder="e.g. I20.0 or E11.65">
+            </div>
+            <div class="col-md-8">
+              <label class="form-label fw-semibold">Treatment Plan & Medical Advice (Plan)</label>
+              <textarea name="treatment_plan" class="form-control form-control-sm" rows="2" placeholder="e.g. Low sodium cardiac diet, strict bed rest, daily telemetry monitoring..."></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Recommended Follow-up Date</label>
+              <input type="date" name="follow_up_date" class="form-control form-control-sm">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. E-Prescription Generator -->
+      <div class="card-custom mb-4">
+        <div class="card-header-custom bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+          <h6 class="fw-bold m-0 text-dark"><i class="bi bi-capsule-fill text-warning me-2"></i>2. Electronic Prescription (Rx)</h6>
+          <button type="button" class="btn btn-sm btn-outline-dark" id="btn-add-medicine-row">
+            <i class="bi bi-plus-circle me-1"></i> Add Medication
+          </button>
+        </div>
+        <div class="card-body-custom fs-7">
+          <div class="table-responsive mb-3">
+            <table class="table table-bordered align-middle fs-7 mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 32%;">Medicine (Catalog)</th>
+                  <th style="width: 15%;">Dosage</th>
+                  <th style="width: 18%;">Frequency</th>
+                  <th style="width: 10%;">Days</th>
+                  <th style="width: 20%;">Instructions</th>
+                  <th style="width: 5%;"></th>
+                </tr>
+              </thead>
+              <tbody id="prescription-items-tbody">
+                <tr>
+                  <td>
+                    <select name="med_id[]" class="form-select form-select-sm">
+                      <option value="">-- Choose Medicine --</option>
+                      {% for m in medicines %}
+                      <option value="{{ m.id }}">{{ m.brand_name }} ({{ m.strength }} {{ m.form }}) - [Stock: {{ m.stock_quantity }}]</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td><input type="text" name="dosage[]" class="form-control form-control-sm" placeholder="e.g. 1 Tab / 500mg"></td>
+                  <td>
+                    <select name="frequency[]" class="form-select form-select-sm">
+                      <option value="1-0-1 (Twice daily)">1-0-1 (Twice daily)</option>
+                      <option value="1-1-1 (Thrice daily)">1-1-1 (Thrice daily)</option>
+                      <option value="1-0-0 (Morning)">1-0-0 (Morning)</option>
+                      <option value="0-0-1 (Night / Bedtime)">0-0-1 (Night)</option>
+                      <option value="1-1-1-1 (Q6H)">1-1-1-1 (Q6H)</option>
+                      <option value="SOS (As needed)">SOS (As needed)</option>
+                    </select>
+                  </td>
+                  <td><input type="number" name="duration_days[]" class="form-control form-control-sm" value="5"></td>
+                  <td><input type="text" name="instructions[]" class="form-control form-control-sm" placeholder="After food"></td>
+                  <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row p-1"><i class="bi bi-trash"></i></button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <label class="form-label fw-semibold">Special Instructions for Pharmacist / Patient</label>
+            <input type="text" name="special_instructions" class="form-control form-control-sm" placeholder="e.g. Take with plenty of water. Avoid dairy products within 2 hours.">
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Lab Diagnostic Orders -->
+      <div class="card-custom mb-4">
+        <div class="card-header-custom bg-info bg-opacity-10">
+          <h6 class="fw-bold m-0 text-dark"><i class="bi bi-moisture text-info me-2"></i>3. Diagnostic Laboratory & Imaging Orders</h6>
+        </div>
+        <div class="card-body-custom fs-7">
+          <p class="text-muted fs-8 mb-2">Select any laboratory or radiological diagnostic tests required for this patient:</p>
+          <div class="row g-2 mb-3">
+            {% for test in lab_tests %}
+            <div class="col-md-6">
+              <div class="form-check p-2 border rounded bg-light bg-opacity-50">
+                <input class="form-check-input ms-0 me-2" type="checkbox" name="lab_test_ids[]" value="{{ test.id }}" id="lab_test_{{ test.id }}">
+                <label class="form-check-label fw-semibold" for="lab_test_{{ test.id }}">
+                  {{ test.code }} - {{ test.name }}
+                  <span class="text-muted d-block fs-8">{{ test.category }} • ${{ "%.2f"|format(test.cost) }}</span>
+                </label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+
+          <div>
+            <label class="form-label fw-semibold">Clinical Indication for Lab Technician</label>
+            <input type="text" name="lab_clinical_notes" class="form-control form-control-sm" placeholder="e.g. Rule out myocardial ischemia, evaluate renal safety profile">
+          </div>
+        </div>
+      </div>
+
+      <!-- SUBMIT BUTTONS -->
+      <div class="d-flex justify-content-end gap-3 border-top pt-3">
+        <a href="{{ url_for('patient_view', patient_id=patient.id) }}" class="btn btn-secondary px-4">Cancel</a>
+        <button type="submit" class="btn btn-primary px-5 py-2 fw-bold shadow-sm">
+          <i class="bi bi-check2-circle me-1"></i> Save Consultation, Prescribe & Order Labs
+        </button>
+      </div>
+
+    </div>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Appointments & OPD Scheduling{% endblock %}
+{% block header_title %}Outpatient (OPD) Scheduling & Appointments{% endblock %}
+
+{% block content %}
+<div class="card-custom">
+  <div class="card-header-custom flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-calendar2-week-fill text-primary fs-5"></i>
+      <h6 class="fw-bold m-0">Appointments ({{ appointments|length }})</h6>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+      <form method="GET" action="{{ url_for('appointments_list') }}" class="d-flex align-items-center gap-2 flex-wrap">
+        <input type="date" name="date" class="form-control form-control-sm" style="width: 150px;" value="{{ date_filter }}" onchange="this.form.submit()">
+
+        <select name="doctor_id" class="form-select form-select-sm" style="width: 170px;" onchange="this.form.submit()">
+          <option value="">All Doctors</option>
+          {% for doc in doctors %}
+          <option value="{{ doc.id }}" {% if doc_filter == (doc.id|string) %}selected{% endif %}>{{ doc.full_name }}</option>
+          {% endfor %}
+        </select>
+
+        <select name="department_id" class="form-select form-select-sm" style="width: 170px;" onchange="this.form.submit()">
+          <option value="">All Departments</option>
+          {% for dept in departments %}
+          <option value="{{ dept.id }}" {% if dept_filter == (dept.id|string) %}selected{% endif %}>{{ dept.name }}</option>
+          {% endfor %}
+        </select>
+
+        <select name="status" class="form-select form-select-sm" style="width: 140px;" onchange="this.form.submit()">
+          <option value="">All Statuses</option>
+          <option value="Booked" {% if status_filter == 'Booked' %}selected{% endif %}>Booked</option>
+          <option value="Checked-in" {% if status_filter == 'Checked-in' %}selected{% endif %}>Checked-in</option>
+          <option value="In Consultation" {% if status_filter == 'In Consultation' %}selected{% endif %}>In Consultation</option>
+          <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
+          <option value="Cancelled" {% if status_filter == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+        </select>
+
+        {% if date_filter or doc_filter or dept_filter or status_filter %}
+        <a href="{{ url_for('appointments_list') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        {% endif %}
+      </form>
+
+      <a href="{{ url_for('opd_queue_screen') }}" target="_blank" class="btn btn-sm btn-outline-info">
+        <i class="bi bi-display me-1"></i> Live Waiting Board
+      </a>
+
+      {% if current_user and current_user.role in ['admin', 'receptionist', 'doctor', 'nurse'] %}
+      <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#bookAppointmentModal">
+        <i class="bi bi-plus-lg me-1"></i> Book Appointment
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 fs-7">
+      <thead class="table-light">
+        <tr>
+          <th>Token #</th>
+          <th>Appt No.</th>
+          <th>Patient Name & UID</th>
+          <th>Doctor & Specialty</th>
+          <th>Department</th>
+          <th>Time & Type</th>
+          <th>Reason</th>
+          <th>Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in appointments %}
+        <tr>
+          <td>
+            <span class="badge bg-primary rounded-circle px-2 py-1 fs-7">#{{ a.token_number }}</span>
+          </td>
+          <td class="fw-semibold text-muted">{{ a.appointment_number }}</td>
+          <td>
+            <a href="{{ url_for('patient_view', patient_id=a.patient_id) }}" class="fw-bold text-dark text-decoration-none">
+              {{ a.first_name }} {{ a.last_name }}
+            </a>
+            <div class="text-muted fs-8">{{ a.patient_uid }} • {{ a.patient_phone }}</div>
+          </td>
+          <td>
+            <div class="fw-semibold">{{ a.doctor_name }}</div>
+            <div class="text-muted fs-8">{{ a.doctor_spec }}</div>
+          </td>
+          <td>
+            <span class="badge" style="background-color: {{ a.dept_color or '#0284c7' }}; color: #fff;">
+              {{ a.department_name or 'General' }}
+            </span>
+          </td>
+          <td>
+            <div class="fw-bold">{{ a.appointment_time }}</div>
+            <small class="badge bg-light text-dark border">{{ a.type }}</small>
+          </td>
+          <td class="text-truncate" style="max-width: 180px;">{{ a.reason or '—' }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('appointment_update_status', apt_id=a.id) }}" class="d-inline">
+              <select name="status" class="form-select form-select-sm py-0 px-2 fw-semibold fs-8" onchange="this.form.submit()" style="width: 135px; height: 26px;">
+                <option value="Booked" {% if a.status == 'Booked' %}selected{% endif %}>Booked</option>
+                <option value="Checked-in" {% if a.status == 'Checked-in' %}selected{% endif %}>Checked-in</option>
+                <option value="In Consultation" {% if a.status == 'In Consultation' %}selected{% endif %}>In Consult</option>
+                <option value="Completed" {% if a.status == 'Completed' %}selected{% endif %}>Completed</option>
+                <option value="Cancelled" {% if a.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                <option value="No-Show" {% if a.status == 'No-Show' %}selected{% endif %}>No-Show</option>
+              </select>
+            </form>
+          </td>
+          <td class="text-end">
+            {% if current_user and current_user.role in ['admin', 'doctor'] %}
+            <a href="{{ url_for('consultation_create', appointment_id=a.id, patient_id=a.patient_id) }}" class="btn btn-sm btn-primary py-1 px-2" title="Start Consultation">
+              <i class="bi bi-clipboard2-pulse me-1"></i> Consult
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" class="text-center py-5 text-muted">
+            <i class="bi bi-calendar-x fs-1 d-block mb-2 text-secondary"></i>
+            No appointments found for the selected criteria.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL: BOOK NEW APPOINTMENT -->
+<div class="modal fade" id="bookAppointmentModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('appointment_create') }}">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title fw-bold fs-6"><i class="bi bi-calendar2-plus text-primary me-2"></i>Book Doctor Appointment</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body fs-7">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Select Patient <span class="text-danger">*</span></label>
+            <select name="patient_id" class="form-select form-select-sm" required>
+              <option value="">-- Choose Registered Patient --</option>
+              {% for p in patients %}
+              <option value="{{ p.id }}">{{ p.patient_uid }} - {{ p.first_name }} {{ p.last_name }} ({{ p.phone }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">Department</label>
+              <select name="department_id" class="form-select form-select-sm">
+                <option value="">-- Choose Department --</option>
+                {% for dept in departments %}
+                <option value="{{ dept.id }}">{{ dept.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Consulting Doctor <span class="text-danger">*</span></label>
+              <select name="doctor_id" class="form-select form-select-sm" required>
+                <option value="">-- Choose Doctor --</option>
+                {% for doc in doctors %}
+                <option value="{{ doc.id }}">{{ doc.full_name }} ({{ doc.specialization }})</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">Appointment Date <span class="text-danger">*</span></label>
+              <input type="date" name="appointment_date" class="form-control form-control-sm" required value="{{ today_date }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Preferred Slot</label>
+              <select name="appointment_time" class="form-select form-select-sm">
+                <option value="09:00 AM">09:00 AM</option>
+                <option value="09:30 AM">09:30 AM</option>
+                <option value="10:00 AM">10:00 AM</option>
+                <option value="10:30 AM">10:30 AM</option>
+                <option value="11:00 AM">11:00 AM</option>
+                <option value="11:30 AM">11:30 AM</option>
+                <option value="02:00 PM">02:00 PM</option>
+                <option value="02:30 PM">02:30 PM</option>
+                <option value="03:00 PM">03:00 PM</option>
+                <option value="03:30 PM">03:30 PM</option>
+                <option value="04:00 PM">04:00 PM</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Visit Type</label>
+            <select name="type" class="form-select form-select-sm">
+              <option value="Consultation">First Time Consultation</option>
+              <option value="Follow-up">Follow-up Visit</option>
+              <option value="Routine Checkup">Routine Preventive Checkup</option>
+              <option value="Emergency">Urgent Care / Emergency</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Chief Reason for Visit</label>
+            <textarea name="reason" class="form-control form-control-sm" rows="2" placeholder="e.g. Recurrent severe headaches, palpitation..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary">Book & Issue Token</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+
+{% block title %}Clinical Dashboard{% endblock %}
+{% block header_title %}
+  {% if current_user and current_user.role == 'doctor' %}
+    Doctor Clinical Dashboard - {{ current_user.full_name }}
+  {% elif current_user and current_user.role == 'patient' %}
+    Patient Health Portal - {{ current_user.full_name }}
+  {% elif current_user and current_user.role == 'nurse' %}
+    Inpatient Nursing & Ward Dashboard
+  {% else %}
+    Hospital Operational Overview
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- =========================================================================
+     PATIENT PORTAL VIEW (When logged in as patient)
+     ========================================================================= -->
+{% if current_user and current_user.role == 'patient' %}
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card-custom p-4 text-center">
+      <img src="{{ current_user.avatar_url }}" alt="Profile" class="rounded-circle mb-3 border border-3 border-primary shadow-sm" style="width: 90px; height: 90px; object-fit: cover;">
+      <h5 class="fw-bold mb-1">{{ patient_data.first_name }} {{ patient_data.last_name }}</h5>
+      <span class="badge bg-primary px-3 py-1 rounded-pill mb-3">{{ patient_data.patient_uid }}</span>
+
+      <div class="text-start border-top pt-3 fs-7">
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Blood Group:</span>
+          <span class="fw-bold text-danger">{{ patient_data.blood_group }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Date of Birth:</span>
+          <span class="fw-semibold">{{ patient_data.dob | format_date }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Phone:</span>
+          <span class="fw-semibold">{{ patient_data.phone }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Allergies:</span>
+          <span class="fw-semibold text-danger">{{ patient_data.allergies or 'None Known' }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1">
+          <span class="text-muted">Insurance:</span>
+          <span class="fw-semibold">{{ patient_data.insurance_provider or 'Self Pay' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <!-- Patient Appointments -->
+    <div class="card-custom mb-4">
+      <div class="card-header-custom">
+        <h6 class="fw-bold"><i class="bi bi-calendar2-check text-primary me-2"></i>My Appointments</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 fs-7">
+          <thead class="table-light">
+            <tr>
+              <th>Appt #</th>
+              <th>Doctor</th>
+              <th>Department</th>
+              <th>Date & Time</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in patient_appointments %}
+            <tr>
+              <td class="fw-semibold">{{ a.appointment_number }}</td>
+              <td>{{ a.doctor_name }}</td>
+              <td>{{ a.department_name }}</td>
+              <td>{{ a.appointment_date | format_date }} ({{ a.appointment_time }})</td>
+              <td>
+                <span class="badge {% if a.status == 'Completed' %}bg-success{% elif a.status == 'Booked' %}bg-primary{% else %}bg-info text-dark{% endif %}">
+                  {{ a.status }}
+                </span>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center py-3 text-muted">No appointments found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Patient Prescriptions & Lab tests -->
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="card-custom h-100">
+          <div class="card-header-custom">
+            <h6 class="fw-bold"><i class="bi bi-capsule text-warning me-2"></i>My Prescriptions</h6>
+          </div>
+          <div class="p-3 fs-7">
+            {% for rx in patient_prescriptions %}
+            <div class="border rounded p-2 mb-2 bg-light d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-bold text-primary">{{ rx.prescription_number }}</div>
+                <small class="text-muted">Dr. {{ rx.doctor_name }} • {{ rx.created_at | format_date }}</small>
+              </div>
+              <span class="badge bg-success">{{ rx.status }}</span>
+            </div>
+            {% else %}
+            <div class="text-muted text-center py-2">No prescriptions yet.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card-custom h-100">
+          <div class="card-header-custom">
+            <h6 class="fw-bold"><i class="bi bi-moisture text-info me-2"></i>My Lab Reports</h6>
+          </div>
+          <div class="p-3 fs-7">
+            {% for lo in patient_lab_orders %}
+            <div class="border rounded p-2 mb-2 bg-light d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-bold text-dark">{{ lo.order_number }}</div>
+                <small class="text-muted">{{ lo.ordered_at | format_date }}</small>
+              </div>
+              <a href="{{ url_for('lab_report_view', order_id=lo.id) }}" class="btn btn-sm btn-outline-primary py-0">
+                <i class="bi bi-file-earmark-medical"></i> View Report
+              </a>
+            </div>
+            {% else %}
+            <div class="text-muted text-center py-2">No lab reports.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     STAFF / CLINICAL / ADMIN DASHBOARDS
+     ========================================================================= -->
+{% else %}
+
+<!-- TOP KPI STAT CARDS -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-3 col-sm-6">
+    <div class="stat-card d-flex align-items-center justify-content-between">
+      <div>
+        <div class="stat-card-label">Total Patients Registered</div>
+        <div class="stat-card-val">{{ total_patients }}</div>
+        <small class="text-success fw-semibold"><i class="bi bi-person-check-fill me-1"></i>Active EMR Records</small>
+      </div>
+      <div class="stat-card-icon bg-primary bg-opacity-10 text-primary">
+        <i class="bi bi-people-fill"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-sm-6">
+    <div class="stat-card d-flex align-items-center justify-content-between">
+      <div>
+        <div class="stat-card-label">Active Inpatients (IPD)</div>
+        <div class="stat-card-val">{{ total_inpatient }}</div>
+        <small class="text-info fw-semibold"><i class="bi bi-hospital me-1"></i>In Hospital Wards</small>
+      </div>
+      <div class="stat-card-icon bg-info bg-opacity-10 text-info">
+        <i class="bi bi-hospital-fill"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-sm-6">
+    <div class="stat-card d-flex align-items-center justify-content-between">
+      <div>
+        <div class="stat-card-label">Bed Occupancy Rate</div>
+        <div class="stat-card-val">{{ bed_occupancy_rate }}%</div>
+        <small class="text-muted">{{ occupied_beds }} of {{ total_beds }} Beds Occupied</small>
+      </div>
+      <div class="stat-card-icon bg-warning bg-opacity-10 text-warning">
+        <i class="bi bi-grid-3x3-gap-fill"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-sm-6">
+    <div class="stat-card d-flex align-items-center justify-content-between">
+      <div>
+        <div class="stat-card-label">Revenue Collected</div>
+        <div class="stat-card-val">${{ "%.2f"|format(revenue_total) }}</div>
+        <small class="text-success fw-semibold"><i class="bi bi-cash-stack me-1"></i>Settled Invoices</small>
+      </div>
+      <div class="stat-card-icon bg-success bg-opacity-10 text-success">
+        <i class="bi bi-currency-dollar"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DOCTOR CLINICAL APPOINTMENT SCHEDULE (If Doctor) -->
+{% if current_user and current_user.role == 'doctor' %}
+<div class="card-custom mb-4">
+  <div class="card-header-custom bg-danger bg-opacity-10">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-heart-pulse-fill text-danger fs-5"></i>
+      <h6 class="fw-bold m-0 text-danger">My OPD Queue Today ({{ today_appointments|length }} Patients Scheduled)</h6>
+    </div>
+    <a href="{{ url_for('appointments_list') }}" class="btn btn-sm btn-outline-danger">View Full Calendar</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 fs-7">
+      <thead class="table-light">
+        <tr>
+          <th>Token #</th>
+          <th>Patient Name & UID</th>
+          <th>Age / Gender</th>
+          <th>Time</th>
+          <th>Chief Complaint</th>
+          <th>Status</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in doctor_consults_today %}
+        <tr>
+          <td><span class="badge bg-primary fs-7 rounded-circle px-2 py-1">#{{ a.token_number }}</span></td>
+          <td>
+            <a href="{{ url_for('patient_view', patient_id=a.patient_id) }}" class="fw-bold text-dark text-decoration-none">
+              {{ a.first_name }} {{ a.last_name }}
+            </a>
+            <div class="text-muted fs-8">{{ a.patient_uid }} • {{ a.blood_group }}</div>
+          </td>
+          <td>{{ a.gender }}</td>
+          <td><span class="badge bg-light text-dark border">{{ a.appointment_time }}</span></td>
+          <td class="text-truncate" style="max-width: 200px;">{{ a.reason or 'Routine Consultation' }}</td>
+          <td>
+            <span class="badge {% if a.status == 'Completed' %}bg-success{% elif a.status == 'In Consultation' %}bg-primary{% elif a.status == 'Checked-in' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+              {{ a.status }}
+            </span>
+          </td>
+          <td class="text-end">
+            <a href="{{ url_for('consultation_create', appointment_id=a.id, patient_id=a.patient_id) }}" class="btn btn-sm btn-primary rounded-pill px-3">
+              <i class="bi bi-clipboard2-pulse me-1"></i> Consult / Rx
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center py-4 text-muted">
+            <i class="bi bi-calendar-check fs-2 text-secondary d-block mb-1"></i>
+            No appointments remaining on your OPD schedule today.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- MAIN DASHBOARD SPLIT: TODAY'S QUEUE & CHARTS -->
+<div class="row g-4 mb-4">
+  <!-- Left: Today's Central Hospital Appointments -->
+  <div class="col-lg-8">
+    <div class="card-custom h-100">
+      <div class="card-header-custom">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-calendar-event text-primary fs-5"></i>
+          <h6 class="fw-bold m-0">Today's Hospital Appointments Queue</h6>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('opd_queue_screen') }}" target="_blank" class="btn btn-sm btn-outline-info">
+            <i class="bi bi-display me-1"></i> OPD Display TV
+          </a>
+          <a href="{{ url_for('appointments_list') }}" class="btn btn-sm btn-outline-primary">View All</a>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 fs-7">
+          <thead class="table-light">
+            <tr>
+              <th>Token</th>
+              <th>Patient</th>
+              <th>Doctor</th>
+              <th>Department</th>
+              <th>Time</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in today_appointments %}
+            <tr>
+              <td><span class="badge bg-secondary rounded-pill">#{{ a.token_number }}</span></td>
+              <td>
+                <a href="{{ url_for('patient_view', patient_id=a.patient_id) }}" class="fw-bold text-dark text-decoration-none">
+                  {{ a.first_name }} {{ a.last_name }}
+                </a>
+                <div class="text-muted fs-8">{{ a.patient_uid }}</div>
+              </td>
+              <td>{{ a.doctor_name }}</td>
+              <td><span class="badge" style="background-color: {{ a.dept_color }}; color: #fff;">{{ a.department_name }}</span></td>
+              <td>{{ a.appointment_time }}</td>
+              <td>
+                <span class="badge {% if a.status == 'Completed' %}bg-success{% elif a.status == 'In Consultation' %}bg-primary{% elif a.status == 'Checked-in' %}bg-info text-dark{% else %}bg-light text-dark border{% endif %}">
+                  {{ a.status }}
+                </span>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-center py-4 text-muted">No appointments scheduled for today.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Ward Occupancy Matrix Snapshot -->
+  <div class="col-lg-4">
+    <div class="card-custom h-100">
+      <div class="card-header-custom">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-pie-chart text-warning fs-5"></i>
+          <h6 class="fw-bold m-0">Ward Bed Occupancy</h6>
+        </div>
+        <a href="{{ url_for('wards_index') }}" class="btn btn-sm btn-outline-secondary">View Matrix</a>
+      </div>
+      <div class="p-3">
+        {% for w in wards_summary %}
+        {% set occ_pct = ((w.occupied_count / w.total_beds_count) * 100)|round|int if w.total_beds_count > 0 else 0 %}
+        <div class="mb-3">
+          <div class="d-flex justify-content-between fs-7 mb-1">
+            <span class="fw-semibold">{{ w.name }}</span>
+            <span class="text-muted">{{ w.occupied_count }} / {{ w.total_beds_count }} Beds ({{ occ_pct }}%)</span>
+          </div>
+          <div class="progress" style="height: 8px;">
+            <div class="progress-bar {% if occ_pct > 80 %}bg-danger{% elif occ_pct > 50 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ occ_pct }}%;"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AUDIT LOG & RECENT ACTIVITY -->
+<div class="card-custom">
+  <div class="card-header-custom">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-clock-history text-secondary fs-5"></i>
+      <h6 class="fw-bold m-0">Live Hospital Activity & Audit Stream</h6>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 fs-7">
+      <thead class="table-light">
+        <tr>
+          <th>Timestamp</th>
+          <th>Staff / User</th>
+          <th>Module</th>
+          <th>Action</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for act in recent_activities %}
+        <tr>
+          <td class="text-muted">{{ act.timestamp | format_date("%b %d, %H:%M:%S") }}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <img src="{{ act.avatar_url if act.avatar_url else 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80' }}" class="rounded-circle" style="width: 24px; height: 24px; object-fit: cover;">
+              <span class="fw-semibold">{{ act.user_name or 'System' }}</span>
+              <span class="badge bg-light text-muted border text-uppercase" style="font-size: 0.65rem;">{{ act.user_role or 'system' }}</span>
+            </div>
+          </td>
+          <td><span class="badge bg-info bg-opacity-10 text-info">{{ act.module }}</span></td>
+          <td class="fw-semibold text-dark">{{ act.action }}</td>
+          <td class="text-muted">{{ act.details }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endif %}
+
+{% endblock %}
