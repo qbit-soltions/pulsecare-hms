@@ -12,7 +12,7 @@ from datetime import datetime, date, timedelta
 from functools import wraps
 from flask import (
     Flask, render_template, request, redirect, url_for, flash,
-    session, jsonify, abort, g, make_response
+    session, jsonify, abort, g, make_response, send_from_directory
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import (
@@ -577,6 +577,15 @@ def switch_role(role):
     else:
         flash("Demo persona not found. Please reseed the database with: python seed_data.py", "warning")
     return redirect(url_for("dashboard"))
+
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(
+        os.path.join(app.root_path, "static"),
+        "favicon.ico",
+        mimetype="image/vnd.microsoft.icon"
+    )
+
 
 @app.route("/logout")
 def logout():
