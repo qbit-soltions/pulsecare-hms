@@ -1,261 +1,360 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ selected_lang or 'en' }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Dashboard{% endblock %} - {{ hospital_name }}</title>
+  <title>{% block title %}{{ hospital_name }}{% endblock %} | PulseCare Public Health Network</title>
   
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Bootstrap 5.3 CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Bootstrap Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-  {% block extra_css %}{% endblock %}
+  <link rel="stylesheet" href="/static/css/styles.css">
+  {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="bg-light">
 
-  <!-- PERSISTENT DEMO ROLE SWITCHER BAR -->
-  <div class="demo-role-banner no-print">
+  <!-- 1. PERSISTENT DEMO ROLE SWITCHER BAR -->
+  <div class="demo-role-bar py-1 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2 text-white no-print">
     <div class="d-flex align-items-center gap-2">
-      <i class="bi bi-shield-check text-info"></i>
-      <span class="fw-bold">PulseCare Multi-Role Preview:</span>
-      <span class="d-none d-md-inline text-white-50">Active Role:</span>
-      <span class="badge bg-primary text-uppercase">{{ current_user.role if current_user else 'Guest' }}</span>
+      <span class="badge bg-warning text-dark fw-bold px-2 py-1"><i class="bi bi-person-badge-fill me-1"></i>DEMO PERSONA SWITCHER</span>
+      <span class="fs-8 d-none d-md-inline text-light">Experience different healthcare stakeholder perspectives:</span>
     </div>
-    <div class="d-flex align-items-center flex-wrap gap-1">
-      <span class="text-white-50 me-1 d-none d-lg-inline">Switch Persona:</span>
-      <a href="{{ url_for('switch_role', role='admin') }}" class="role-badge-btn {% if current_user and current_user.role == 'admin' %}active{% endif %}">
-        <i class="bi bi-person-gear"></i> Admin
+    <div class="d-flex align-items-center gap-1 flex-wrap">
+      <a href="/switch-role/asha_cho" class="btn btn-xs {% if current_user and current_user.role == 'asha_cho' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="ASHA Frontline Health Worker">
+        <i class="bi bi-heart-pulse-fill me-1"></i> ASHA Worker
       </a>
-      <a href="{{ url_for('switch_role', role='doctor') }}" class="role-badge-btn {% if current_user and current_user.role == 'doctor' %}active{% endif %}">
-        <i class="bi bi-heart-pulse"></i> Doctor
+      <a href="/switch-role/medical_officer" class="btn btn-xs {% if current_user and current_user.role == 'medical_officer' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="Rural PHC Medical Officer">
+        <i class="bi bi-hospital me-1"></i> PHC Doctor
       </a>
-      <a href="{{ url_for('switch_role', role='nurse') }}" class="role-badge-btn {% if current_user and current_user.role == 'nurse' %}active{% endif %}">
-        <i class="bi bi-activity"></i> Nurse
+      <a href="/switch-role/doctor" class="btn btn-xs {% if current_user and current_user.role == 'doctor' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="District Hospital Specialist">
+        <i class="bi bi-clipboard2-pulse me-1"></i> Specialist MD
       </a>
-      <a href="{{ url_for('switch_role', role='receptionist') }}" class="role-badge-btn {% if current_user and current_user.role == 'receptionist' %}active{% endif %}">
-        <i class="bi bi-calendar-check"></i> Reception
+      <a href="/switch-role/admin" class="btn btn-xs {% if current_user and current_user.role == 'admin' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="Chief Medical Officer / Admin">
+        <i class="bi bi-shield-lock me-1"></i> Admin / CMO
       </a>
-      <a href="{{ url_for('switch_role', role='pharmacist') }}" class="role-badge-btn {% if current_user and current_user.role == 'pharmacist' %}active{% endif %}">
-        <i class="bi bi-capsule"></i> Pharmacy
+      <a href="/switch-role/nurse" class="btn btn-xs {% if current_user and current_user.role == 'nurse' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="Ward Nurse">
+        <i class="bi bi-bandaid me-1"></i> Nurse
       </a>
-      <a href="{{ url_for('switch_role', role='lab_tech') }}" class="role-badge-btn {% if current_user and current_user.role == 'lab_tech' %}active{% endif %}">
-        <i class="bi bi-moisture"></i> Lab Tech
+      <a href="/switch-role/pharmacist" class="btn btn-xs {% if current_user and current_user.role == 'pharmacist' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="Pharmacist">
+        <i class="bi bi-capsule me-1"></i> Pharmacy
       </a>
-      <a href="{{ url_for('switch_role', role='patient') }}" class="role-badge-btn {% if current_user and current_user.role == 'patient' %}active{% endif %}">
-        <i class="bi bi-person-heart"></i> Patient
+      <a href="/switch-role/lab_tech" class="btn btn-xs {% if current_user and current_user.role == 'lab_tech' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="Lab Pathologist">
+        <i class="bi bi-radioactive me-1"></i> Lab
+      </a>
+      <a href="/switch-role/patient" class="btn btn-xs {% if current_user and current_user.role == 'patient' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="Rural Patient Portal">
+        <i class="bi bi-person me-1"></i> Patient
       </a>
     </div>
   </div>
 
-  <div class="app-wrapper">
-    <!-- SIDEBAR NAVIGATION -->
-    <aside class="sidebar no-print">
-      <a href="{{ url_for('dashboard') }}" class="sidebar-brand">
-        <div class="sidebar-brand-icon">
-          <i class="bi bi-hospital"></i>
-        </div>
-        <div>
-          <div class="fw-bold fs-6 text-white lh-1">PulseCare</div>
-          <div class="text-info fs-7 fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.5px;">HOSPITAL SYSTEM</div>
-        </div>
-      </a>
-
-      <div class="sidebar-nav">
-        <div class="sidebar-section-title">Clinical & Care</div>
-        
-        <a href="{{ url_for('dashboard') }}" class="sidebar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
-          <i class="bi bi-speedometer2"></i> Dashboard
+  <div class="d-flex min-vh-100 main-app-wrapper">
+    
+    <!-- 2. SIDEBAR NAVIGATION -->
+    <aside class="sidebar bg-white border-end d-flex flex-column flex-shrink-0 no-print" id="sidebar">
+      <div class="p-3 border-bottom brand-header d-flex align-items-center justify-content-between">
+        <a href="/" class="d-flex align-items-center text-decoration-none gap-2">
+          <div class="brand-icon-box bg-primary text-white rounded-3 d-flex align-items-center justify-content-center">
+            <i class="bi bi-hospital fs-4"></i>
+          </div>
+          <div>
+            <div class="brand-title fw-bold text-dark lh-1">PulseCare</div>
+            <div class="brand-subtitle text-primary fw-semibold fs-8 text-uppercase tracking-wider">Public Health Network</div>
+          </div>
         </a>
-
-        {% if current_user and current_user.role in ['admin', 'doctor', 'nurse', 'receptionist'] %}
-        <a href="{{ url_for('patients_list') }}" class="sidebar-link {% if request.endpoint in ['patients_list', 'patient_view', 'patient_create', 'patient_edit'] %}active{% endif %}">
-          <i class="bi bi-people"></i> Patients & EHR
-        </a>
-        {% endif %}
-
-        {% if current_user and current_user.role in ['admin', 'doctor', 'receptionist', 'nurse'] %}
-        <a href="{{ url_for('appointments_list') }}" class="sidebar-link {% if request.endpoint in ['appointments_list'] %}active{% endif %}">
-          <i class="bi bi-calendar2-week"></i> Appointments
-          {% if today_apt_count > 0 %}
-            <span class="badge bg-primary rounded-pill ms-auto">{{ today_apt_count }}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('opd_queue_screen') }}" target="_blank" class="sidebar-link">
-          <i class="bi bi-display"></i> OPD Queue Board
-        </a>
-        {% endif %}
-
-        {% if current_user and current_user.role in ['admin', 'doctor', 'nurse'] %}
-        <a href="{{ url_for('wards_index') }}" class="sidebar-link {% if request.endpoint in ['wards_index'] %}active{% endif %}">
-          <i class="bi bi-hospital"></i> Wards & Bed Matrix
-        </a>
-        {% endif %}
-
-        <div class="sidebar-section-title">Diagnostic & Meds</div>
-
-        {% if current_user and current_user.role in ['admin', 'pharmacist', 'doctor', 'nurse'] %}
-        <a href="{{ url_for('pharmacy_catalog') }}" class="sidebar-link {% if request.endpoint in ['pharmacy_catalog'] %}active{% endif %}">
-          <i class="bi bi-capsule"></i> Pharmacy & Drugs
-          {% if low_stock_count > 0 %}
-            <span class="badge bg-danger rounded-pill ms-auto" title="Low stock alert">{{ low_stock_count }}</span>
-          {% endif %}
-        </a>
-        {% endif %}
-
-        {% if current_user and current_user.role in ['admin', 'lab_tech', 'doctor', 'nurse'] %}
-        <a href="{{ url_for('laboratory_index') }}" class="sidebar-link {% if request.endpoint in ['laboratory_index', 'lab_report_view'] %}active{% endif %}">
-          <i class="bi bi-moisture"></i> Lab Diagnostics
-          {% if pending_lab_count > 0 %}
-            <span class="badge bg-warning text-dark rounded-pill ms-auto">{{ pending_lab_count }}</span>
-          {% endif %}
-        </a>
-        {% endif %}
-
-        <div class="sidebar-section-title">Finance & Admin</div>
-
-        {% if current_user and current_user.role in ['admin', 'receptionist'] %}
-        <a href="{{ url_for('billing_index') }}" class="sidebar-link {% if request.endpoint in ['billing_index', 'billing_invoice_view'] %}active{% endif %}">
-          <i class="bi bi-receipt-cutoff"></i> Billing & Invoices
-        </a>
-        {% endif %}
-
-        {% if current_user and current_user.role in ['admin'] %}
-        <a href="{{ url_for('staff_index') }}" class="sidebar-link {% if request.endpoint in ['staff_index'] %}active{% endif %}">
-          <i class="bi bi-person-badge"></i> Doctors & Staff
-        </a>
-        <a href="{{ url_for('settings_index') }}" class="sidebar-link {% if request.endpoint in ['settings_index'] %}active{% endif %}">
-          <i class="bi bi-gear"></i> Settings
-        </a>
-        <a href="{{ url_for('audit_logs_index') }}" class="sidebar-link {% if request.endpoint in ['audit_logs_index'] %}active{% endif %}">
-          <i class="bi bi-shield-check"></i> Audit Logs
-        </a>
-        {% endif %}
       </div>
 
-      <!-- Current User Footer in Sidebar -->
-      <div class="p-3 border-top border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center gap-2 overflow-hidden">
-          <img src="{{ current_user.avatar_url if current_user and current_user.avatar_url else 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100' }}" alt="Avatar" class="user-avatar-sm">
-          <div class="text-truncate">
-            <div class="fw-bold text-white fs-7 text-truncate" style="font-size: 0.85rem;">{{ current_user.full_name if current_user else 'Guest User' }}</div>
-            <div class="text-muted" style="font-size: 0.72rem;">{{ current_user.role.title() if current_user else 'Visitor' }}</div>
+      <!-- Current Facility Badge -->
+      <div class="p-2 mx-3 my-2 bg-light border rounded-2 fs-8">
+        <div class="text-muted text-uppercase fs-9 fw-semibold"><i class="bi bi-geo-alt-fill text-danger me-1"></i>Assigned Facility:</div>
+        <div class="fw-bold text-dark text-truncate">{{ current_facility.name if current_facility else 'District Central Health Hub' }}</div>
+        <div class="badge bg-primary-subtle text-primary border border-primary-subtle mt-1">{{ current_facility.tier_type if current_facility else 'Tiered Network' }}</div>
+      </div>
+
+      <div class="sidebar-menu flex-grow-1 overflow-y-auto px-2 py-2">
+        <ul class="nav nav-pills flex-column gap-1">
+          
+          <li class="nav-item">
+            <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+              <i class="bi bi-grid-1x2-fill me-2"></i> Dashboard
+            </a>
+          </li>
+
+          <!-- Teleconsultation Module -->
+          <li class="nav-item">
+            <a href="{{ url_for('teleconsult_index') }}" class="nav-link {% if 'teleconsult' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
+              <div><i class="bi bi-camera-video-fill me-2 text-primary"></i> {{ 'teleconsultation' | t }}</div>
+              {% if active_teleconsult_count > 0 %}
+                <span class="badge bg-danger rounded-pill">{{ active_teleconsult_count }}</span>
+              {% endif %}
+            </a>
+          </li>
+
+          <!-- Closed-Loop Referrals -->
+          <li class="nav-item">
+            <a href="{{ url_for('referrals_index') }}" class="nav-link {% if 'referrals' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
+              <div><i class="bi bi-arrow-left-right me-2 text-warning"></i> {{ 'referrals' | t }}</div>
+              {% if active_referral_count > 0 %}
+                <span class="badge bg-warning text-dark rounded-pill">{{ active_referral_count }}</span>
+              {% endif %}
+            </a>
+          </li>
+
+          <!-- High-Risk Patient Surveillance -->
+          <li class="nav-item">
+            <a href="{{ url_for('high_risk_index') }}" class="nav-link {% if 'high-risk' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
+              <div><i class="bi bi-shield-exclamation me-2 text-danger"></i> {{ 'high_risk_registry' | t }}</div>
+              {% if high_risk_count > 0 %}
+                <span class="badge bg-danger rounded-pill">{{ high_risk_count }}</span>
+              {% endif %}
+            </a>
+          </li>
+
+          <!-- Cross-Facility Supply & Diagnostic Grid -->
+          <li class="nav-item">
+            <a href="{{ url_for('network_availability') }}" class="nav-link {% if 'network' in request.path %}active{% endif %}">
+              <i class="bi bi-search-heart me-2 text-info"></i> {{ 'resource_grid' | t }}
+            </a>
+          </li>
+
+          <!-- Quality Analytics -->
+          <li class="nav-item">
+            <a href="{{ url_for('facility_analytics') }}" class="nav-link {% if 'facility' in request.path and 'analytics' in request.path %}active{% endif %}">
+              <i class="bi bi-bar-chart-line-fill me-2 text-success"></i> {{ 'quality_analytics' | t }}
+            </a>
+          </li>
+
+          <hr class="my-2 border-secondary-subtle">
+
+          <!-- Core Hospital Modules -->
+          <li class="nav-item">
+            <a href="{{ url_for('patients_index') }}" class="nav-link {% if 'patients' in request.path %}active{% endif %}">
+              <i class="bi bi-people-fill me-2"></i> {{ 'patients' | t }}
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a href="{{ url_for('appointments_index') }}" class="nav-link {% if 'appointments' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
+              <div><i class="bi bi-calendar2-check-fill me-2"></i> {{ 'appointments' | t }}</div>
+              {% if today_apt_count > 0 %}
+                <span class="badge bg-info text-dark rounded-pill">{{ today_apt_count }}</span>
+              {% endif %}
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a href="{{ url_for('wards_index') }}" class="nav-link {% if 'wards' in request.path %}active{% endif %}">
+              <i class="bi bi-hospital-fill me-2"></i> {{ 'wards' | t }}
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a href="{{ url_for('pharmacy_catalog') }}" class="nav-link {% if 'pharmacy' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
+              <div><i class="bi bi-capsule me-2"></i> {{ 'pharmacy' | t }}</div>
+              {% if low_stock_count > 0 %}
+                <span class="badge bg-danger rounded-pill">{{ low_stock_count }}</span>
+              {% endif %}
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a href="{{ url_for('laboratory_index') }}" class="nav-link {% if 'laboratory' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
+              <div><i class="bi bi-radioactive me-2"></i> {{ 'laboratory' | t }}</div>
+              {% if pending_lab_count > 0 %}
+                <span class="badge bg-warning text-dark rounded-pill">{{ pending_lab_count }}</span>
+              {% endif %}
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a href="{{ url_for('billing_index') }}" class="nav-link {% if 'billing' in request.path %}active{% endif %}">
+              <i class="bi bi-receipt me-2"></i> {{ 'billing' | t }}
+            </a>
+          </li>
+
+          {% if current_user and current_user.role == 'admin' %}
+          <li class="nav-header text-uppercase text-muted fs-8 fw-bold mt-2 px-3">Administration</li>
+          <li class="nav-item">
+            <a href="{{ url_for('staff_index') }}" class="nav-link {% if 'staff' in request.path %}active{% endif %}">
+              <i class="bi bi-person-badge me-2"></i> Medical Staff
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('settings_view') }}" class="nav-link {% if 'settings' in request.path %}active{% endif %}">
+              <i class="bi bi-sliders me-2"></i> Network Settings
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('audit_logs_view') }}" class="nav-link {% if 'audit-logs' in request.path %}active{% endif %}">
+              <i class="bi bi-shield-check me-2"></i> Audit Trail
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </div>
+
+      <!-- User Profile & Sign Out Footer -->
+      <div class="p-3 border-top bg-light user-profile-card">
+        {% if current_user %}
+        <div class="d-flex align-items-center gap-2">
+          <img src="{{ current_user.avatar_url or 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100' }}" alt="Avatar" class="rounded-circle border" width="38" height="38">
+          <div class="flex-grow-1 text-truncate">
+            <div class="fw-bold text-dark fs-7 text-truncate">{{ current_user.full_name }}</div>
+            <div class="text-muted fs-8 text-uppercase">{{ current_user.role }}</div>
           </div>
+          <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm p-1 px-2" title="Sign Out">
+            <i class="bi bi-box-arrow-right"></i>
+          </a>
         </div>
-        <a href="{{ url_for('logout') }}" class="text-danger p-1" title="Sign Out">
-          <i class="bi bi-box-arrow-right fs-5"></i>
-        </a>
+        {% else %}
+        <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm w-100">Sign In</a>
+        {% endif %}
       </div>
     </aside>
 
-    <!-- MAIN CONTENT AREA -->
-    <main class="main-content">
-      <!-- TOPBAR -->
-      <header class="topbar no-print">
-        <div class="d-flex align-items-center gap-3">
-          <h5 class="m-0 fw-bold text-dark">{% block header_title %}PulseCare Hospital Overview{% endblock %}</h5>
-          <span class="badge bg-light text-secondary border d-none d-md-inline">
-            <i class="bi bi-clock me-1"></i> {{ now_datetime.strftime("%A, %b %d, %Y") }}
-          </span>
+    <!-- 3. MAIN CONTENT CONTAINER -->
+    <main class="content-area flex-grow-1 d-flex flex-column">
+      
+      <!-- Top Navigation Bar -->
+      <header class="topbar bg-white border-bottom py-2 px-3 d-flex align-items-center justify-content-between sticky-top no-print">
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-outline-secondary btn-sm d-md-none" id="sidebarToggle">
+            <i class="bi bi-list fs-5"></i>
+          </button>
+          <div class="d-none d-sm-block">
+            <h1 class="h6 mb-0 fw-bold text-dark">{% block header_title %}PulseCare Public Health Network{% endblock %}</h1>
+            <small class="text-muted fs-8">{% block header_subtitle %}Connecting Primary Health to District Specialists{% endblock %}</small>
+          </div>
         </div>
 
-        <div class="d-flex align-items-center gap-3">
-          {% if current_user and current_user.role in ['admin', 'doctor', 'receptionist', 'nurse'] %}
-          <a href="{{ url_for('patient_create') }}" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm">
-            <i class="bi bi-person-plus-fill me-1"></i> New Patient
-          </a>
-          {% endif %}
-
+        <div class="d-flex align-items-center gap-2">
+          
+          <!-- 🌐 Multilingual Dropdown -->
           <div class="dropdown">
-            <button class="btn btn-light rounded-circle p-2 border position-relative" data-bs-toggle="dropdown">
-              <i class="bi bi-bell fs-6"></i>
-              {% if (low_stock_count + pending_lab_count) > 0 %}
-              <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
-              {% endif %}
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown">
+              <i class="bi bi-translate text-primary"></i>
+              <span class="d-none d-sm-inline">
+                {% for code, name in available_languages %}
+                  {% if code == selected_lang %}{{ name }}{% endif %}
+                {% endfor %}
+              </span>
             </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width: 280px;">
-              <li class="dropdown-header fw-bold">Notifications Center</li>
-              {% if low_stock_count > 0 %}
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm fs-7">
+              {% for code, name in available_languages %}
               <li>
-                <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{{ url_for('pharmacy_catalog', stock_status='low') }}">
-                  <i class="bi bi-exclamation-triangle text-danger fs-5"></i>
-                  <div>
-                    <div class="fw-semibold fs-7">{{ low_stock_count }} Medicines Low on Stock</div>
-                    <small class="text-muted">Reorder required soon</small>
-                  </div>
+                <a class="dropdown-item {% if code == selected_lang %}active fw-bold{% endif %}" href="{{ url_for('set_language', lang_code=code) }}">
+                  {{ name }}
                 </a>
               </li>
-              {% endif %}
-              {% if pending_lab_count > 0 %}
-              <li>
-                <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{{ url_for('laboratory_index') }}">
-                  <i class="bi bi-moisture text-warning fs-5"></i>
-                  <div>
-                    <div class="fw-semibold fs-7">{{ pending_lab_count }} Lab Tests Pending</div>
-                    <small class="text-muted">Awaiting specimen/verification</small>
-                  </div>
-                </a>
-              </li>
-              {% endif %}
-              {% if low_stock_count == 0 and pending_lab_count == 0 %}
-              <li><span class="dropdown-item text-muted py-2 text-center">No urgent alerts</span></li>
-              {% endif %}
+              {% endfor %}
             </ul>
           </div>
+
+          <!-- 🚨 Emergency 108 Trigger Modal Button -->
+          <button type="button" class="btn btn-sm btn-danger fw-bold d-flex align-items-center gap-1 pulse-animation" data-bs-toggle="modal" data-bs-target="#emergencyModal">
+            <i class="bi bi-telephone-outbound-fill"></i>
+            <span class="d-none d-md-inline">108 Emergency</span>
+          </button>
+
+          <!-- Low Connectivity Offline Indicator -->
+          <div class="badge bg-success-subtle text-success border border-success-subtle d-flex align-items-center gap-1 py-1 px-2 fs-8" id="onlineStatusBadge">
+            <span class="status-dot bg-success rounded-circle d-inline-block" style="width: 8px; height: 8px;"></span>
+            <span class="d-none d-lg-inline">Network Online</span>
+          </div>
+
+          <!-- OPD TV Board Link -->
+          <a href="{{ url_for('appointments_queue') }}" target="_blank" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" title="Live Waiting Room TV Display">
+            <i class="bi bi-tv"></i>
+            <span class="d-none d-lg-inline">OPD TV</span>
+          </a>
+
         </div>
       </header>
 
       <!-- FLASH MESSAGES -->
-      <div class="container-fluid px-4 pt-3 no-print">
+      <div class="px-4 pt-3 no-print">
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm border-0 d-flex align-items-center gap-2" role="alert">
-                {% if category == 'success' %}
-                  <i class="bi bi-check-circle-fill text-success fs-5"></i>
-                {% elif category == 'danger' %}
-                  <i class="bi bi-exclamation-octagon-fill text-danger fs-5"></i>
-                {% elif category == 'warning' %}
-                  <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
-                {% else %}
-                  <i class="bi bi-info-circle-fill text-info fs-5"></i>
-                {% endif %}
-                <div>{{ message }}</div>
-                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+              <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm d-flex align-items-center gap-2 py-2 fs-7" role="alert">
+                <i class="bi {% if category == 'success' %}bi-check-circle-fill{% elif category == 'danger' %}bi-exclamation-triangle-fill{% else %}bi-info-circle-fill{% endif %} fs-5"></i>
+                <div class="flex-grow-1">{{ message }}</div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
               </div>
             {% endfor %}
           {% endif %}
         {% endwith %}
       </div>
 
-      <!-- MAIN BODY CONTENT -->
-      <div class="container-fluid px-4 py-3 flex-grow-1">
+      <!-- DYNAMIC CONTENT BLOCK -->
+      <div class="container-fluid p-4 flex-grow-1">
         {% block content %}{% endblock %}
       </div>
 
       <!-- FOOTER -->
-      <footer class="bg-white border-top py-3 px-4 text-center text-muted fs-7 no-print mt-auto">
+      <footer class="bg-white border-top py-3 px-4 text-center text-muted fs-8 no-print mt-auto">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <span>&copy; 2026 {{ hospital_name }}. All Clinical Data Encrypted & JCI Compliant.</span>
-          <span class="badge bg-light text-dark border">PulseCare Enterprise v2.4</span>
+          <span>&copy; 2026 PulseCare Public Health Network • ABDM & IPHS Standards Compliant.</span>
+          <span class="badge bg-light text-dark border">Universal Telehealth Continuum v3.0</span>
         </div>
       </footer>
     </main>
   </div>
 
+  <!-- EMERGENCY 108 ESCALATION MODAL -->
+  <div class="modal fade" id="emergencyModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-danger">
+        <form method="POST" action="{{ url_for('emergency_escalate') }}">
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title fw-bold fs-6"><i class="bi bi-exclamation-octagon-fill me-2"></i>Trigger 108 Emergency Ambulance & District Escalation</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body fs-7">
+            <div class="alert alert-danger py-2 fs-8 mb-3">
+              <i class="bi bi-bell-fill me-1"></i> <strong>Critical Protocol:</strong> Dispatches immediate 108 Ambulance, reserves District Hospital Emergency Bay, and notifies on-call Specialists.
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Select Patient <span class="text-danger">*</span></label>
+              <select name="patient_id" class="form-select form-select-sm" required>
+                <option value="">-- Choose Patient for Emergency Fast-track --</option>
+                {% for p in all_emergency_patients %}
+                <option value="{{ p.id }}">{{ p.first_name }} {{ p.last_name }} ({{ p.patient_uid }}) - {{ p.village }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Emergency Reason / Danger Signs <span class="text-danger">*</span></label>
+              <select name="emergency_reason" class="form-select form-select-sm" required>
+                <option value="Severe Pre-eclampsia / Impending Eclampsia (BP > 160/110)">Severe Pre-eclampsia / Impending Eclampsia (BP > 160/110)</option>
+                <option value="Acute STEMI / Myocardial Infarction / Chest Pain">Acute STEMI / Myocardial Infarction / Chest Pain</option>
+                <option value="Severe Respiratory Distress / SpO2 < 90%">Severe Respiratory Distress / SpO2 < 90%</option>
+                <option value="Snakebite Envenomation / Anaphylactic Shock">Snakebite Envenomation / Anaphylactic Shock</option>
+                <option value="Infant Severe Acute Malnutrition (SAM) with Sepsis">Infant Severe Acute Malnutrition (SAM) with Sepsis</option>
+                <option value="Acute Trauma / Hemorrhagic Shock">Acute Trauma / Hemorrhagic Shock</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer bg-light py-2">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sm btn-danger fw-bold"><i class="bi bi-send-fill me-1"></i>Dispatch 108 & Fast-Track</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Bootstrap 5 JS Bundle -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Custom JS -->
-  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-  {% block extra_js %}{% endblock %}
+  <script src="/static/js/main.js"></script>
 </body>
 </html>

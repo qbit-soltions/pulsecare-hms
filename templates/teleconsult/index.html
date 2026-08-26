@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Assisted Teleconsultations{% endblock %}
+{% block header_title %}Assisted Teleconsultation Suite{% endblock %}
+{% block header_subtitle %}Connecting Frontline Health Workers (ASHA/CHO/PHC) Directly to District Specialists{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+  <!-- Top Stats -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-primary text-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fs-8 text-uppercase opacity-75 fw-semibold">Active In-Call</div>
+          <div class="fs-3 fw-bold">{{ teleconsults | selectattr('status', 'equalto', 'In-Call') | list | length }}</div>
+        </div>
+        <i class="bi bi-camera-video-fill fs-1 opacity-50"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-warning text-dark">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fs-8 text-uppercase opacity-75 fw-semibold">Requested / Waiting</div>
+          <div class="fs-3 fw-bold">{{ teleconsults | selectattr('status', 'equalto', 'Requested') | list | length }}</div>
+        </div>
+        <i class="bi bi-clock-history fs-1 opacity-50"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-danger text-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fs-8 text-uppercase opacity-75 fw-semibold">Emergency / High-Risk</div>
+          <div class="fs-3 fw-bold">{{ teleconsults | selectattr('triage_level', 'in', ['Emergency', 'High-Risk']) | list | length }}</div>
+        </div>
+        <i class="bi bi-exclamation-triangle-fill fs-1 opacity-50"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-success text-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fs-8 text-uppercase opacity-75 fw-semibold">Completed Sessions</div>
+          <div class="fs-3 fw-bold">{{ teleconsults | selectattr('status', 'equalto', 'Completed') | list | length }}</div>
+        </div>
+        <i class="bi bi-check2-circle fs-1 opacity-50"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+  <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <h6 class="mb-0 fw-bold"><i class="bi bi-broadcast text-primary me-2"></i>Teleconsultation Queue & Sessions</h6>
+      <small class="text-muted">Real-time video & telemetry linkage between rural Sub-Centres/PHCs and District Hospital</small>
+    </div>
+    
+    <div class="d-flex gap-2 align-items-center">
+      <button class="btn btn-sm btn-primary fw-semibold" data-bs-toggle="modal" data-bs-target="#newTeleconsultModal">
+        <i class="bi bi-plus-circle me-1"></i> Initiate Assisted Teleconsult
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card-body bg-light border-bottom py-2">
+    <form method="GET" action="{{ url_for('teleconsult_index') }}" class="row g-2 align-items-center">
+      <div class="col-md-3">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All Statuses</option>
+          <option value="Requested" {% if status_filter == 'Requested' %}selected{% endif %}>Requested (Waiting for Specialist)</option>
+          <option value="In-Call" {% if status_filter == 'In-Call' %}selected{% endif %}>In-Call (Active Session)</option>
+          <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <select name="triage" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All Triage Levels</option>
+          <option value="Emergency" {% if triage_filter == 'Emergency' %}selected{% endif %}>🔴 Emergency</option>
+          <option value="High-Risk" {% if triage_filter == 'High-Risk' %}selected{% endif %}>🟡 High-Risk</option>
+          <option value="Routine" {% if triage_filter == 'Routine' %}selected{% endif %}>🟢 Routine</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <a href="{{ url_for('teleconsult_index') }}" class="btn btn-sm btn-outline-secondary w-100">Reset</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Teleconsultations Table -->
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 fs-7">
+      <thead class="table-light">
+        <tr>
+          <th>Session UID</th>
+          <th>Patient & Village</th>
+          <th>Initiator (Frontline)</th>
+          <th>Assigned Specialist</th>
+          <th>Triage Priority</th>
+          <th>Chief Complaint</th>
+          <th>Status</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in teleconsults %}
+        <tr class="{% if t.triage_level == 'Emergency' %}table-danger-subtle{% elif t.triage_level == 'High-Risk' %}table-warning-subtle{% endif %}">
+          <td>
+            <div class="fw-bold text-primary">{{ t.session_uid }}</div>
+            <div class="text-muted fs-8">{{ t.scheduled_at | format_date("%b %d, %H:%M") }}</div>
+          </td>
+          <td>
+            <div class="fw-bold text-dark">{{ t.first_name }} {{ t.last_name }}</div>
+            <div class="text-muted fs-8"><i class="bi bi-geo-alt me-1"></i>{{ t.village }} • <span class="badge bg-light text-dark border">{{ t.patient_uid }}</span></div>
+            {% if t.is_high_risk %}
+              <span class="badge bg-danger fs-9 mt-1"><i class="bi bi-shield-fill-exclamation me-1"></i>{{ t.high_risk_category }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="fw-semibold text-dark">{{ t.initiator_name }}</div>
+            <div class="text-muted fs-8">{{ t.from_facility_name }} ({{ t.from_facility_tier }})</div>
+          </td>
+          <td>
+            {% if t.specialist_name %}
+              <div class="fw-semibold text-primary">{{ t.specialist_name }}</div>
+              <div class="text-muted fs-8">{{ t.specialization }} • {{ t.to_facility_name }}</div>
+            {% else %}
+              <span class="badge bg-secondary">Awaiting Specialist Pick</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if t.triage_level == 'Emergency' %}
+              <span class="badge bg-danger py-1 px-2"><i class="bi bi-exclamation-octagon-fill me-1"></i>Emergency</span>
+            {% elif t.triage_level == 'High-Risk' %}
+              <span class="badge bg-warning text-dark py-1 px-2"><i class="bi bi-exclamation-triangle-fill me-1"></i>High-Risk</span>
+            {% else %}
+              <span class="badge bg-success py-1 px-2"><i class="bi bi-check-circle-fill me-1"></i>Routine</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="text-truncate" style="max-width: 200px;" title="{{ t.chief_complaint }}">{{ t.chief_complaint }}</div>
+          </td>
+          <td>
+            <span class="badge {% if t.status == 'In-Call' %}bg-primary pulse-animation{% elif t.status == 'Requested' %}bg-warning text-dark{% elif t.status == 'Completed' %}bg-success{% else %}bg-secondary{% endif %}">
+              {{ t.status }}
+            </span>
+          </td>
+          <td class="text-end">
+            <a href="{{ url_for('teleconsult_session', session_id=t.id) }}" class="btn btn-sm {% if t.status == 'In-Call' or t.status == 'Requested' %}btn-primary fw-bold{% else %}btn-outline-secondary{% endif %}">
+              <i class="bi bi-camera-video me-1"></i> Open Chamber
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-4 text-muted">No teleconsultation sessions found matching criteria.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL: INITIATE NEW ASSISTED TELECONSULTATION -->
+<div class="modal fade" id="newTeleconsultModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('teleconsult_create') }}">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold fs-6"><i class="bi bi-camera-video-fill me-2"></i>Initiate Assisted Teleconsultation (Sub-Centre / PHC to District)</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body fs-7">
+          <div class="alert alert-info py-2 fs-8 mb-3">
+            <i class="bi bi-info-circle-fill me-1"></i> <strong>Assisted Teleconsultation:</strong> Frontline health workers (ASHA/ANM/CHO) or PHC doctors connect rural patients with District Hospital Specialists.
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Select Patient <span class="text-danger">*</span></label>
+              <select name="patient_id" class="form-select form-select-sm" required>
+                <option value="">-- Choose Registered Patient --</option>
+                {% for p in patients %}
+                <option value="{{ p.id }}">{{ p.first_name }} {{ p.last_name }} ({{ p.patient_uid }}) - {{ p.village }} {% if p.is_high_risk %}[HIGH RISK]{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Target District Specialist</label>
+              <select name="specialist_id" class="form-select form-select-sm">
+                <option value="">-- On-Call District Specialist (Auto-Assign) --</option>
+                {% for s in specialists %}
+                <option value="{{ s.id }}">{{ s.full_name }} ({{ s.specialization }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Triage Priority <span class="text-danger">*</span></label>
+              <select name="triage_level" class="form-select form-select-sm" required>
+                <option value="Routine">🟢 Routine Consultation</option>
+                <option value="High-Risk">🟡 High-Risk Maternal / Chronic NCD</option>
+                <option value="Emergency">🔴 Emergency / Critical Escalation</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">From Facility</label>
+              <select name="from_facility_id" class="form-select form-select-sm">
+                {% for f in facilities %}
+                <option value="{{ f.id }}" {% if current_user and current_user.facility_id == f.id %}selected{% endif %}>{{ f.name }} ({{ f.tier_type }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Target Hub Facility</label>
+              <select name="target_facility_id" class="form-select form-select-sm">
+                {% for f in facilities if f.tier_type in ['District Hospital', 'CHC'] %}
+                <option value="{{ f.id }}">{{ f.name }} ({{ f.tier_type }})</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Point-of-Care Vitals Snapshot -->
+          <div class="card bg-light border p-3 mb-3">
+            <h6 class="fw-bold fs-7 mb-2 text-dark"><i class="bi bi-activity text-danger me-1"></i>Point-of-Care Vitals Telemetry Snapshot</h6>
+            <div class="row g-2">
+              <div class="col-md-3">
+                <label class="form-label fs-8">Blood Pressure (mmHg)</label>
+                <input type="text" name="vitals_bp" class="form-control form-control-sm" placeholder="e.g. 140/90" value="120/80">
+              </div>
+              <div class="col-md-2">
+                <label class="fs-8 form-label">Pulse (bpm)</label>
+                <input type="number" name="vitals_pulse" class="form-control form-control-sm" value="78">
+              </div>
+              <div class="col-md-2">
+                <label class="fs-8 form-label">SpO2 (%)</label>
+                <input type="number" name="vitals_spo2" class="form-control form-control-sm" value="98">
+              </div>
+              <div class="col-md-2">
+                <label class="fs-8 form-label">Temp (°C)</label>
+                <input type="number" step="0.1" name="vitals_temp" class="form-control form-control-sm" value="37.0">
+              </div>
+              <div class="col-md-3">
+                <label class="fs-8 form-label">Blood Sugar / Hb</label>
+                <input type="text" name="vitals_fbs" class="form-control form-control-sm" placeholder="e.g. Sugar 180 / Hb 8.5">
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Chief Complaint & Clinical Symptoms <span class="text-danger">*</span></label>
+            <textarea name="chief_complaint" class="form-control form-control-sm" rows="2" required placeholder="Describe symptoms, duration, and patient distress..."></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Physical Examination & Local Findings</label>
+            <textarea name="clinical_findings" class="form-control form-control-sm" rows="2" placeholder="ASHA/CHO examination findings, pedal edema, chest sounds, fetal doppler status..."></textarea>
+          </div>
+
+        </div>
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary fw-bold"><i class="bi bi-camera-video me-1"></i>Connect Teleconsult</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

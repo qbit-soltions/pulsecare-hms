@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Teleconsultation Chamber - {{ tele.session_uid }}{% endblock %}
+{% block header_title %}Teleconsultation Room ({{ tele.session_uid }}){% endblock %}
+{% block header_subtitle %}Live Clinical Linkage: {{ tele.from_facility_name }} ⇄ {{ tele.to_facility_name }}{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  
+  <!-- LEFT COLUMN: LIVE VIDEO SIMULATOR & STREAMING VITALS TELEMETRY -->
+  <div class="col-lg-7">
+    
+    <!-- Video Stream Call Chamber -->
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-3 bg-dark text-white">
+      <div class="card-header bg-black bg-opacity-75 py-2 px-3 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+          <span class="status-dot bg-danger pulse-animation rounded-circle d-inline-block" style="width: 10px; height: 10px;"></span>
+          <span class="fw-bold fs-7">ENCRYPTED TELEHEALTH LINK (WebRTC • 1080p HD)</span>
+        </div>
+        <div class="badge bg-danger">{{ tele.triage_level }} Triage</div>
+      </div>
+
+      <div class="position-relative bg-black" style="min-height: 380px;">
+        
+        <!-- Main Video Screen (Specialist Doctor / Patient Feed) -->
+        <div class="d-flex align-items-center justify-content-center h-100 p-4 text-center" style="min-height: 380px; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);">
+          <div>
+            <div class="position-relative d-inline-block mb-3">
+              <img src="{{ tele.specialist_avatar or 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=300' }}" alt="Doctor" class="rounded-circle border border-3 border-primary shadow-lg" width="130" height="130" style="object-fit: cover;">
+              <span class="position-absolute bottom-0 end-0 badge bg-success p-2 rounded-circle border border-2 border-dark">
+                <i class="bi bi-mic-fill fs-8"></i>
+              </span>
+            </div>
+            <h5 class="fw-bold text-white mb-1">{{ tele.specialist_name or 'District Specialist On-Call' }}</h5>
+            <div class="text-primary-emphasis fs-7">{{ tele.specialization or 'Department of Specialist Medicine' }} • {{ tele.to_facility_name }}</div>
+            <div class="badge bg-dark border border-secondary text-light mt-2 py-1 px-3 fs-8">
+              <i class="bi bi-broadcast me-1 text-danger"></i> Two-Way Audio/Video Active
+            </div>
+          </div>
+        </div>
+
+        <!-- Picture-in-Picture (Rural Patient & ASHA Worker Feed) -->
+        <div class="position-absolute bottom-0 end-0 m-3 rounded-3 overflow-hidden shadow-lg border border-2 border-primary bg-dark" style="width: 170px; height: 125px;">
+          <div class="position-relative w-100 h-100 d-flex align-items-center justify-content-center bg-secondary bg-opacity-50">
+            <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200" alt="Rural Clinic" class="w-100 h-100" style="object-fit: cover;">
+            <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 p-1 text-center fs-9 text-white">
+              {{ tele.initiator_name }} (ASHA) with Patient
+            </div>
+          </div>
+        </div>
+
+        <!-- Call Status Pill -->
+        <div class="position-absolute top-0 start-0 m-3 badge bg-black bg-opacity-75 border border-secondary text-light py-1 px-2 fs-8">
+          <i class="bi bi-stopwatch text-warning me-1"></i> Call Time: <span id="callTimer">08:42</span>
+        </div>
+      </div>
+
+      <!-- Video Controls Bar -->
+      <div class="card-footer bg-black py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-light rounded-circle p-2" title="Mute Microphone"><i class="bi bi-mic-fill"></i></button>
+          <button class="btn btn-sm btn-outline-light rounded-circle p-2" title="Turn Camera Off"><i class="bi bi-camera-video-fill"></i></button>
+          <button class="btn btn-sm btn-outline-light rounded-circle p-2" title="Share Diagnostics / ECG Screen"><i class="bi bi-display"></i></button>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#emergencyModal">
+            <i class="bi bi-telephone-outbound-fill me-1"></i> 108 Emergency
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Point-of-Care Vitals Telemetry Card -->
+    {% set vitals = tele.vitals_snapshot_json | fromjson %}
+    <div class="card border-0 shadow-sm rounded-3 mb-3">
+      <div class="card-header bg-white py-2 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold fs-7 text-dark"><i class="bi bi-activity text-danger me-2"></i>Live Point-of-Care Vitals Telemetry</h6>
+        <span class="badge bg-light text-dark border">Transmitted from {{ tele.from_facility_tier }}</span>
+      </div>
+      <div class="card-body p-3">
+        <div class="row g-2 text-center">
+          
+          <div class="col-6 col-md-3">
+            <div class="border rounded p-2 bg-light">
+              <div class="text-muted fs-8 text-uppercase">Blood Pressure</div>
+              <div class="fs-5 fw-bold text-danger">{{ vitals.bp if vitals and vitals.bp else '162/105' }} <small class="fs-9 text-muted">mmHg</small></div>
+              <span class="badge bg-danger fs-9">Elevated</span>
+            </div>
+          </div>
+
+          <div class="col-6 col-md-3">
+            <div class="border rounded p-2 bg-light">
+              <div class="text-muted fs-8 text-uppercase">Pulse / Heart Rate</div>
+              <div class="fs-5 fw-bold text-dark">{{ vitals.pulse if vitals and vitals.pulse else '98' }} <small class="fs-9 text-muted">bpm</small></div>
+              <span class="badge bg-success fs-9">Normal</span>
+            </div>
+          </div>
+
+          <div class="col-6 col-md-3">
+            <div class="border rounded p-2 bg-light">
+              <div class="text-muted fs-8 text-uppercase">Oxygen Saturation</div>
+              <div class="fs-5 fw-bold text-primary">{{ vitals.spo2 if vitals and vitals.spo2 else '97' }}% <small class="fs-9 text-muted">SpO2</small></div>
+              <span class="badge bg-success fs-9">Optimal</span>
+            </div>
+          </div>
+
+          <div class="col-6 col-md-3">
+            <div class="border rounded p-2 bg-light">
+              <div class="text-muted fs-8 text-uppercase">Hemoglobin / Sugar</div>
+              <div class="fs-5 fw-bold text-warning">{{ vitals.hb if vitals and vitals.hb else '7.2' }} <small class="fs-9 text-muted">g/dL</small></div>
+              <span class="badge bg-warning text-dark fs-9">Severe Anemia</span>
+            </div>
+          </div>
+
+        </div>
+
+        {% if tele.clinical_findings %}
+        <div class="mt-3 p-2 bg-light rounded border fs-8">
+          <strong>Frontline Physical Findings:</strong> {{ tele.clinical_findings }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT COLUMN: PATIENT SUMMARY, JOINT CLINICAL NOTES & DIGITAL PRESCRIPTION -->
+  <div class="col-lg-5">
+    
+    <!-- Patient Summary Card with ABHA ID -->
+    <div class="card border-0 shadow-sm rounded-3 mb-3">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <h6 class="fw-bold text-dark mb-0">{{ tele.first_name }} {{ tele.last_name }}</h6>
+            <div class="text-muted fs-8"><i class="bi bi-geo-alt me-1"></i>{{ tele.village }} • {{ tele.gender }}, {{ tele.dob }}</div>
+          </div>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">
+            <i class="bi bi-qr-code me-1"></i>{{ tele.abha_id or 'ABHA Pending' }}
+          </span>
+        </div>
+
+        <div class="row g-1 fs-8 pt-2 border-top">
+          <div class="col-6"><span class="text-muted">Blood Group:</span> <strong class="text-danger">{{ tele.blood_group or 'O+' }}</strong></div>
+          <div class="col-6"><span class="text-muted">Phone:</span> <strong>{{ tele.phone }}</strong></div>
+          <div class="col-12 mt-1"><span class="text-muted">Allergies:</span> <span class="badge bg-danger-subtle text-danger">{{ tele.allergies or 'None Reported' }}</span></div>
+          <div class="col-12 mt-1"><span class="text-muted">Chronic / Risk:</span> <strong>{{ tele.chronic_conditions or 'None' }}</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clinical Action & E-Prescription Form -->
+    <div class="card border-0 shadow-sm rounded-3 mb-3">
+      <div class="card-header bg-white py-2 border-bottom">
+        <h6 class="mb-0 fw-bold fs-7 text-dark"><i class="bi bi-file-earmark-medical text-primary me-2"></i>Specialist Clinical Assessment & Prescription</h6>
+      </div>
+
+      <div class="card-body p-3 fs-7">
+        <form method="POST" action="{{ url_for('teleconsult_update', session_id=tele.id) }}">
+          
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Specialist Clinical Advice & Directions <span class="text-danger">*</span></label>
+            <textarea name="specialist_advice" class="form-control form-control-sm" rows="3" required placeholder="Provide clinical diagnosis, emergency stabilization steps, dosage titration, or referral guidelines...">{{ tele.specialist_advice or '' }}</textarea>
+          </div>
+
+          <!-- Dynamic E-Prescription Builder -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label fw-semibold mb-0">Prescribe Essential Medications</label>
+              <button type="button" class="btn btn-xs btn-outline-primary" id="addRxItemBtn"><i class="bi bi-plus"></i> Add Medicine</button>
+            </div>
+            
+            <div id="rxItemsContainer" class="border rounded p-2 bg-light">
+              <div class="row g-1 mb-2 rx-item-row">
+                <div class="col-5">
+                  <select name="med_id[]" class="form-select form-select-sm">
+                    <option value="">-- Choose Medicine --</option>
+                    {% for m in medicines %}
+                    <option value="{{ m.id }}">{{ m.brand_name }} ({{ m.strength }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-3">
+                  <input type="text" name="dosage[]" class="form-control form-control-sm" placeholder="e.g. 100mg" value="1 Tab">
+                </div>
+                <div class="col-4">
+                  <input type="text" name="frequency[]" class="form-control form-control-sm" placeholder="1-0-1 (BID)" value="1-0-1">
+                </div>
+                <div class="col-4 mt-1">
+                  <input type="number" name="duration_days[]" class="form-control form-control-sm" placeholder="Days" value="5">
+                </div>
+                <div class="col-6 mt-1">
+                  <input type="text" name="instructions[]" class="form-control form-control-sm" placeholder="Instructions" value="After food with water">
+                </div>
+                <div class="col-2 mt-1 text-end">
+                  <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="this.closest('.rx-item-row').remove()"><i class="bi bi-trash"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Update Teleconsult Status</label>
+            <select name="status" class="form-select form-select-sm">
+              <option value="Completed" {% if tele.status == 'Completed' %}selected{% endif %}>Completed & Transmit E-Prescription</option>
+              <option value="In-Call" {% if tele.status == 'In-Call' %}selected{% endif %}>Keep In-Call</option>
+              <option value="Escalated" {% if tele.status == 'Escalated' %}selected{% endif %}>Escalated to District Hospital</option>
+            </select>
+          </div>
+
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-sm btn-primary fw-bold">
+              <i class="bi bi-send-check me-1"></i> Save Advice & Transmit Digital E-Prescription
+            </button>
+            <a href="{{ url_for('referrals_index') }}" class="btn btn-sm btn-outline-warning text-dark fw-semibold">
+              <i class="bi bi-arrow-left-right me-1"></i> Initiate Inter-Facility Referral Slip
+            </a>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

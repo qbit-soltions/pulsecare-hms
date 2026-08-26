@@ -70,13 +70,13 @@ def execute_many_db(query, args_list):
     finally:
         conn.close()
 
-def log_audit(user_id, action, module, details, ip_address="127.0.0.1"):
+def log_audit(user_id, action, module, details, ip_address="127.0.0.1", facility_id=None):
     """Logs an audit activity into the database."""
     try:
         execute_db(
-            """INSERT INTO audit_logs (user_id, action, module, details, ip_address, timestamp)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (user_id, action, module, details, ip_address, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            """INSERT INTO audit_logs (user_id, facility_id, action, module, details, ip_address, timestamp)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (user_id, facility_id, action, module, details, ip_address, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         )
     except Exception as e:
         print(f"Audit log error: {e}")

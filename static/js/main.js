@@ -191,11 +191,31 @@ document.addEventListener("DOMContentLoaded", function () {
         if (form && admId) {
           form.action = `/wards/discharge/${admId}`;
         }
-        const titleSpan = dischargeModal.querySelector("#discharge-patient-name");
-        if (titleSpan && patientName) {
-          titleSpan.innerText = `${patientName} (${bedNumber})`;
-        }
+  // -------------------------------------------------------------------
+  // 5. Teleconsultation Room & Call Timer
+  // -------------------------------------------------------------------
+  const timerElem = document.getElementById("callTimer");
+  if (timerElem) {
+    let seconds = 522;
+    setInterval(function () {
+      seconds++;
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      timerElem.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }, 1000);
+  }
+
+  const addRxBtn = document.getElementById("addRxItemBtn");
+  const rxContainer = document.getElementById("rxItemsContainer");
+  if (addRxBtn && rxContainer) {
+    addRxBtn.addEventListener("click", function () {
+      const sampleRow = rxContainer.querySelector(".rx-item-row");
+      if (sampleRow) {
+        const newRow = sampleRow.cloneNode(true);
+        newRow.querySelectorAll("input").forEach(i => i.value = "");
+        rxContainer.appendChild(newRow);
       }
     });
   }
 });
+

@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Cross-Facility Medicine & Diagnostic Availability Grid{% endblock %}
+{% block header_title %}Cross-Facility Medicine & Diagnostic Availability Grid{% endblock %}
+{% block header_subtitle %}Real-Time Visibility of Essential Drugs & Working Diagnostic Equipment across Sub-Centres, PHCs, CHCs & District Hospital{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+  <!-- Search & Filter Card -->
+  <div class="col-12">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+      <form method="GET" action="{{ url_for('network_availability') }}" class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+            <input type="text" name="q" class="form-control" placeholder="Search drug name (e.g. Anti-Snake Venom, Insulin, Oxytocin)..." value="{{ search_query }}">
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <select name="category" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Drug Categories</option>
+            {% for c in categories %}
+            <option value="{{ c.category }}" {% if category_filter == c.category %}selected{% endif %}>{{ c.category }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <select name="facility_id" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Network Facilities</option>
+            {% for f in facilities %}
+            <option value="{{ f.id }}" {% if facility_filter == f.id|string %}selected{% endif %}>{{ f.name }} ({{ f.tier_type }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-sm btn-primary w-100 fw-semibold"><i class="bi bi-filter me-1"></i>Search Network</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  
+  <!-- 1. CROSS-FACILITY ESSENTIAL MEDICINES INVENTORY -->
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm rounded-3 h-100">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-capsule text-primary me-2"></i>Essential & Life-Saving Drug Availability</h6>
+        <span class="badge bg-light text-dark border">{{ inventory_items | length }} Stock Records</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 fs-7">
+          <thead class="table-light">
+            <tr>
+              <th>Medicine Name & Form</th>
+              <th>Facility & Tier</th>
+              <th class="text-center">Stock Level</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for itm in inventory_items %}
+            <tr>
+              <td>
+                <div class="fw-bold text-dark">{{ itm.brand_name }}</div>
+                <div class="text-muted fs-8">{{ itm.generic_name }} • {{ itm.strength }}</div>
+                {% if itm.is_essential_life_saving %}
+                  <span class="badge bg-danger fs-9"><i class="bi bi-shield-fill-plus me-1"></i>Life-Saving Essential</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="fw-semibold text-dark">{{ itm.facility_name }}</div>
+                <span class="badge bg-light text-dark border fs-9">{{ itm.facility_tier }}</span>
+              </td>
+              <td class="text-center">
+                <span class="fs-6 fw-bold {% if itm.stock_quantity <= itm.reorder_threshold %}text-danger{% else %}text-success{% endif %}">
+                  {{ itm.stock_quantity }}
+                </span>
+                <div class="fs-9 text-muted">Threshold: {{ itm.reorder_threshold }}</div>
+              </td>
+              <td>
+                {% if itm.stock_quantity == 0 %}
+                  <span class="badge bg-danger">Out of Stock</span>
+                {% elif itm.stock_quantity <= itm.reorder_threshold %}
+                  <span class="badge bg-warning text-dark pulse-animation">Low Stock Alert</span>
+                {% else %}
+                  <span class="badge bg-success">Adequate Stock</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="text-center py-4 text-muted">No stock records found for query.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. CROSS-FACILITY WORKING DIAGNOSTIC EQUIPMENT -->
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm rounded-3 h-100">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-radioactive text-info me-2"></i>Diagnostic Equipment Operational Status</h6>
+        <span class="badge bg-light text-dark border">Equipment Health Grid</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 fs-7">
+          <thead class="table-light">
+            <tr>
+              <th>Diagnostic Test / Tool</th>
+              <th>Facility</th>
+              <th>Operational Status</th>
+              <th>Avg Wait</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in diagnostic_items %}
+            <tr>
+              <td>
+                <div class="fw-bold text-dark">{{ d.test_name }}</div>
+                <div class="text-muted fs-8">{{ d.test_category }} ({{ d.test_code }})</div>
+              </td>
+              <td>
+                <div class="fw-semibold text-dark">{{ d.facility_name }}</div>
+                <span class="badge bg-light text-dark border fs-9">{{ d.facility_tier }}</span>
+              </td>
+              <td>
+                {% if d.is_operational %}
+                  <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Working</span>
+                {% else %}
+                  <span class="badge bg-danger"><i class="bi bi-tools me-1"></i>{{ d.equipment_status }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if d.is_operational %}
+                  <span class="fw-bold text-dark">{{ d.average_wait_hours }}h</span>
+                {% else %}
+                  <span class="text-muted fs-8">Unavailable</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="text-center py-4 text-muted">No diagnostic records found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

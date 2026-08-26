@@ -1,179 +1,114 @@
-# 🏥 PulseCare Hospital Management System (HMS)
+# 🏥 PulseCare Public Health & Rural Telemedicine Network
 
-**PulseCare HMS** is an enterprise-grade, full-stack Hospital Management & Electronic Health Record (EHR) System built with Python, Flask, SQLite, and modern responsive web technologies. It provides end-to-end management of clinical, administrative, operational, diagnostic, and financial workflows across a multi-specialty hospital.
-
----
-
-## 🌟 Key Feature Modules
-
-### 1. 👥 Role-Based Access Control (RBAC) & Interactive Persona Switcher
-- **7 Pre-configured Healthcare Roles**:
-  - **Hospital Administrator** (`admin`): Full operational oversight, KPI analytics, staff directory, hospital profile settings, and security audit logs.
-  - **Doctor / Specialist** (`dr.sarah`): Outpatient (OPD) queue, clinical consultation chamber, SOAP notes, ICD-10 diagnosis, electronic prescriptions, and diagnostic lab ordering.
-  - **Inpatient Ward Nurse** (`nurse.clara`): Visual bed matrix, vital signs recording (with auto-BMI calculation), patient admission, transfer, and discharge summaries.
-  - **Front Desk Receptionist** (`reception.emma`): Patient registration (auto-generated UID), appointment scheduling, OPD token dispatch, and invoice creation.
-  - **Pharmacist** (`pharm.robert`): Central drug inventory, reorder threshold alerts, batch & expiry tracking, and 1-click prescription fulfillment/dispensing.
-  - **Lab Technician** (`lab.lisa`): Diagnostic test queue, specimen collection status, parameter result entry with abnormal flags, and verified clinical diagnostic report generation.
-  - **Patient Portal** (`patient.john`): Personal health record, upcoming appointments, active prescriptions, verified lab reports, and billing receipts.
-- **Top Persona Switcher**: Persistent 1-click demo switcher bar at the top of every screen to seamlessly test and showcase all 7 stakeholder perspectives.
-
-### 2. 🗂️ Patient Electronic Health Records (Patient 360° EHR)
-- Patient Registration with unique identification format (`PC-YYYY-XXXX`).
-- Comprehensive medical profile: Demographics, blood group, allergies (highlighted in alerts), chronic illnesses, next-of-kin emergency contact, and insurance details.
-- Longitudinal EHR Tabs: Consultations timeline, prescription history, lab test results, vital signs graphs, admission stays, and billing ledger.
-
-### 3. 🗓️ OPD Appointments & Live TV Waiting Room Display
-- Multi-specialty scheduling by doctor, department, and time slot.
-- Automated token number assignment.
-- **Live OPD Queue Board (`/appointments/queue`)**: High-contrast, auto-refreshing waiting room display designed for hospital lobby monitors and clinic TVs.
-
-### 4. 🩺 Clinical Consultation Chamber & E-Prescriptions
-- Standardized **SOAP Clinical Notes** (Subjective complaints, Objective findings, Assessment/Diagnosis with ICD-10, Treatment Plan).
-- Dynamic **E-Prescription Builder**: Real-time line-item addition with dosage, frequency, duration, instructions, and pharmacy stock validation.
-- Direct **Diagnostic Requisitions**: Select from hematology, biochemistry, cardiology, and radiology test catalogs.
-
-### 5. 🛏️ Hospital Ward & Bed Occupancy Matrix
-- Visual grid of hospital wards (ICU, Emergency Trauma, General Ward Male/Female, Private Deluxe, Pediatric).
-- Color-coded bed status cards (Available, Occupied, Maintenance/Cleaning).
-- Patient details, attending doctor, and length of stay displayed on occupied beds.
-- Streamlined Modal Workflows for **Admit Patient**, **Discharge Patient**, and **Maintenance Toggle**.
-
-### 6. 💊 Pharmacy & Inventory Control
-- Drug catalog with brand name, generic name, category, strength, formulation, unit pricing, batch number, and expiry date.
-- Real-time low-stock and out-of-stock badge alerts.
-- Dispensing queue connected to doctor prescriptions with automated stock deduction.
-
-### 7. 🔬 Laboratory Diagnostics & Printable Reports
-- Complete diagnostic workflow: Ordered ➔ Sample Collected ➔ In Testing ➔ Completed & Verified.
-- Parameter-level result entry with biological reference intervals and automated abnormal flags.
-- **Print-ready Verified Diagnostic Report** with hospital letterhead and pathologist sign-off.
-
-### 8. 💳 Integrated Billing, Invoicing & Payments
-- Itemized invoice generator rolling up consultation fees, bed stay charges, lab investigations, and pharmacy medications.
-- Configurable tax percentage, discount subtotals, and multiple payment modes (Cash, Credit Card, UPI/QR, Insurance Pre-auth).
-- **Print-ready Itemized Medical Bill & Receipt** with cashier authentication seal.
+**PulseCare** is an integrated care-access, telemedicine, and quality support platform designed specifically for **Rural & Tiered Public Health Delivery Networks**. It strengthens the public health system by connecting **Sub-Centres (Health & Wellness Centres), Primary Health Centres (PHCs), Community Health Centres (CHCs)**, and **District Multi-Specialty Hospitals** into an interoperable continuum of care.
 
 ---
 
-## 🚀 Deployment Guide
+## 🎯 Addressing Rural & Primary Healthcare Challenges
 
-### Option A: Deploy to Netlify (Configured in Project)
+| Rural Healthcare Challenge | PulseCare Solution Module |
+| :--- | :--- |
+| **Long travel distances & specialist shortages** | **Assisted Teleconsultations**: Frontline ASHA/CHO workers connect rural patients directly to District Specialists via HD WebRTC video & telemetry vitals. |
+| **Delayed emergency referrals & transport bottlenecks** | **108 Emergency Escalation & Closed-Loop Referral Tracking**: Real-time ambulance dispatch with specialist pre-arrival notification and counter-referral instructions sent back to ASHA workers for home follow-up. |
+| **Fragmented records across sub-centres & hospitals** | **Longitudinal Patient 360° EHR & ABHA / FHIR Interoperability**: 14-digit National Health Account (`91-XXXX-XXXX-XXXX`) with 1-click HL7 FHIR Bundle JSON export. |
+| **High maternal/infant mortality & chronic NCD dropouts** | **High-Risk Patient Surveillance Registry**: Active cohort monitoring for High-Risk Pregnancies (Pre-eclampsia, Severe Anemia), Child Malnutrition (SAM/MAM), and Chronic NCDs (Diabetes, Hypertension). |
+| **Irregular diagnostics & drug stockouts** | **Cross-Facility Availability Grid**: Real-time visibility of essential life-saving drugs (Anti-Snake Venom, Oxytocin, Insulin) and working diagnostic equipment (Ultrasound, ECG, X-Ray) across nearby facilities. |
+| **Low connectivity & digital literacy barriers** | **Low-Connectivity Offline Sync & Multilingual Support**: Built-in 6-language switcher (English, Hindi, Tamil, Telugu, Bengali, Spanish) and automated offline data synchronization. |
 
-Your repository is now pre-configured for Netlify with [`netlify.toml`](file:///d:/antigravity/netlify.toml) and [`netlify/functions/app.py`](file:///d:/antigravity/netlify/functions/app.py).
+---
 
-#### 1. Push to GitHub:
-```bash
-git init
-git add .
-git commit -m "Initial PulseCare HMS release"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/pulsecare-hms.git
-git push -u origin main
+## 🌟 Key Functional Modules
+
+```mermaid
+graph TD
+    subgraph Tiered Healthcare Network
+        SC[Sub-Centre / Health & Wellness Centre<br/>ASHA / ANM / CHO]
+        PHC[Primary Health Centre - PHC<br/>Medical Officer / Staff Nurse]
+        CHC[Community Health Centre / Rural Hospital<br/>General Specialists & Labs]
+        DH[District Hospital / Tertiary Hub<br/>Super-specialists & ICU]
+    end
+
+    SC -->|Assisted Teleconsult & Triage| PHC
+    SC -->|High-Risk Escalation| DH
+    PHC -->|Teleconsult & Closed-Loop Referral| DH
+    CHC -->|Diagnostic & Bed Coordination| DH
+    DH -->|Counter-Referral & Follow-up Protocols| SC
+
+    subgraph Core Platform Capabilities
+        Teleconsult[Assisted Teleconsultation Suite with Live Vitals & Audio/Video]
+        Triage[Digital Triage & Red/Yellow/Green Emergency Escalation]
+        ReferralEngine[Inter-Facility Closed-Loop Referral Tracking]
+        HighRiskRegistry[High-Risk Registry: Maternal ANC/PNC, Child Immunization, NCDs]
+        SupplyChain[Cross-Facility Medicine & Diagnostic Availability Grid]
+        ABDM[ABHA / ABDM & FHIR Interoperable Health Records]
+        Multilingual[Multilingual Support & Low-Literacy Voice/Visual Aids]
+        OfflineSync[Low-Connectivity Offline Mode & Data Sync]
+    end
+
+    Tiered Healthcare Network <--> Core Platform Capabilities
+    Core Platform Capabilities <--> DB[(SQLite Database: pulsecare.db)]
 ```
 
-#### 2. Deploy on Netlify:
-1. Go to [app.netlify.com](https://app.netlify.com) and log in.
-2. Click **"Add new site"** ➔ **"Import an existing project"**.
-3. Select **GitHub** and pick your `pulsecare-hms` repository.
-4. Netlify will automatically detect `netlify.toml`:
-   - **Build command**: `pip install -r requirements.txt && python seed_data.py`
-   - **Publish directory**: `static`
-   - **Functions directory**: `netlify/functions`
-5. Click **"Deploy Site"** — your app is live!
+### 1. 👥 Multi-Role Stakeholder Personas & 1-Click Role Switcher
+- **Frontline Health Worker (ASHA / CHO)** (`asha.sunita` / `cho.priya`): Field registration, point-of-care vitals telemetry, assisted teleconsultation initiation, and home surveillance logs.
+- **PHC Medical Officer** (`dr.rajesh`): Primary OPD consultations, digital triage, laboratory requisitions, and secondary/tertiary referral initiation.
+- **District Hospital Specialist** (`dr.sarah` / `dr.anita` / `dr.elena`): Teleconsultation chamber, specialized SOAP diagnosis, e-prescriptions, and counter-referral guidance.
+- **District Health Director / Admin** (`admin`): Network quality analytics, facility capacity tracking, staff directory, and audit logs.
+- **Inpatient Ward Nurse** (`nurse.clara`): Visual bed matrix, patient admission, transfer, and discharge.
+- **Pharmacist** (`pharm.robert`): Central drug catalog, stockout alerts, and prescription dispensing.
+- **Lab Technician** (`lab.lisa`): Specimen collection, parameter result entry, and verified diagnostic reports.
+- **Patient Portal** (`patient.meena` / `patient.john`): Personal health record, upcoming teleconsultations, active prescriptions, and ABHA card.
 
 ---
 
-### Option B: Deploy to Render (Alternative 1-Click Python Hosting)
+## 🚀 Getting Started
 
-Render provides a native persistent Python environment for Flask + SQLite:
-1. Go to [Render.com](https://render.com) and create a free account.
-2. Click **New +** ➔ **Web Service** and select your GitHub repository.
-3. Render will auto-detect [`render.yaml`](file:///d:/antigravity/render.yaml) or set:
-   - **Runtime**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt && python seed_data.py`
-   - **Start Command**: `gunicorn app:app`
-4. Click **Create Web Service**.
+### 1. Installation
+```bash
+cd d:\antigravity
+python -m pip install -r requirements.txt
+```
 
----
+### 2. Initialize Database & Seed Network Data
+```bash
+python seed_data.py
+```
 
-## 💻 Local Development Setup
+### 3. Start the Web Server
+```bash
+python app.py
+```
+Open **`http://127.0.0.1:5000`** in your browser.
 
 ---
 
 ## 🔑 Demo Login Accounts
 
-| Role | Username | Password | Persona & Department |
+| Role | Username | Password | Persona & Facility |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `admin` | `password123` | Dr. Arthur Vance (Chief Medical Officer) |
-| **Doctor** | `dr.sarah` | `password123` | Dr. Sarah Jenkins (Cardiology OPD) |
-| **Doctor** | `dr.marcus` | `password123` | Dr. Marcus Brody (Neurology) |
-| **Doctor** | `dr.aisha` | `password123` | Dr. Aisha Patel (General Medicine & Diabetology) |
-| **Nurse** | `nurse.clara` | `password123` | Clara Oswald (ICU Head Nurse) |
-| **Receptionist** | `reception.emma` | `password123` | Emma Watson (Front Desk Lead) |
-| **Pharmacist** | `pharm.robert` | `password123` | Robert Taylor (Chief Pharmacist) |
-| **Lab Tech** | `lab.lisa` | `password123` | Lisa Ray (Senior Pathologist) |
-| **Patient** | `patient.john` | `password123` | John Doe (Patient Portal) |
-
-*(Note: You can also switch roles anytime using the top navigation switcher bar or the 1-click login buttons on the Sign In page).*
+| **ASHA Worker** | `asha.sunita` | `password123` | Sunita Devi (Rampur Sub-Centre) |
+| **Community Health Officer** | `cho.priya` | `password123` | Priya Sharma (Bilaspur HWC) |
+| **PHC Medical Officer** | `dr.rajesh` | `password123` | Dr. Rajesh Verma (Chandpur PHC) |
+| **District Specialist (OBGYN)** | `dr.anita` | `password123` | Dr. Anita Desai (District Hospital) |
+| **District Specialist (Cardiology)** | `dr.sarah` | `password123` | Dr. Sarah Jenkins (District Hospital) |
+| **Chief Medical Officer (Admin)** | `admin` | `password123` | Dr. Arthur Vance (District Health Complex) |
+| **Ward Nurse** | `nurse.clara` | `password123` | Clara Oswald (District Hospital) |
+| **Pharmacist** | `pharm.robert` | `password123` | Robert Taylor (District Central Pharmacy) |
+| **Lab Pathologist** | `lab.lisa` | `password123` | Lisa Ray (District Pathology Lab) |
+| **Rural Patient (HRP)** | `patient.meena` | `password123` | Meena Devi (Rampur Village • ABHA Linked) |
 
 ---
 
 ## 🧪 Running Automated Tests
 
-Run the complete 10-point end-to-end automated test suite:
+Run the complete 10-point test suite verifying all public health network capabilities:
 ```bash
-python -m unittest -v tests/test_hms.py
+python -m unittest -v tests/test_public_health.py
 ```
 
 ---
 
-## 📁 Project Architecture
+## 🚀 Deployment to Netlify or Render
 
-```
-d:\antigravity\
-├── app.py                     # Main Flask web application & API routing
-├── models.py                  # Database connection, query helpers & audit logger
-├── schema.sql                 # Complete relational SQLite schema (20 tables)
-├── seed_data.py               # Comprehensive realistic medical dataset generator
-├── requirements.txt           # Python dependencies (Flask, Werkzeug)
-├── README.md                  # System documentation & usage guide
-├── pulsecare.db               # SQLite relational database
-├── static/
-│   ├── css/
-│   │   └── styles.css         # Medical UI design system & @media print styles
-│   └── js/
-│       └── main.js            # Dynamic prescription & invoice builder, search filters
-├── templates/
-│   ├── base.html              # Master layout with sidebar, topbar & role switcher
-│   ├── auth/
-│   │   └── login.html         # Login page with 1-click persona quick selector
-│   ├── dashboard/
-│   │   └── index.html         # Role-aware operational & clinical KPI dashboard
-│   ├── patients/
-│   │   ├── index.html         # Patient directory & multi-filter search
-│   │   ├── view.html          # Comprehensive Patient 360° EHR Profile
-│   │   └── form.html          # Patient registration & edit form
-│   ├── appointments/
-│   │   ├── index.html         # Appointment scheduler & status pipeline
-│   │   └── queue.html         # Live OPD TV waiting room display board
-│   ├── consultations/
-│   │   └── form.html          # Clinical consultation room & e-prescription builder
-│   ├── wards/
-│   │   └── index.html         # Visual bed occupancy matrix (ICU, ER, General, Private)
-│   ├── pharmacy/
-│   │   └── index.html         # Medicine inventory, low-stock alerts & dispense queue
-│   ├── laboratory/
-│   │   ├── index.html         # Lab orders queue & parameter result entry
-│   │   └── report.html        # Print-ready verified diagnostic lab report
-│   ├── billing/
-│   │   ├── index.html         # Invoices ledger & dynamic bill creator
-│   │   └── invoice.html       # Print-ready itemized medical invoice & receipt
-│   ├── staff/
-│   │   └── index.html         # Medical staff directory & department management
-│   └── settings/
-│       ├── index.html         # Hospital profile & tax configuration
-│       └── audit_logs.html    # Security activity & audit log trail
-└── tests/
-    ├── __init__.py
-    └── test_hms.py            # Automated integration & unit test suite
-```
+- **Netlify**: Pre-configured with [`netlify.toml`](file:///d:/antigravity/netlify.toml) and [`netlify/functions/app.py`](file:///d:/antigravity/netlify/functions/app.py). Connect your GitHub repository on [Netlify](https://app.netlify.com).
+- **Render**: Pre-configured with [`render.yaml`](file:///d:/antigravity/render.yaml) and [`Procfile`](file:///d:/antigravity/Procfile). Connect your GitHub repo on [Render](https://render.com).

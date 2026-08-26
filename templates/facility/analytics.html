@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Public Health Analytics & Quality Dashboard{% endblock %}
+{% block header_title %}Public Health Quality & Facility Analytics Dashboard{% endblock %}
+{% block header_subtitle %}Monitoring Referral Completion Rates, Telehealth Turnaround, Maternal Risk Mitigation & Facility Infrastructure{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+  
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-primary">
+      <div class="text-muted fs-8 text-uppercase fw-semibold">Teleconsult Completion</div>
+      <div class="fs-2 fw-bold text-primary">{{ teleconsult_success_rate }}%</div>
+      <div class="fs-8 text-muted">{{ stats.teleconsult_completed }} of {{ stats.teleconsult_total }} sessions resolved</div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-success">
+      <div class="text-muted fs-8 text-uppercase fw-semibold">Referral Completion Rate</div>
+      <div class="fs-2 fw-bold text-success">{{ referral_completion_rate }}%</div>
+      <div class="fs-8 text-muted">{{ stats.referral_completed }} of {{ stats.referral_total }} closed-loop referrals</div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-danger">
+      <div class="text-muted fs-8 text-uppercase fw-semibold">Maternal HRP Surveillance</div>
+      <div class="fs-2 fw-bold text-danger">{{ stats.high_risk_maternal }}</div>
+      <div class="fs-8 text-muted">Active high-risk pregnant mothers tracked</div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-warning">
+      <div class="text-muted fs-8 text-uppercase fw-semibold">Supply Stockout Alerts</div>
+      <div class="fs-2 fw-bold text-warning">{{ stats.stockout_alerts }}</div>
+      <div class="fs-8 text-muted">Facility items below reorder threshold</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Facility Network Hierarchy Summary -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+  <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+    <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-hospital text-primary me-2"></i>Tiered Public Health Facilities Hierarchy & Capacity</h6>
+    <span class="badge bg-light text-dark border">{{ facilities | length }} Network Facilities</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 fs-7">
+      <thead class="table-light">
+        <tr>
+          <th>Facility Name & Code</th>
+          <th>Hierarchy Tier</th>
+          <th>District & Block</th>
+          <th>Bed Capacity</th>
+          <th>Teleconsult Station</th>
+          <th>108 Ambulance</th>
+          <th>Diagnostic Equipment Summary</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in facilities %}
+        <tr>
+          <td>
+            <div class="fw-bold text-dark">{{ f.name }}</div>
+            <div class="text-muted fs-8">{{ f.facility_code }} • Ph: {{ f.contact_phone }}</div>
+          </td>
+          <td>
+            <span class="badge {% if f.tier_type == 'District Hospital' %}bg-primary{% elif f.tier_type == 'CHC' %}bg-info text-dark{% elif f.tier_type == 'PHC' %}bg-success{% else %}bg-warning text-dark{% endif %} py-1 px-2">
+              {{ f.tier_type }}
+            </span>
+          </td>
+          <td>
+            <div class="fw-semibold text-dark">{{ f.district }}</div>
+            <div class="text-muted fs-8">{{ f.block_taluk }} (PIN: {{ f.pincode }})</div>
+          </td>
+          <td>
+            <span class="fw-bold fs-6 text-dark">{{ f.total_beds }} Beds</span>
+          </td>
+          <td>
+            {% if f.teleconsult_enabled %}
+              <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Active</span>
+            {% else %}
+              <span class="badge bg-secondary">Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if f.ambulance_available > 0 %}
+              <span class="badge bg-danger"><i class="bi bi-truck-front me-1"></i>{{ f.ambulance_available }} Available</span>
+            {% else %}
+              <span class="badge bg-light text-dark border">On-Call (108)</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="text-muted fs-8" style="max-width: 300px;">{{ f.equipment_summary or 'Standard Clinical Equipment' }}</div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

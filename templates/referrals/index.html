@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block title %}Closed-Loop Referral Tracking{% endblock %}
+{% block header_title %}Inter-Facility Closed-Loop Referral Tracking{% endblock %}
+{% block header_subtitle %}Connecting Primary Health Centres (PHC) & Sub-Centres to Community & District Hospitals{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+  <!-- Top KPI Cards -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-danger text-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fs-8 text-uppercase opacity-75 fw-semibold">Emergency Referrals (108)</div>
+          <div class="fs-3 fw-bold">{{ referrals | selectattr('triage_priority', 'equalto', 'Emergency - Red') | list | length }}</div>
+        </div>
+        <i class="bi bi-truck-front-fill fs-1 opacity-50"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-warning text-dark">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fs-8 text-uppercase opacity-75 fw-semibold">In-Transit / Pending</div>
+          <div class="fs-3 fw-bold">{{ referrals | selectattr('status', 'in', ['Initiated', 'Accepted', 'In-Transit']) | list | length }}</div>
+        </div>
+        <i class="bi bi-hourglass-split fs-1 opacity-50"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-primary text-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fs-8 text-uppercase opacity-75 fw-semibold">Specialist Attended</div>
+          <div class="fs-3 fw-bold">{{ referrals | selectattr('status', 'equalto', 'Attended') | list | length }}</div>
+        </div>
+        <i class="bi bi-hospital fs-1 opacity-50"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-success text-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fs-8 text-uppercase opacity-75 fw-semibold">Counter-Referred to ASHA</div>
+          <div class="fs-3 fw-bold">{{ referrals | selectattr('status', 'equalto', 'Counter-Referred') | list | length }}</div>
+        </div>
+        <i class="bi bi-arrow-repeat fs-1 opacity-50"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+  <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <h6 class="mb-0 fw-bold"><i class="bi bi-diagram-3-fill text-primary me-2"></i>Inter-Facility Referral Pipeline</h6>
+      <small class="text-muted">Guarantees continuity of medical care with closed-loop counter-referral feedback to rural ASHA workers</small>
+    </div>
+
+    <button class="btn btn-sm btn-primary fw-semibold" data-bs-toggle="modal" data-bs-target="#newReferralModal">
+      <i class="bi bi-plus-circle me-1"></i> Create Inter-Facility Referral
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="card-body bg-light border-bottom py-2">
+    <form method="GET" action="{{ url_for('referrals_index') }}" class="row g-2 align-items-center">
+      <div class="col-md-3">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All Statuses</option>
+          <option value="Initiated" {% if status_filter == 'Initiated' %}selected{% endif %}>Initiated</option>
+          <option value="Accepted" {% if status_filter == 'Accepted' %}selected{% endif %}>Accepted by Specialist</option>
+          <option value="In-Transit" {% if status_filter == 'In-Transit' %}selected{% endif %}>In-Transit (Ambulance/Self)</option>
+          <option value="Attended" {% if status_filter == 'Attended' %}selected{% endif %}>Attended</option>
+          <option value="Counter-Referred" {% if status_filter == 'Counter-Referred' %}selected{% endif %}>Counter-Referred</option>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <select name="priority" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All Priorities</option>
+          <option value="Emergency - Red" {% if priority_filter == 'Emergency - Red' %}selected{% endif %}>🔴 Emergency - Red</option>
+          <option value="Urgent - Yellow" {% if priority_filter == 'Urgent - Yellow' %}selected{% endif %}>🟡 Urgent - Yellow</option>
+          <option value="Routine - Green" {% if priority_filter == 'Routine - Green' %}selected{% endif %}>🟢 Routine - Green</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <a href="{{ url_for('referrals_index') }}" class="btn btn-sm btn-outline-secondary w-100">Reset</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Referrals Table -->
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 fs-7">
+      <thead class="table-light">
+        <tr>
+          <th>Referral UID</th>
+          <th>Patient & Village</th>
+          <th>From Facility ➔ To Facility</th>
+          <th>Specialty Needed & Reason</th>
+          <th>Transport</th>
+          <th>Status Pipeline</th>
+          <th class="text-end">Manage</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in referrals %}
+        <tr class="{% if 'Emergency' in r.triage_priority %}table-danger-subtle{% elif 'Urgent' in r.triage_priority %}table-warning-subtle{% endif %}">
+          <td>
+            <div class="fw-bold text-primary">{{ r.referral_uid }}</div>
+            <div class="text-muted fs-8">{{ r.initiated_at | format_date("%b %d, %H:%M") }}</div>
+          </td>
+          <td>
+            <div class="fw-bold text-dark">{{ r.first_name }} {{ r.last_name }}</div>
+            <div class="text-muted fs-8"><i class="bi bi-geo-alt me-1"></i>{{ r.village }} • <span class="badge bg-light text-dark border">{{ r.patient_uid }}</span></div>
+            {% if r.abha_id %}
+              <div class="text-primary fs-9 fw-semibold"><i class="bi bi-qr-code me-1"></i>{{ r.abha_id }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <div class="fw-semibold text-dark">{{ r.from_facility_name }} <small class="text-muted">({{ r.from_facility_tier }})</small></div>
+            <div class="text-primary fs-8">➔ {{ r.to_facility_name }} <small class="text-muted">({{ r.to_facility_tier }})</small></div>
+          </td>
+          <td>
+            <div class="fw-bold text-dark">{{ r.specialty_needed }}</div>
+            <div class="text-muted fs-8 text-truncate" style="max-width: 220px;" title="{{ r.reason }}">{{ r.reason }}</div>
+          </td>
+          <td>
+            {% if r.transport_mode == '108 Ambulance' %}
+              <span class="badge bg-danger"><i class="bi bi-truck-front me-1"></i>108 Ambulance</span>
+            {% else %}
+              <span class="badge bg-light text-dark border">{{ r.transport_mode }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {% if r.status == 'Counter-Referred' %}bg-success{% elif r.status == 'Attended' %}bg-primary{% elif r.status == 'In-Transit' %}bg-danger pulse-animation{% elif r.status == 'Accepted' %}bg-info text-dark{% else %}bg-warning text-dark{% endif %}">
+              {{ r.status }}
+            </span>
+            {% if r.counter_referral_notes %}
+              <div class="text-success fs-9 mt-1"><i class="bi bi-check2-all me-1"></i>Counter-advice issued</div>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#refDetailModal_{{ r.id }}">
+              <i class="bi bi-eye me-1"></i> Details / Actions
+            </button>
+          </td>
+        </tr>
+
+        <!-- MODAL: REFERRAL DETAILS & STATUS UPDATE -->
+        <div class="modal fade" id="refDetailModal_{{ r.id }}" tabindex="-1">
+          <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold fs-6">Referral Details: {{ r.referral_uid }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body fs-7">
+                
+                <div class="row g-2 p-3 bg-light rounded border mb-3">
+                  <div class="col-md-6">
+                    <span class="text-muted fs-8">Patient:</span>
+                    <div class="fw-bold fs-6">{{ r.first_name }} {{ r.last_name }} ({{ r.patient_uid }})</div>
+                    <div class="text-muted fs-8">Village: {{ r.village }} • Phone: {{ r.phone }}</div>
+                  </div>
+                  <div class="col-md-6 border-start ps-md-3">
+                    <span class="text-muted fs-8">Referred From ➔ To:</span>
+                    <div class="fw-bold">{{ r.from_facility_name }} ➔ {{ r.to_facility_name }}</div>
+                    <div class="text-muted fs-8">Referring Doctor: Dr. {{ r.doctor_name }}</div>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <strong class="text-muted fs-8 d-block mb-1">Clinical Reason & Provisional Diagnosis:</strong>
+                  <div class="p-2 border rounded bg-white">{{ r.reason }}</div>
+                </div>
+
+                {% if r.counter_referral_notes %}
+                <div class="mb-3">
+                  <strong class="text-success fs-8 d-block mb-1"><i class="bi bi-arrow-repeat me-1"></i>Specialist Counter-Referral Advice (Sent to Rural ASHA):</strong>
+                  <div class="p-2 border border-success-subtle bg-success-subtle rounded text-dark">{{ r.counter_referral_notes }}</div>
+                </div>
+                {% endif %}
+
+                <!-- Status Update Form for Specialists & Facility Managers -->
+                <form method="POST" action="{{ url_for('referral_status_update', ref_id=r.id) }}" class="border-top pt-3 mt-3">
+                  <h6 class="fw-bold fs-7 mb-2">Update Referral Status & Issue Counter-Referral:</h6>
+                  <div class="row g-2 mb-2">
+                    <div class="col-md-5">
+                      <select name="status" class="form-select form-select-sm" required>
+                        <option value="Accepted" {% if r.status == 'Accepted' %}selected{% endif %}>Accept by Specialist Hub</option>
+                        <option value="In-Transit" {% if r.status == 'In-Transit' %}selected{% endif %}>Mark Patient In-Transit</option>
+                        <option value="Attended" {% if r.status == 'Attended' %}selected{% endif %}>Mark Patient Attended at Specialist OPD/ICU</option>
+                        <option value="Counter-Referred" {% if r.status == 'Counter-Referred' %}selected{% endif %}>Issue Counter-Referral Back to ASHA/PHC</option>
+                      </select>
+                    </div>
+                    <div class="col-md-7">
+                      <input type="text" name="counter_referral_notes" class="form-control form-control-sm" placeholder="Counter-referral instructions for home follow-up by ASHA..." value="{{ r.counter_referral_notes or '' }}">
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-sm btn-primary fw-semibold"><i class="bi bi-check2-circle me-1"></i>Update Status</button>
+                </form>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center py-4 text-muted">No referral records found matching criteria.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL: CREATE INTER-FACILITY REFERRAL -->
+<div class="modal fade" id="newReferralModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('referral_create') }}">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold fs-6"><i class="bi bi-arrow-left-right me-2"></i>Create Inter-Facility Referral Slip</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body fs-7">
+          
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Patient <span class="text-danger">*</span></label>
+              <select name="patient_id" class="form-select form-select-sm" required>
+                <option value="">-- Choose Patient --</option>
+                {% for p in patients %}
+                <option value="{{ p.id }}">{{ p.first_name }} {{ p.last_name }} ({{ p.patient_uid }}) - {{ p.village }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Specialty Required <span class="text-danger">*</span></label>
+              <select name="specialty_needed" class="form-select form-select-sm" required>
+                <option value="Obstetrics & High-Risk Pregnancy">Obstetrics & High-Risk Pregnancy (HRP)</option>
+                <option value="Cardiology & Cath Lab">Cardiology & Cath Lab</option>
+                <option value="Pediatrics & Neonatal ICU">Pediatrics & Neonatal ICU (NICU)</option>
+                <option value="Neurology & Stroke Unit">Neurology & Stroke Unit</option>
+                <option value="Emergency & Trauma Resuscitation">Emergency & Trauma Resuscitation</option>
+                <option value="General Medicine & Diabetology">General Medicine & Diabetology</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Referring From (Source Facility)</label>
+              <select name="from_facility_id" class="form-select form-select-sm">
+                {% for f in facilities %}
+                <option value="{{ f.id }}" {% if current_user and current_user.facility_id == f.id %}selected{% endif %}>{{ f.name }} ({{ f.tier_type }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Referring To (Destination Hub)</label>
+              <select name="to_facility_id" class="form-select form-select-sm">
+                {% for f in facilities if f.tier_type in ['District Hospital', 'CHC'] %}
+                <option value="{{ f.id }}">{{ f.name }} ({{ f.tier_type }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Triage Priority <span class="text-danger">*</span></label>
+              <select name="triage_priority" class="form-select form-select-sm" required>
+                <option value="Emergency - Red">🔴 Emergency - Red (Immediate Ambulance)</option>
+                <option value="Urgent - Yellow">🟡 Urgent - Yellow (Within 24 Hours)</option>
+                <option value="Routine - Green">🟢 Routine - Green (Scheduled Consultation)</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Transport Mode <span class="text-danger">*</span></label>
+              <select name="transport_mode" class="form-select form-select-sm" required>
+                <option value="108 Ambulance">108 Emergency Ambulance</option>
+                <option value="Government Health Transport">Government Health Transport (Janani Shishu)</option>
+                <option value="Self / Private Vehicle">Self / Private Vehicle</option>
+                <option value="Public Transit">Public Transit (Bus/Train)</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Assign ASHA for Follow-up</label>
+              <select name="assigned_followup_asha_id" class="form-select form-select-sm">
+                <option value="">-- Auto-assign Village ASHA --</option>
+                {% for a in asha_workers %}
+                <option value="{{ a.id }}">{{ a.full_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Clinical Reason for Referral & Current Findings <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control form-control-sm" rows="3" required placeholder="Describe clinical indications, vital signs, ECG findings, danger signs, or need for surgical/specialist intervention..."></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Provisional Diagnosis</label>
+            <input type="text" name="provisional_diagnosis" class="form-control form-control-sm" placeholder="e.g. Acute STEMI, Severe Pre-eclampsia in 28w pregnancy, SAM with dehydration">
+          </div>
+
+        </div>
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary fw-bold"><i class="bi bi-send-check me-1"></i>Generate Referral Slip</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

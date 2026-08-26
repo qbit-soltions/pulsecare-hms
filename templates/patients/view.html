@@ -2,33 +2,41 @@
 
 {% block title %}Patient EHR - {{ patient.first_name }} {{ patient.last_name }}{% endblock %}
 {% block header_title %}Electronic Health Record (EHR) - {{ patient.first_name }} {{ patient.last_name }}{% endblock %}
+{% block header_subtitle %}Longitudinal Health History • ABHA ID: {{ patient.abha_id or 'Pending' }} • {{ patient.village or 'Rural Sector' }}{% endblock %}
 
 {% block content %}
 
 <!-- TOP PATIENT HEADER CARD -->
-<div class="patient-header-card">
+<div class="patient-header-card shadow-sm rounded-3 p-4 mb-4" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white;">
   <div class="row align-items-center g-3">
     <div class="col-lg-7">
       <div class="d-flex align-items-center gap-3">
-        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-3 shadow" style="width: 72px; height: 72px;">
+        <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold fs-3 shadow" style="width: 72px; height: 72px;">
           {{ patient.first_name[0] }}{{ patient.last_name[0] }}
         </div>
         <div>
-          <div class="d-flex align-items-center gap-2">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
             <h4 class="fw-bold mb-0 text-white">{{ patient.first_name }} {{ patient.last_name }}</h4>
-            <span class="badge bg-info text-dark rounded-pill px-3">{{ patient.patient_uid }}</span>
-            {% if active_admission %}
-              <span class="badge bg-danger rounded-pill"><i class="bi bi-hospital me-1"></i>Inpatient: Bed {{ active_admission.bed_number }} ({{ active_admission.ward_name }})</span>
+            <span class="badge bg-light text-dark rounded-pill px-3">{{ patient.patient_uid }}</span>
+            {% if patient.abha_id %}
+              <span class="badge bg-success rounded-pill px-3"><i class="bi bi-qr-code me-1"></i>ABHA: {{ patient.abha_id }}</span>
             {% else %}
-              <span class="badge bg-success bg-opacity-25 text-white border border-success border-opacity-50 rounded-pill">Outpatient</span>
+              <form method="POST" action="{{ url_for('generate_abha', patient_id=patient.id) }}" class="d-inline">
+                <button type="submit" class="btn btn-xs btn-outline-warning py-0"><i class="bi bi-plus-circle me-1"></i>Generate ABHA ID</button>
+              </form>
+            {% endif %}
+            {% if patient.is_high_risk %}
+              <span class="badge bg-danger rounded-pill"><i class="bi bi-shield-fill-exclamation me-1"></i>{{ patient.high_risk_category }}</span>
             {% endif %}
           </div>
           <div class="text-white-50 fs-7 mt-1">
-            <span><i class="bi bi-gender-ambiguous me-1"></i>{{ patient.gender }}, {{ age }} Years</span>
+            <span><i class="bi bi-geo-alt-fill text-warning me-1"></i>{{ patient.village }} ({{ patient.panchayat }})</span>
             <span class="mx-2">•</span>
-            <span><i class="bi bi-droplet-fill text-danger me-1"></i>Blood Group: <strong>{{ patient.blood_group }}</strong></span>
+            <span><i class="bi bi-droplet-fill text-danger me-1"></i>Blood Group: <strong>{{ patient.blood_group or 'O+' }}</strong></span>
             <span class="mx-2">•</span>
             <span><i class="bi bi-telephone me-1"></i>{{ patient.phone }}</span>
+            <span class="mx-2">•</span>
+            <span class="badge bg-info text-dark">{{ patient.socioeconomic_category }}</span>
           </div>
         </div>
       </div>
@@ -37,48 +45,40 @@
     <!-- Quick Action Buttons -->
     <div class="col-lg-5 text-lg-end">
       <div class="d-flex gap-2 justify-content-lg-end flex-wrap">
-        {% if current_user and current_user.role in ['admin', 'doctor', 'nurse'] %}
+        <a href="{{ url_for('export_fhir_bundle', patient_id=patient.id) }}" class="btn btn-sm btn-outline-light" title="Download Standard HL7 FHIR Bundle JSON">
+          <i class="bi bi-filetype-json me-1"></i> FHIR Export
+        </a>
+
         <button class="btn btn-sm btn-info text-dark fw-semibold" data-bs-toggle="modal" data-bs-target="#recordVitalsModal">
           <i class="bi bi-activity me-1"></i> Record Vitals
         </button>
-        {% endif %}
 
-        {% if current_user and current_user.role in ['admin', 'doctor'] %}
-        <a href="{{ url_for('consultation_create', patient_id=patient.id) }}" class="btn btn-sm btn-primary fw-semibold">
-          <i class="bi bi-clipboard2-pulse me-1"></i> Start Consultation
-        </a>
-        {% endif %}
-
-        {% if not active_admission and current_user and current_user.role in ['admin', 'doctor', 'nurse', 'receptionist'] %}
-        <button class="btn btn-sm btn-warning text-dark fw-semibold" data-bs-toggle="modal" data-bs-target="#admitPatientModal">
-          <i class="bi bi-hospital me-1"></i> Admit to Ward
+        <button class="btn btn-sm btn-primary fw-semibold" data-bs-toggle="modal" data-bs-target="#newTeleconsultModal">
+          <i class="bi bi-camera-video me-1"></i> Teleconsult
         </button>
-        {% endif %}
-
-        {% if current_user and current_user.role in ['admin', 'receptionist'] %}
-        <a href="{{ url_for('patient_edit', patient_id=patient.id) }}" class="btn btn-sm btn-outline-light">
-          <i class="bi bi-pencil me-1"></i> Edit Profile
-        </a>
-        {% endif %}
       </div>
     </div>
   </div>
 
   <!-- Medical Alerts Banner -->
   <div class="row g-2 mt-3 pt-3 border-top border-white border-opacity-10 fs-7">
-    <div class="col-md-4">
+    <div class="col-md-3">
       <span class="text-white-50">Allergies:</span>
       <span class="fw-bold {% if patient.allergies and patient.allergies != 'None' %}text-warning{% else %}text-white{% endif %} ms-1">
         {{ patient.allergies or 'None Reported' }}
       </span>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
       <span class="text-white-50">Chronic Conditions:</span>
       <span class="fw-bold text-white ms-1">{{ patient.chronic_conditions or 'None' }}</span>
     </div>
-    <div class="col-md-4">
-      <span class="text-white-50">Insurance:</span>
-      <span class="fw-bold text-info ms-1">{{ patient.insurance_provider or 'Self-Pay' }} {% if patient.insurance_policy_number %}({{ patient.insurance_policy_number }}){% endif %}</span>
+    <div class="col-md-3">
+      <span class="text-white-50">Assigned ASHA:</span>
+      <span class="fw-bold text-light ms-1">{{ patient.assigned_asha_name or 'Sunita Devi' }}</span>
+    </div>
+    <div class="col-md-3">
+      <span class="text-white-50">Facility:</span>
+      <span class="fw-bold text-info ms-1">{{ patient.facility_name }} ({{ patient.facility_tier }})</span>
     </div>
   </div>
 </div>
@@ -88,237 +88,235 @@
 {% set lv = vitals[0] %}
 <div class="row g-3 mb-4">
   <div class="col-md-2 col-6">
-    <div class="stat-card p-3 text-center">
-      <div class="stat-card-label">Blood Pressure</div>
-      <div class="fw-bold fs-5 text-danger">{{ lv.blood_pressure_sys }}/{{ lv.blood_pressure_dia }} <small class="fs-8">mmHg</small></div>
+    <div class="card border-0 shadow-sm rounded-3 p-3 text-center bg-white">
+      <div class="text-muted fs-8 text-uppercase">Blood Pressure</div>
+      <div class="fw-bold fs-5 text-danger">{{ lv.blood_pressure_sys }}/{{ lv.blood_pressure_dia }} <small class="fs-9 text-muted">mmHg</small></div>
+      <span class="badge {% if lv.triage_color == 'Red' %}bg-danger{% elif lv.triage_color == 'Yellow' %}bg-warning text-dark{% else %}bg-success{% endif %} fs-9">
+        {{ lv.triage_color }} Flag
+      </span>
     </div>
   </div>
   <div class="col-md-2 col-6">
-    <div class="stat-card p-3 text-center">
-      <div class="stat-card-label">Heart Rate</div>
-      <div class="fw-bold fs-5 text-primary">{{ lv.heart_rate_bpm }} <small class="fs-8">bpm</small></div>
+    <div class="card border-0 shadow-sm rounded-3 p-3 text-center bg-white">
+      <div class="text-muted fs-8 text-uppercase">Heart Rate</div>
+      <div class="fw-bold fs-5 text-primary">{{ lv.heart_rate_bpm }} <small class="fs-9 text-muted">bpm</small></div>
+      <span class="badge bg-light text-dark border fs-9">Pulse</span>
     </div>
   </div>
   <div class="col-md-2 col-6">
-    <div class="stat-card p-3 text-center">
-      <div class="stat-card-label">Temperature</div>
-      <div class="fw-bold fs-5 text-warning">{{ lv.temperature_c }} <small class="fs-8">°C</small></div>
+    <div class="card border-0 shadow-sm rounded-3 p-3 text-center bg-white">
+      <div class="text-muted fs-8 text-uppercase">SpO2 Oxygen</div>
+      <div class="fw-bold fs-5 text-info">{{ lv.spo2_percent }}%</div>
+      <span class="badge bg-success fs-9">Optimal</span>
     </div>
   </div>
   <div class="col-md-2 col-6">
-    <div class="stat-card p-3 text-center">
-      <div class="stat-card-label">SpO2 Oxygen</div>
-      <div class="fw-bold fs-5 text-success">{{ lv.spo2_percent }} <small class="fs-8">%</small></div>
+    <div class="card border-0 shadow-sm rounded-3 p-3 text-center bg-white">
+      <div class="text-muted fs-8 text-uppercase">Temperature</div>
+      <div class="fw-bold fs-5 text-dark">{{ lv.temperature_c }}°C</div>
+      <span class="badge bg-light text-dark border fs-9">Axillary</span>
     </div>
   </div>
   <div class="col-md-2 col-6">
-    <div class="stat-card p-3 text-center">
-      <div class="stat-card-label">Blood Sugar</div>
-      <div class="fw-bold fs-5 text-purple" style="color: #9333ea;">{{ lv.blood_sugar_mgdl or '—' }} <small class="fs-8">mg/dL</small></div>
+    <div class="card border-0 shadow-sm rounded-3 p-3 text-center bg-white">
+      <div class="text-muted fs-8 text-uppercase">Blood Sugar</div>
+      <div class="fw-bold fs-5 text-warning">{{ lv.blood_sugar_mgdl or '—' }} <small class="fs-9 text-muted">mg/dL</small></div>
+      <span class="badge bg-light text-dark border fs-9">Glucometer</span>
     </div>
   </div>
   <div class="col-md-2 col-6">
-    <div class="stat-card p-3 text-center">
-      <div class="stat-card-label">BMI Ratio</div>
-      <div class="fw-bold fs-5 text-dark">{{ lv.bmi or '—' }} <small class="fs-8">kg/m²</small></div>
+    <div class="card border-0 shadow-sm rounded-3 p-3 text-center bg-white">
+      <div class="text-muted fs-8 text-uppercase">Hemoglobin</div>
+      <div class="fw-bold fs-5 text-danger">{{ lv.hemoglobin_gdl or '—' }} <small class="fs-9 text-muted">g/dL</small></div>
+      <span class="badge bg-light text-dark border fs-9">HemoCue</span>
     </div>
   </div>
 </div>
 {% endif %}
 
-<!-- TABS NAVIGATION -->
-<div class="card-custom">
-  <div class="card-header-custom p-0 border-bottom">
-    <ul class="nav nav-tabs border-0 px-3 pt-2" id="patientEhrTabs" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link active fw-semibold" id="consultations-tab" data-bs-toggle="tab" data-bs-target="#consultations" type="button" role="tab">
-          <i class="bi bi-clipboard2-pulse me-1"></i> Consultations ({{ consultations|length }})
+<!-- LONGITUDINAL EHR PROFILE TABS -->
+<div class="card border-0 shadow-sm rounded-3">
+  <div class="card-header bg-white border-bottom p-0">
+    <ul class="nav nav-tabs card-header-tabs m-0 fs-7" id="ehrTabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active py-3 px-4 fw-semibold" data-bs-toggle="tab" data-bs-target="#teleconsultTab">
+          <i class="bi bi-camera-video me-1 text-primary"></i> Teleconsultations ({{ teleconsults | length }})
         </button>
       </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link fw-semibold" id="prescriptions-tab" data-bs-toggle="tab" data-bs-target="#prescriptions" type="button" role="tab">
-          <i class="bi bi-capsule me-1"></i> Prescriptions ({{ prescriptions|length }})
+      <li class="nav-item">
+        <button class="nav-link py-3 px-4 fw-semibold" data-bs-toggle="tab" data-bs-target="#referralsTab">
+          <i class="bi bi-arrow-left-right me-1 text-warning"></i> Referrals ({{ referrals | length }})
         </button>
       </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link fw-semibold" id="lab-tab" data-bs-toggle="tab" data-bs-target="#lab" type="button" role="tab">
-          <i class="bi bi-moisture me-1"></i> Lab Tests ({{ lab_orders|length }})
+      <li class="nav-item">
+        <button class="nav-link py-3 px-4 fw-semibold" data-bs-toggle="tab" data-bs-target="#vitalsTab">
+          <i class="bi bi-activity me-1 text-danger"></i> Vitals History ({{ vitals | length }})
         </button>
       </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link fw-semibold" id="vitals-tab" data-bs-toggle="tab" data-bs-target="#vitals" type="button" role="tab">
-          <i class="bi bi-activity me-1"></i> Vitals History ({{ vitals|length }})
+      <li class="nav-item">
+        <button class="nav-link py-3 px-4 fw-semibold" data-bs-toggle="tab" data-bs-target="#prescriptionsTab">
+          <i class="bi bi-capsule me-1 text-success"></i> Prescriptions ({{ prescriptions | length }})
         </button>
       </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link fw-semibold" id="admissions-tab" data-bs-toggle="tab" data-bs-target="#admissions" type="button" role="tab">
-          <i class="bi bi-hospital me-1"></i> Inpatient Admissions ({{ admissions|length }})
+      <li class="nav-item">
+        <button class="nav-link py-3 px-4 fw-semibold" data-bs-toggle="tab" data-bs-target="#labTab">
+          <i class="bi bi-radioactive me-1 text-info"></i> Lab Diagnostics ({{ lab_orders | length }})
         </button>
       </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link fw-semibold" id="invoices-tab" data-bs-toggle="tab" data-bs-target="#invoices" type="button" role="tab">
-          <i class="bi bi-receipt me-1"></i> Billing Ledger ({{ invoices|length }})
+      <li class="nav-item">
+        <button class="nav-link py-3 px-4 fw-semibold" data-bs-toggle="tab" data-bs-target="#highRiskTab">
+          <i class="bi bi-shield-exclamation me-1 text-danger"></i> High-Risk Surveillance ({{ high_risk_entries | length }})
         </button>
       </li>
     </ul>
   </div>
 
-  <div class="card-body-custom">
-    <div class="tab-content" id="patientEhrTabsContent">
+  <div class="card-body p-4">
+    <div class="tab-content">
       
-      <!-- 1. CONSULTATIONS TAB -->
-      <div class="tab-pane fade show active" id="consultations" role="tabpanel">
-        {% for c in consultations %}
-        <div class="border rounded p-3 mb-3 bg-light bg-opacity-50">
+      <!-- 1. TELECONSULTATIONS TAB -->
+      <div class="tab-pane fade show active" id="teleconsultTab">
+        {% for t in teleconsults %}
+        <div class="border rounded p-3 mb-3 bg-light shadow-sm">
           <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap">
             <div>
-              <h6 class="fw-bold text-primary m-0">
-                <i class="bi bi-person-badge me-1"></i>Dr. {{ c.doctor_name }} ({{ c.doctor_specialization }})
-              </h6>
-              <small class="text-muted">{{ c.created_at | format_date("%b %d, %Y at %I:%M %p") }}</small>
+              <span class="fw-bold text-primary fs-6">{{ t.session_uid }}</span>
+              <span class="text-muted fs-8 ms-2">Conducted on {{ t.scheduled_at | format_date }}</span>
             </div>
-            {% if c.icd_code %}
-            <span class="badge bg-secondary">ICD-10: {{ c.icd_code }}</span>
-            {% endif %}
+            <div class="d-flex gap-2">
+              <span class="badge {% if t.status == 'Completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ t.status }}</span>
+              <a href="{{ url_for('teleconsult_session', session_id=t.id) }}" class="btn btn-xs btn-primary">Open Chamber</a>
+            </div>
           </div>
-
-          <div class="row g-3 fs-7 mt-1">
-            <div class="col-md-6">
-              <div class="p-2 bg-white rounded border">
-                <strong class="text-muted d-block fs-8 text-uppercase">Chief Complaints / Symptoms:</strong>
-                {{ c.symptoms or '—' }}
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="p-2 bg-white rounded border">
-                <strong class="text-muted d-block fs-8 text-uppercase">Clinical Diagnosis:</strong>
-                <span class="fw-bold text-dark">{{ c.diagnosis }}</span>
-              </div>
-            </div>
-            {% if c.examination_notes %}
-            <div class="col-12">
-              <div class="p-2 bg-white rounded border">
-                <strong class="text-muted d-block fs-8 text-uppercase">Physical Examination:</strong>
-                {{ c.examination_notes }}
-              </div>
-            </div>
-            {% endif %}
-            {% if c.treatment_plan %}
-            <div class="col-12">
-              <div class="p-2 bg-white rounded border">
-                <strong class="text-muted d-block fs-8 text-uppercase">Treatment Plan & Advice:</strong>
-                <div style="white-space: pre-line;">{{ c.treatment_plan }}</div>
-              </div>
-            </div>
-            {% endif %}
+          <div class="fs-7 mb-2"><strong>Chief Complaint:</strong> {{ t.chief_complaint }}</div>
+          {% if t.specialist_advice %}
+          <div class="p-2 border rounded bg-white fs-8 text-primary">
+            <strong>Specialist Advice:</strong> {{ t.specialist_advice }}
           </div>
+          {% endif %}
         </div>
         {% else %}
-        <div class="text-center py-4 text-muted">
-          <i class="bi bi-clipboard2-x fs-2 d-block mb-1"></i>
-          No consultation records found for this patient.
-        </div>
+        <div class="text-center py-4 text-muted">No teleconsultation records found.</div>
         {% endfor %}
       </div>
 
-      <!-- 2. PRESCRIPTIONS TAB -->
-      <div class="tab-pane fade" id="prescriptions" role="tabpanel">
+      <!-- 2. REFERRALS TAB -->
+      <div class="tab-pane fade" id="referralsTab">
+        {% for r in referrals %}
+        <div class="border rounded p-3 mb-3 bg-light shadow-sm">
+          <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap">
+            <div>
+              <span class="fw-bold text-dark fs-6">{{ r.referral_uid }}</span>
+              <span class="text-muted fs-8 ms-2">{{ r.from_facility_name }} ➔ {{ r.to_facility_name }}</span>
+            </div>
+            <span class="badge bg-primary">{{ r.status }}</span>
+          </div>
+          <div class="fs-7"><strong>Specialty & Reason:</strong> {{ r.specialty_needed }} — {{ r.reason }}</div>
+          {% if r.counter_referral_notes %}
+          <div class="p-2 border border-success-subtle bg-success-subtle rounded mt-2 fs-8 text-dark">
+            <strong>Counter-Referral Instructions for ASHA:</strong> {{ r.counter_referral_notes }}
+          </div>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">No inter-facility referrals.</div>
+        {% endfor %}
+      </div>
+
+      <!-- 3. VITALS TAB -->
+      <div class="tab-pane fade" id="vitalsTab">
+        <div class="table-responsive">
+          <table class="table table-hover table-bordered align-middle fs-7 mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Date & Time</th>
+                <th>BP (mmHg)</th>
+                <th>Pulse (bpm)</th>
+                <th>SpO2 (%)</th>
+                <th>Temp (°C)</th>
+                <th>Blood Sugar</th>
+                <th>Hemoglobin</th>
+                <th>Triage Flag</th>
+                <th>Clinical Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for v in vitals %}
+              <tr>
+                <td>{{ v.recorded_at | format_date("%b %d, %Y %H:%M") }}</td>
+                <td class="fw-bold text-danger">{{ v.blood_pressure_sys }}/{{ v.blood_pressure_dia }}</td>
+                <td>{{ v.heart_rate_bpm }}</td>
+                <td>{{ v.spo2_percent }}%</td>
+                <td>{{ v.temperature_c }}°C</td>
+                <td>{{ v.blood_sugar_mgdl or '—' }}</td>
+                <td>{{ v.hemoglobin_gdl or '—' }}</td>
+                <td>
+                  <span class="badge {% if v.triage_color == 'Red' %}bg-danger{% elif v.triage_color == 'Yellow' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                    {{ v.triage_color }} Flag
+                  </span>
+                </td>
+                <td class="fs-8 text-muted">{{ v.notes or '—' }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="9" class="text-center py-4 text-muted">No vitals logged.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 4. PRESCRIPTIONS TAB -->
+      <div class="tab-pane fade" id="prescriptionsTab">
         {% for rx in prescriptions %}
         <div class="border rounded p-3 mb-3 bg-white shadow-sm">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <div>
               <span class="fw-bold text-primary fs-6">{{ rx.prescription_number }}</span>
-              <span class="text-muted fs-7 ms-2">Prescribed by Dr. {{ rx.doctor_name }} on {{ rx.created_at | format_date }}</span>
+              <span class="text-muted fs-8 ms-2">Prescribed by Dr. {{ rx.doctor_name }} • {{ rx.created_at | format_date }}</span>
             </div>
-            <span class="badge {% if rx.status == 'Dispensed' %}bg-success{% else %}bg-warning text-dark{% endif %}">
-              {{ rx.status }}
-            </span>
+            <span class="badge bg-success">{{ rx.status }}</span>
           </div>
 
           <table class="table table-sm table-bordered fs-7 mb-2">
             <thead class="table-light">
               <tr>
-                <th>Medicine & Form</th>
+                <th>Medicine</th>
                 <th>Dosage</th>
                 <th>Frequency</th>
                 <th>Duration</th>
                 <th>Instructions</th>
-                <th>Dispensed</th>
               </tr>
             </thead>
             <tbody>
               {% for itm in rx.rx_items %}
               <tr>
-                <td><strong>{{ itm.brand_name }}</strong> ({{ itm.generic_name }}) - {{ itm.strength }} {{ itm.form }}</td>
+                <td><strong>{{ itm.brand_name }}</strong> ({{ itm.generic_name }}) - {{ itm.strength }}</td>
                 <td>{{ itm.dosage }}</td>
                 <td>{{ itm.frequency }}</td>
                 <td>{{ itm.duration_days }} Days</td>
                 <td>{{ itm.instructions or 'As directed' }}</td>
-                <td>
-                  {% if itm.is_dispensed %}
-                    <span class="badge bg-success">Yes ({{ itm.quantity_dispensed }} pcs)</span>
-                  {% else %}
-                    <span class="badge bg-secondary">Pending</span>
-                  {% endif %}
-                </td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
-
-          {% if rx.special_instructions %}
-          <div class="fs-8 text-muted"><strong>Special Note:</strong> {{ rx.special_instructions }}</div>
-          {% endif %}
         </div>
         {% else %}
-        <div class="text-center py-4 text-muted">No prescriptions recorded.</div>
+        <div class="text-center py-4 text-muted">No prescriptions found.</div>
         {% endfor %}
       </div>
 
-      <!-- 3. LAB TESTS TAB -->
-      <div class="tab-pane fade" id="lab" role="tabpanel">
+      <!-- 5. LAB TESTS TAB -->
+      <div class="tab-pane fade" id="labTab">
         {% for lo in lab_orders %}
         <div class="border rounded p-3 mb-3 bg-white shadow-sm">
-          <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap">
+          <div class="d-flex justify-content-between align-items-center mb-2">
             <div>
               <span class="fw-bold fs-6">{{ lo.order_number }}</span>
-              <span class="text-muted fs-7 ms-2">Ordered by Dr. {{ lo.doctor_name }} • {{ lo.ordered_at | format_date }}</span>
+              <span class="text-muted fs-8 ms-2">Ordered by Dr. {{ lo.doctor_name }} • {{ lo.ordered_at | format_date }}</span>
             </div>
-            <div class="d-flex gap-2 align-items-center">
-              <span class="badge {% if lo.status == 'Completed' %}bg-success{% elif lo.status == 'Sample Collected' %}bg-info text-dark{% else %}bg-warning text-dark{% endif %}">
-                {{ lo.status }}
-              </span>
-              <a href="{{ url_for('lab_report_view', order_id=lo.id) }}" class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-file-earmark-text me-1"></i> Official Report
-              </a>
-            </div>
-          </div>
-
-          <div class="table-responsive">
-            <table class="table table-sm table-hover fs-7 mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Test Code & Name</th>
-                  <th>Category</th>
-                  <th>Cost</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for item in lo.test_items %}
-                <tr>
-                  <td class="fw-semibold">{{ item.test_code }} - {{ item.test_name }}</td>
-                  <td><span class="badge bg-light text-dark border">{{ item.test_category }}</span></td>
-                  <td>${{ "%.2f"|format(item.cost) }}</td>
-                  <td>
-                    <span class="badge {% if item.status == 'Completed' %}bg-success{% else %}bg-secondary{% endif %}">
-                      {{ item.status }}
-                    </span>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+            <a href="{{ url_for('lab_report_view', order_id=lo.id) }}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-file-earmark-text me-1"></i> Official Report
+            </a>
           </div>
         </div>
         {% else %}
@@ -326,123 +324,20 @@
         {% endfor %}
       </div>
 
-      <!-- 4. VITALS TAB -->
-      <div class="tab-pane fade" id="vitals" role="tabpanel">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle fs-7 mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Date & Time</th>
-                <th>BP (mmHg)</th>
-                <th>Pulse (bpm)</th>
-                <th>Temp (°C)</th>
-                <th>SpO2 (%)</th>
-                <th>Sugar (mg/dL)</th>
-                <th>Weight / BMI</th>
-                <th>Recorded By</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for v in vitals %}
-              <tr>
-                <td class="fw-semibold">{{ v.recorded_at | format_date("%b %d, %Y %I:%M %p") }}</td>
-                <td><span class="badge bg-light text-danger border fw-bold">{{ v.blood_pressure_sys }}/{{ v.blood_pressure_dia }}</span></td>
-                <td>{{ v.heart_rate_bpm }}</td>
-                <td>{{ v.temperature_c }} °C</td>
-                <td>{{ v.spo2_percent }}%</td>
-                <td>{{ v.blood_sugar_mgdl or '—' }}</td>
-                <td>{{ v.weight_kg }} kg / {{ v.bmi or '—' }}</td>
-                <td>{{ v.recorded_by_name or 'Staff' }}</td>
-                <td class="text-muted">{{ v.notes or '—' }}</td>
-              </tr>
-              {% else %}
-              <tr><td colspan="9" class="text-center py-4 text-muted">No vital signs recorded yet.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 5. INPATIENT ADMISSIONS TAB -->
-      <div class="tab-pane fade" id="admissions" role="tabpanel">
-        {% for adm in admissions %}
-        <div class="border rounded p-3 mb-3 bg-light bg-opacity-50">
+      <!-- 6. HIGH RISK TAB -->
+      <div class="tab-pane fade" id="highRiskTab">
+        {% for hr in high_risk_entries %}
+        <div class="border rounded p-3 mb-3 bg-light">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <div>
-              <span class="fw-bold text-dark fs-6">{{ adm.admission_number }}</span>
-              <span class="badge bg-primary ms-2">Bed: {{ adm.bed_number }} ({{ adm.ward_name }})</span>
-            </div>
-            <span class="badge {% if adm.status == 'Admitted' %}bg-danger{% else %}bg-secondary{% endif %}">
-              {{ adm.status }}
-            </span>
+            <div class="fw-bold text-danger fs-6">{{ hr.category }}</div>
+            <span class="badge bg-danger">Severity Score: {{ hr.severity_score }}/5</span>
           </div>
-
-          <div class="row g-2 fs-7">
-            <div class="col-md-6">
-              <strong>Admitted:</strong> {{ adm.admitted_at | format_date("%b %d, %Y %I:%M %p") }}
-            </div>
-            <div class="col-md-6">
-              <strong>Discharged:</strong> {{ adm.discharged_at | format_date("%b %d, %Y %I:%M %p") if adm.discharged_at else 'Active Stay' }}
-            </div>
-            <div class="col-12">
-              <strong>Admission Reason:</strong> {{ adm.admission_reason }}
-            </div>
-            {% if adm.discharge_summary %}
-            <div class="col-12 mt-2 p-2 bg-white rounded border">
-              <strong>Discharge Summary:</strong> {{ adm.discharge_summary }}
-              <div class="mt-1 text-muted">Condition: {{ adm.discharge_condition }}</div>
-            </div>
-            {% endif %}
-          </div>
+          <div class="fs-7 mb-1"><strong>Risk Factors:</strong> {{ hr.risk_factors }}</div>
+          <div class="fs-8 text-muted"><strong>Next Follow-up Due:</strong> {{ hr.next_followup_date | format_date }}</div>
         </div>
         {% else %}
-        <div class="text-center py-4 text-muted">No inpatient hospitalizations on record.</div>
+        <div class="text-center py-4 text-muted">Patient is not enrolled in high-risk surveillance.</div>
         {% endfor %}
-      </div>
-
-      <!-- 6. BILLING LEDGER TAB -->
-      <div class="tab-pane fade" id="invoices" role="tabpanel">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle fs-7 mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Invoice #</th>
-                <th>Date</th>
-                <th>Subtotal</th>
-                <th>Tax</th>
-                <th>Total</th>
-                <th>Paid</th>
-                <th>Status</th>
-                <th class="text-end">Invoice</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for inv in invoices %}
-              <tr>
-                <td class="fw-bold text-primary">{{ inv.invoice_number }}</td>
-                <td>{{ inv.created_at | format_date }}</td>
-                <td>${{ "%.2f"|format(inv.subtotal) }}</td>
-                <td>${{ "%.2f"|format(inv.tax_amount) }}</td>
-                <td class="fw-bold text-dark">${{ "%.2f"|format(inv.total_amount) }}</td>
-                <td class="text-success fw-semibold">${{ "%.2f"|format(inv.amount_paid) }}</td>
-                <td>
-                  <span class="badge {% if inv.status == 'Paid' %}bg-success{% elif inv.status == 'Partially Paid' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
-                    {{ inv.status }}
-                  </span>
-                </td>
-                <td class="text-end">
-                  <a href="{{ url_for('billing_invoice_view', invoice_id=inv.id) }}" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-receipt me-1"></i> View Bill
-                  </a>
-                </td>
-              </tr>
-              {% else %}
-              <tr><td colspan="8" class="text-center py-4 text-muted">No billing invoices found.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
       </div>
 
     </div>
@@ -453,99 +348,54 @@
 <div class="modal fade" id="recordVitalsModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <form method="POST" action="{{ url_for('record_vitals', patient_id=patient.id) }}">
-        <div class="modal-header bg-light">
-          <h5 class="modal-title fw-bold fs-6"><i class="bi bi-activity text-info me-2"></i>Record Vital Signs</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      <form method="POST" action="{{ url_for('vitals_create', patient_id=patient.id) }}">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold fs-6"><i class="bi bi-activity me-2"></i>Record Point-of-Care Vitals</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body fs-7">
-          <div class="row g-3">
+          <div class="row g-2 mb-2">
             <div class="col-6">
-              <label class="form-label fw-semibold">Systolic BP (mmHg)</label>
-              <input type="number" name="blood_pressure_sys" class="form-control form-control-sm" placeholder="120">
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-semibold">Diastolic BP (mmHg)</label>
-              <input type="number" name="blood_pressure_dia" class="form-control form-control-sm" placeholder="80">
+              <label class="form-label">Systolic BP (mmHg)</label>
+              <input type="number" name="blood_pressure_sys" class="form-control form-control-sm" value="120">
             </div>
             <div class="col-6">
-              <label class="form-label fw-semibold">Heart Rate (bpm)</label>
-              <input type="number" name="heart_rate_bpm" class="form-control form-control-sm" placeholder="72">
+              <label class="form-label">Diastolic BP (mmHg)</label>
+              <input type="number" name="blood_pressure_dia" class="form-control form-control-sm" value="80">
             </div>
             <div class="col-6">
-              <label class="form-label fw-semibold">Temperature (°C)</label>
-              <input type="number" step="0.1" name="temperature_c" class="form-control form-control-sm" placeholder="37.0">
+              <label class="form-label">Pulse (bpm)</label>
+              <input type="number" name="heart_rate_bpm" class="form-control form-control-sm" value="76">
             </div>
             <div class="col-6">
-              <label class="form-label fw-semibold">SpO2 Oxygen (%)</label>
-              <input type="number" name="spo2_percent" class="form-control form-control-sm" placeholder="98">
+              <label class="form-label">SpO2 Oxygen (%)</label>
+              <input type="number" name="spo2_percent" class="form-control form-control-sm" value="98">
             </div>
             <div class="col-6">
-              <label class="form-label fw-semibold">Blood Sugar (mg/dL)</label>
-              <input type="number" step="0.1" name="blood_sugar_mgdl" class="form-control form-control-sm" placeholder="110">
+              <label class="form-label">Temperature (°C)</label>
+              <input type="number" step="0.1" name="temperature_c" class="form-control form-control-sm" value="37.0">
             </div>
             <div class="col-6">
-              <label class="form-label fw-semibold">Weight (kg)</label>
-              <input type="number" step="0.1" name="weight_kg" class="form-control form-control-sm" placeholder="70.0">
+              <label class="form-label">Blood Sugar (mg/dL)</label>
+              <input type="number" step="0.1" name="blood_sugar_mgdl" class="form-control form-control-sm" placeholder="e.g. 110">
             </div>
             <div class="col-6">
-              <label class="form-label fw-semibold">Height (cm)</label>
-              <input type="number" step="0.1" name="height_cm" class="form-control form-control-sm" placeholder="175">
+              <label class="form-label">Hemoglobin (g/dL)</label>
+              <input type="number" step="0.1" name="hemoglobin_gdl" class="form-control form-control-sm" placeholder="e.g. 12.5">
             </div>
-            <div class="col-12">
-              <label class="form-label fw-semibold">Clinical Nursing Notes</label>
-              <textarea name="notes" class="form-control form-control-sm" rows="2" placeholder="Patient calm, resting in bed..."></textarea>
+            <div class="col-6">
+              <label class="form-label">Fetal Heart Rate (bpm)</label>
+              <input type="number" name="fetal_heart_rate" class="form-control form-control-sm" placeholder="For ANC mothers">
             </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Clinical Observations & Danger Signs</label>
+            <textarea name="notes" class="form-control form-control-sm" rows="2" placeholder="Clinical notes, symptom duration..."></textarea>
           </div>
         </div>
         <div class="modal-footer bg-light py-2">
           <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-sm btn-primary">Save Vital Signs</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: ADMIT PATIENT TO WARD -->
-<div class="modal fade" id="admitPatientModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <form method="POST" action="{{ url_for('ward_admit_patient') }}">
-        <input type="hidden" name="patient_id" value="{{ patient.id }}">
-        <div class="modal-header bg-light">
-          <h5 class="modal-title fw-bold fs-6"><i class="bi bi-hospital text-warning me-2"></i>Inpatient Admission (IPD)</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body fs-7">
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Select Available Bed</label>
-            <select name="bed_id" class="form-select form-select-sm" required>
-              <option value="">-- Choose Bed --</option>
-              {% for b in available_beds %}
-              <option value="{{ b.id }}">Bed {{ b.bed_number }} - {{ b.ward_name }} (${{ "%.0f"|format(b.daily_rate) }}/day)</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Attending Physician / Doctor</label>
-            <select name="doctor_id" class="form-select form-select-sm" required>
-              <option value="">-- Assign Doctor --</option>
-              {% for doc in doctors %}
-              <option value="{{ doc.id }}">{{ doc.full_name }} ({{ doc.specialization }})</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Reason for Admission / Provisional Diagnosis</label>
-            <textarea name="admission_reason" class="form-control form-control-sm" rows="3" required placeholder="e.g. Acute severe chest pain requiring cardiac monitoring..."></textarea>
-          </div>
-        </div>
-        <div class="modal-footer bg-light py-2">
-          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold">Confirm Admission</button>
+          <button type="submit" class="btn btn-sm btn-primary fw-bold">Save Vitals & Auto-Triage</button>
         </div>
       </form>
     </div>

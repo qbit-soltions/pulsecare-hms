@@ -1,389 +1,375 @@
 {% extends "base.html" %}
 
-{% block title %}Clinical Dashboard{% endblock %}
+{% block title %}Public Health Dashboard{% endblock %}
 {% block header_title %}
-  {% if current_user and current_user.role == 'doctor' %}
-    Doctor Clinical Dashboard - {{ current_user.full_name }}
+  {% if current_user and current_user.role == 'asha_cho' %}
+    Frontline Health Worker Portal (ASHA/CHO) - {{ current_user.full_name }}
+  {% elif current_user and current_user.role == 'medical_officer' %}
+    Primary Health Centre (PHC) Portal - {{ current_user.full_name }}
+  {% elif current_user and current_user.role == 'doctor' %}
+    District Specialist Dashboard - {{ current_user.full_name }}
   {% elif current_user and current_user.role == 'patient' %}
     Patient Health Portal - {{ current_user.full_name }}
-  {% elif current_user and current_user.role == 'nurse' %}
-    Inpatient Nursing & Ward Dashboard
   {% else %}
-    Hospital Operational Overview
+    Public Health & Rural Telemedicine Network Overview
+  {% endif %}
+{% endblock %}
+
+{% block header_subtitle %}
+  {% if current_user and current_user.facility_name %}
+    Facility: {{ current_user.facility_name }} ({{ current_user.facility_tier }})
+  {% else %}
+    Metro District Health Directorate & Tiered Public Health Continuum
   {% endif %}
 {% endblock %}
 
 {% block content %}
 
 <!-- =========================================================================
-     PATIENT PORTAL VIEW (When logged in as patient)
+     1. PATIENT PORTAL VIEW
      ========================================================================= -->
 {% if current_user and current_user.role == 'patient' %}
 <div class="row g-4">
   <div class="col-lg-4">
-    <div class="card-custom p-4 text-center">
-      <img src="{{ current_user.avatar_url }}" alt="Profile" class="rounded-circle mb-3 border border-3 border-primary shadow-sm" style="width: 90px; height: 90px; object-fit: cover;">
+    <div class="card border-0 shadow-sm rounded-3 p-4 text-center bg-white">
+      <img src="{{ current_user.avatar_url or 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150' }}" alt="Profile" class="rounded-circle mb-3 border border-3 border-primary shadow-sm" style="width: 90px; height: 90px; object-fit: cover;">
       <h5 class="fw-bold mb-1">{{ patient_data.first_name }} {{ patient_data.last_name }}</h5>
-      <span class="badge bg-primary px-3 py-1 rounded-pill mb-3">{{ patient_data.patient_uid }}</span>
+      <div class="badge bg-primary px-3 py-1 rounded-pill mb-2">{{ patient_data.patient_uid }}</div>
+      {% if patient_data.abha_id %}
+      <div class="badge bg-success-subtle text-success border border-success-subtle d-block mb-3 py-1">
+        <i class="bi bi-qr-code me-1"></i>ABHA: {{ patient_data.abha_id }}
+      </div>
+      {% endif %}
 
       <div class="text-start border-top pt-3 fs-7">
         <div class="d-flex justify-content-between py-1 border-bottom">
           <span class="text-muted">Blood Group:</span>
-          <span class="fw-bold text-danger">{{ patient_data.blood_group }}</span>
+          <span class="fw-bold text-danger">{{ patient_data.blood_group or 'O+' }}</span>
         </div>
         <div class="d-flex justify-content-between py-1 border-bottom">
-          <span class="text-muted">Date of Birth:</span>
-          <span class="fw-semibold">{{ patient_data.dob | format_date }}</span>
+          <span class="text-muted">Village / Panchayat:</span>
+          <span class="fw-semibold">{{ patient_data.village }}</span>
         </div>
         <div class="d-flex justify-content-between py-1 border-bottom">
           <span class="text-muted">Phone:</span>
           <span class="fw-semibold">{{ patient_data.phone }}</span>
         </div>
         <div class="d-flex justify-content-between py-1 border-bottom">
-          <span class="text-muted">Allergies:</span>
-          <span class="fw-semibold text-danger">{{ patient_data.allergies or 'None Known' }}</span>
+          <span class="text-muted">Health Scheme:</span>
+          <span class="badge bg-info text-dark">{{ patient_data.socioeconomic_category }}</span>
         </div>
         <div class="d-flex justify-content-between py-1">
-          <span class="text-muted">Insurance:</span>
-          <span class="fw-semibold">{{ patient_data.insurance_provider or 'Self Pay' }}</span>
+          <span class="text-muted">High-Risk Status:</span>
+          <span class="fw-semibold text-danger">{{ patient_data.high_risk_category or 'Standard' }}</span>
         </div>
       </div>
     </div>
   </div>
 
   <div class="col-lg-8">
-    <!-- Patient Appointments -->
-    <div class="card-custom mb-4">
-      <div class="card-header-custom">
-        <h6 class="fw-bold"><i class="bi bi-calendar2-check text-primary me-2"></i>My Appointments</h6>
+    
+    <!-- My Assisted Teleconsultations -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-camera-video-fill text-primary me-2"></i>My Teleconsultation Sessions</h6>
+        <a href="{{ url_for('teleconsult_index') }}" class="btn btn-sm btn-outline-primary">View All</a>
       </div>
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 fs-7">
           <thead class="table-light">
             <tr>
-              <th>Appt #</th>
-              <th>Doctor</th>
-              <th>Department</th>
-              <th>Date & Time</th>
+              <th>Session</th>
+              <th>Specialist</th>
+              <th>Destination Hub</th>
+              <th>Date</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {% for a in patient_appointments %}
+            {% for t in patient_teleconsults %}
             <tr>
-              <td class="fw-semibold">{{ a.appointment_number }}</td>
-              <td>{{ a.doctor_name }}</td>
-              <td>{{ a.department_name }}</td>
-              <td>{{ a.appointment_date | format_date }} ({{ a.appointment_time }})</td>
-              <td>
-                <span class="badge {% if a.status == 'Completed' %}bg-success{% elif a.status == 'Booked' %}bg-primary{% else %}bg-info text-dark{% endif %}">
-                  {{ a.status }}
-                </span>
-              </td>
+              <td class="fw-bold text-primary">{{ t.session_uid }}</td>
+              <td>{{ t.specialist_name or 'Specialist Assigned' }}</td>
+              <td>{{ t.to_facility_name }}</td>
+              <td>{{ t.scheduled_at | format_date }}</td>
+              <td><span class="badge bg-success">{{ t.status }}</span></td>
             </tr>
             {% else %}
-            <tr><td colspan="5" class="text-center py-3 text-muted">No appointments found.</td></tr>
+            <tr><td colspan="5" class="text-center py-3 text-muted">No teleconsultation records found.</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- Patient Prescriptions & Lab tests -->
+    <!-- My Prescriptions & Referrals -->
     <div class="row g-3">
       <div class="col-md-6">
-        <div class="card-custom h-100">
-          <div class="card-header-custom">
-            <h6 class="fw-bold"><i class="bi bi-capsule text-warning me-2"></i>My Prescriptions</h6>
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+          <div class="card-header bg-white py-3 border-bottom">
+            <h6 class="mb-0 fw-bold"><i class="bi bi-capsule text-warning me-2"></i>My Prescriptions</h6>
           </div>
           <div class="p-3 fs-7">
             {% for rx in patient_prescriptions %}
-            <div class="border rounded p-2 mb-2 bg-light d-flex justify-content-between align-items-center">
-              <div>
-                <div class="fw-bold text-primary">{{ rx.prescription_number }}</div>
-                <small class="text-muted">Dr. {{ rx.doctor_name }} • {{ rx.created_at | format_date }}</small>
-              </div>
-              <span class="badge bg-success">{{ rx.status }}</span>
+            <div class="border rounded p-2 mb-2 bg-light">
+              <div class="fw-bold text-primary">{{ rx.prescription_number }}</div>
+              <div class="text-muted fs-8">Prescribed by Dr. {{ rx.doctor_name }} • {{ rx.created_at | format_date }}</div>
+              <div class="badge bg-success mt-1">{{ rx.status }}</div>
             </div>
             {% else %}
-            <div class="text-muted text-center py-2">No prescriptions yet.</div>
+            <div class="text-muted text-center py-3">No active prescriptions.</div>
             {% endfor %}
           </div>
         </div>
       </div>
 
       <div class="col-md-6">
-        <div class="card-custom h-100">
-          <div class="card-header-custom">
-            <h6 class="fw-bold"><i class="bi bi-moisture text-info me-2"></i>My Lab Reports</h6>
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+          <div class="card-header bg-white py-3 border-bottom">
+            <h6 class="mb-0 fw-bold"><i class="bi bi-arrow-left-right text-danger me-2"></i>My Referrals</h6>
           </div>
           <div class="p-3 fs-7">
-            {% for lo in patient_lab_orders %}
-            <div class="border rounded p-2 mb-2 bg-light d-flex justify-content-between align-items-center">
-              <div>
-                <div class="fw-bold text-dark">{{ lo.order_number }}</div>
-                <small class="text-muted">{{ lo.ordered_at | format_date }}</small>
-              </div>
-              <a href="{{ url_for('lab_report_view', order_id=lo.id) }}" class="btn btn-sm btn-outline-primary py-0">
-                <i class="bi bi-file-earmark-medical"></i> View Report
-              </a>
+            {% for r in patient_referrals %}
+            <div class="border rounded p-2 mb-2 bg-light">
+              <div class="fw-bold text-dark">{{ r.referral_uid }}</div>
+              <div class="text-muted fs-8">Referred to: {{ r.to_facility_name }}</div>
+              <div class="badge bg-warning text-dark mt-1">{{ r.status }}</div>
             </div>
             {% else %}
-            <div class="text-muted text-center py-2">No lab reports.</div>
+            <div class="text-muted text-center py-3">No referral transfers.</div>
             {% endfor %}
           </div>
         </div>
       </div>
     </div>
+
   </div>
 </div>
 
 <!-- =========================================================================
-     STAFF / CLINICAL / ADMIN DASHBOARDS
+     2. HEALTHCARE WORKER / SPECIALIST / ADMIN OPERATIONAL DASHBOARD
      ========================================================================= -->
 {% else %}
 
-<!-- TOP KPI STAT CARDS -->
+<!-- PUBLIC HEALTH NETWORK KPI CARDS -->
 <div class="row g-3 mb-4">
-  <div class="col-xl-3 col-sm-6">
-    <div class="stat-card d-flex align-items-center justify-content-between">
-      <div>
-        <div class="stat-card-label">Total Patients Registered</div>
-        <div class="stat-card-val">{{ total_patients }}</div>
-        <small class="text-success fw-semibold"><i class="bi bi-person-check-fill me-1"></i>Active EMR Records</small>
+  
+  <div class="col-6 col-lg-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-primary">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="text-muted fs-8 text-uppercase fw-semibold">Active Teleconsults</div>
+          <div class="fs-3 fw-bold text-primary">{{ kpis.active_teleconsults }}</div>
+        </div>
+        <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary">
+          <i class="bi bi-camera-video fs-4"></i>
+        </div>
       </div>
-      <div class="stat-card-icon bg-primary bg-opacity-10 text-primary">
-        <i class="bi bi-people-fill"></i>
-      </div>
+      <a href="{{ url_for('teleconsult_index') }}" class="fs-8 text-decoration-none mt-2 d-block text-primary">Open Telehealth Queue &rarr;</a>
     </div>
   </div>
 
-  <div class="col-xl-3 col-sm-6">
-    <div class="stat-card d-flex align-items-center justify-content-between">
-      <div>
-        <div class="stat-card-label">Active Inpatients (IPD)</div>
-        <div class="stat-card-val">{{ total_inpatient }}</div>
-        <small class="text-info fw-semibold"><i class="bi bi-hospital me-1"></i>In Hospital Wards</small>
+  <div class="col-6 col-lg-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-warning">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="text-muted fs-8 text-uppercase fw-semibold">Pending Referrals</div>
+          <div class="fs-3 fw-bold text-warning">{{ kpis.pending_referrals }}</div>
+        </div>
+        <div class="bg-warning bg-opacity-10 p-3 rounded-circle text-warning">
+          <i class="bi bi-arrow-left-right fs-4"></i>
+        </div>
       </div>
-      <div class="stat-card-icon bg-info bg-opacity-10 text-info">
-        <i class="bi bi-hospital-fill"></i>
-      </div>
+      <a href="{{ url_for('referrals_index') }}" class="fs-8 text-decoration-none mt-2 d-block text-warning">Track Referral Pipeline &rarr;</a>
     </div>
   </div>
 
-  <div class="col-xl-3 col-sm-6">
-    <div class="stat-card d-flex align-items-center justify-content-between">
-      <div>
-        <div class="stat-card-label">Bed Occupancy Rate</div>
-        <div class="stat-card-val">{{ bed_occupancy_rate }}%</div>
-        <small class="text-muted">{{ occupied_beds }} of {{ total_beds }} Beds Occupied</small>
+  <div class="col-6 col-lg-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-danger">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="text-muted fs-8 text-uppercase fw-semibold">High-Risk Surveillance</div>
+          <div class="fs-3 fw-bold text-danger">{{ kpis.high_risk_patients }}</div>
+        </div>
+        <div class="bg-danger bg-opacity-10 p-3 rounded-circle text-danger">
+          <i class="bi bi-shield-exclamation fs-4"></i>
+        </div>
       </div>
-      <div class="stat-card-icon bg-warning bg-opacity-10 text-warning">
-        <i class="bi bi-grid-3x3-gap-fill"></i>
-      </div>
+      <a href="{{ url_for('high_risk_index') }}" class="fs-8 text-decoration-none mt-2 d-block text-danger">View HRP & NCD Watchlist &rarr;</a>
     </div>
   </div>
 
-  <div class="col-xl-3 col-sm-6">
-    <div class="stat-card d-flex align-items-center justify-content-between">
-      <div>
-        <div class="stat-card-label">Revenue Collected</div>
-        <div class="stat-card-val">${{ "%.2f"|format(revenue_total) }}</div>
-        <small class="text-success fw-semibold"><i class="bi bi-cash-stack me-1"></i>Settled Invoices</small>
+  <div class="col-6 col-lg-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-success">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="text-muted fs-8 text-uppercase fw-semibold">Network Bed Occupancy</div>
+          <div class="fs-3 fw-bold text-success">{{ kpis.occupied_beds }} / {{ kpis.total_beds }}</div>
+        </div>
+        <div class="bg-success bg-opacity-10 p-3 rounded-circle text-success">
+          <i class="bi bi-hospital fs-4"></i>
+        </div>
       </div>
-      <div class="stat-card-icon bg-success bg-opacity-10 text-success">
-        <i class="bi bi-currency-dollar"></i>
-      </div>
+      <a href="{{ url_for('wards_index') }}" class="fs-8 text-decoration-none mt-2 d-block text-success">View Ward Bed Matrix &rarr;</a>
     </div>
   </div>
+
 </div>
 
-<!-- DOCTOR CLINICAL APPOINTMENT SCHEDULE (If Doctor) -->
-{% if current_user and current_user.role == 'doctor' %}
-<div class="card-custom mb-4">
-  <div class="card-header-custom bg-danger bg-opacity-10">
-    <div class="d-flex align-items-center gap-2">
-      <i class="bi bi-heart-pulse-fill text-danger fs-5"></i>
-      <h6 class="fw-bold m-0 text-danger">My OPD Queue Today ({{ today_appointments|length }} Patients Scheduled)</h6>
-    </div>
-    <a href="{{ url_for('appointments_list') }}" class="btn btn-sm btn-outline-danger">View Full Calendar</a>
-  </div>
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0 fs-7">
-      <thead class="table-light">
-        <tr>
-          <th>Token #</th>
-          <th>Patient Name & UID</th>
-          <th>Age / Gender</th>
-          <th>Time</th>
-          <th>Chief Complaint</th>
-          <th>Status</th>
-          <th class="text-end">Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for a in doctor_consults_today %}
-        <tr>
-          <td><span class="badge bg-primary fs-7 rounded-circle px-2 py-1">#{{ a.token_number }}</span></td>
-          <td>
-            <a href="{{ url_for('patient_view', patient_id=a.patient_id) }}" class="fw-bold text-dark text-decoration-none">
-              {{ a.first_name }} {{ a.last_name }}
-            </a>
-            <div class="text-muted fs-8">{{ a.patient_uid }} • {{ a.blood_group }}</div>
-          </td>
-          <td>{{ a.gender }}</td>
-          <td><span class="badge bg-light text-dark border">{{ a.appointment_time }}</span></td>
-          <td class="text-truncate" style="max-width: 200px;">{{ a.reason or 'Routine Consultation' }}</td>
-          <td>
-            <span class="badge {% if a.status == 'Completed' %}bg-success{% elif a.status == 'In Consultation' %}bg-primary{% elif a.status == 'Checked-in' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
-              {{ a.status }}
-            </span>
-          </td>
-          <td class="text-end">
-            <a href="{{ url_for('consultation_create', appointment_id=a.id, patient_id=a.patient_id) }}" class="btn btn-sm btn-primary rounded-pill px-3">
-              <i class="bi bi-clipboard2-pulse me-1"></i> Consult / Rx
-            </a>
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="7" class="text-center py-4 text-muted">
-            <i class="bi bi-calendar-check fs-2 text-secondary d-block mb-1"></i>
-            No appointments remaining on your OPD schedule today.
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
-
-<!-- MAIN DASHBOARD SPLIT: TODAY'S QUEUE & CHARTS -->
+<!-- TWO-COLUMN WORKFLOW SECTIONS -->
 <div class="row g-4 mb-4">
-  <!-- Left: Today's Central Hospital Appointments -->
-  <div class="col-lg-8">
-    <div class="card-custom h-100">
-      <div class="card-header-custom">
-        <div class="d-flex align-items-center gap-2">
-          <i class="bi bi-calendar-event text-primary fs-5"></i>
-          <h6 class="fw-bold m-0">Today's Hospital Appointments Queue</h6>
-        </div>
-        <div class="d-flex gap-2">
-          <a href="{{ url_for('opd_queue_screen') }}" target="_blank" class="btn btn-sm btn-outline-info">
-            <i class="bi bi-display me-1"></i> OPD Display TV
-          </a>
-          <a href="{{ url_for('appointments_list') }}" class="btn btn-sm btn-outline-primary">View All</a>
-        </div>
+  
+  <!-- LEFT: ACTIVE TELECONSULTATIONS & REFERRALS QUEUE -->
+  <div class="col-lg-7">
+    
+    <!-- Active Teleconsultations Card -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-camera-video-fill text-primary me-2"></i>Live Teleconsultation Queue</h6>
+        <a href="{{ url_for('teleconsult_index') }}" class="btn btn-sm btn-outline-primary">View Chamber</a>
       </div>
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 fs-7">
           <thead class="table-light">
             <tr>
-              <th>Token</th>
               <th>Patient</th>
-              <th>Doctor</th>
-              <th>Department</th>
-              <th>Time</th>
+              <th>From ➔ Hub</th>
+              <th>Triage</th>
               <th>Status</th>
+              <th class="text-end">Connect</th>
             </tr>
           </thead>
           <tbody>
-            {% for a in today_appointments %}
+            {% for t in recent_teleconsults %}
             <tr>
-              <td><span class="badge bg-secondary rounded-pill">#{{ a.token_number }}</span></td>
               <td>
-                <a href="{{ url_for('patient_view', patient_id=a.patient_id) }}" class="fw-bold text-dark text-decoration-none">
-                  {{ a.first_name }} {{ a.last_name }}
-                </a>
-                <div class="text-muted fs-8">{{ a.patient_uid }}</div>
+                <div class="fw-bold text-dark">{{ t.first_name }} {{ t.last_name }}</div>
+                <div class="text-muted fs-8">{{ t.village }} • <span class="badge bg-light text-dark border">{{ t.patient_uid }}</span></div>
               </td>
-              <td>{{ a.doctor_name }}</td>
-              <td><span class="badge" style="background-color: {{ a.dept_color }}; color: #fff;">{{ a.department_name }}</span></td>
-              <td>{{ a.appointment_time }}</td>
               <td>
-                <span class="badge {% if a.status == 'Completed' %}bg-success{% elif a.status == 'In Consultation' %}bg-primary{% elif a.status == 'Checked-in' %}bg-info text-dark{% else %}bg-light text-dark border{% endif %}">
-                  {{ a.status }}
+                <div class="fw-semibold text-dark fs-8">{{ t.from_facility_name }}</div>
+                <div class="text-primary fs-8">➔ {{ t.to_facility_name }}</div>
+              </td>
+              <td>
+                <span class="badge {% if t.triage_level == 'Emergency' %}bg-danger{% elif t.triage_level == 'High-Risk' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                  {{ t.triage_level }}
                 </span>
+              </td>
+              <td>
+                <span class="badge {% if t.status == 'In-Call' %}bg-primary pulse-animation{% elif t.status == 'Requested' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                  {{ t.status }}
+                </span>
+              </td>
+              <td class="text-end">
+                <a href="{{ url_for('teleconsult_session', session_id=t.id) }}" class="btn btn-xs btn-primary">
+                  <i class="bi bi-camera-video me-1"></i> Open
+                </a>
               </td>
             </tr>
             {% else %}
-            <tr>
-              <td colspan="6" class="text-center py-4 text-muted">No appointments scheduled for today.</td>
-            </tr>
+            <tr><td colspan="5" class="text-center py-3 text-muted">No active teleconsultation requests.</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
-  </div>
 
-  <!-- Right: Ward Occupancy Matrix Snapshot -->
-  <div class="col-lg-4">
-    <div class="card-custom h-100">
-      <div class="card-header-custom">
-        <div class="d-flex align-items-center gap-2">
-          <i class="bi bi-pie-chart text-warning fs-5"></i>
-          <h6 class="fw-bold m-0">Ward Bed Occupancy</h6>
-        </div>
-        <a href="{{ url_for('wards_index') }}" class="btn btn-sm btn-outline-secondary">View Matrix</a>
+    <!-- Active Inter-Facility Referrals -->
+    <div class="card border-0 shadow-sm rounded-3">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-arrow-left-right text-warning me-2"></i>Active Inter-Facility Referral Pipeline</h6>
+        <a href="{{ url_for('referrals_index') }}" class="btn btn-sm btn-outline-warning text-dark">All Referrals</a>
       </div>
-      <div class="p-3">
-        {% for w in wards_summary %}
-        {% set occ_pct = ((w.occupied_count / w.total_beds_count) * 100)|round|int if w.total_beds_count > 0 else 0 %}
-        <div class="mb-3">
-          <div class="d-flex justify-content-between fs-7 mb-1">
-            <span class="fw-semibold">{{ w.name }}</span>
-            <span class="text-muted">{{ w.occupied_count }} / {{ w.total_beds_count }} Beds ({{ occ_pct }}%)</span>
-          </div>
-          <div class="progress" style="height: 8px;">
-            <div class="progress-bar {% if occ_pct > 80 %}bg-danger{% elif occ_pct > 50 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ occ_pct }}%;"></div>
-          </div>
-        </div>
-        {% endfor %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 fs-7">
+          <thead class="table-light">
+            <tr>
+              <th>Referral UID</th>
+              <th>Patient</th>
+              <th>Destination Hub</th>
+              <th>Priority</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recent_referrals %}
+            <tr>
+              <td class="fw-bold text-primary">{{ r.referral_uid }}</td>
+              <td>{{ r.first_name }} {{ r.last_name }} ({{ r.village }})</td>
+              <td>{{ r.to_facility_name }}</td>
+              <td>
+                <span class="badge {% if 'Emergency' in r.triage_priority %}bg-danger{% elif 'Urgent' in r.triage_priority %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                  {{ r.triage_priority }}
+                </span>
+              </td>
+              <td><span class="badge bg-light text-dark border">{{ r.status }}</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center py-3 text-muted">No referrals in transit.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- AUDIT LOG & RECENT ACTIVITY -->
-<div class="card-custom">
-  <div class="card-header-custom">
-    <div class="d-flex align-items-center gap-2">
-      <i class="bi bi-clock-history text-secondary fs-5"></i>
-      <h6 class="fw-bold m-0">Live Hospital Activity & Audit Stream</h6>
-    </div>
   </div>
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0 fs-7">
-      <thead class="table-light">
-        <tr>
-          <th>Timestamp</th>
-          <th>Staff / User</th>
-          <th>Module</th>
-          <th>Action</th>
-          <th>Details</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for act in recent_activities %}
-        <tr>
-          <td class="text-muted">{{ act.timestamp | format_date("%b %d, %H:%M:%S") }}</td>
-          <td>
-            <div class="d-flex align-items-center gap-2">
-              <img src="{{ act.avatar_url if act.avatar_url else 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80' }}" class="rounded-circle" style="width: 24px; height: 24px; object-fit: cover;">
-              <span class="fw-semibold">{{ act.user_name or 'System' }}</span>
-              <span class="badge bg-light text-muted border text-uppercase" style="font-size: 0.65rem;">{{ act.user_role or 'system' }}</span>
+
+  <!-- RIGHT: HIGH-RISK SURVEILLANCE & FACILITY CAPACITY -->
+  <div class="col-lg-5">
+    
+    <!-- High-Risk Surveillance Watchlist -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-danger"><i class="bi bi-shield-fill-exclamation me-2"></i>High-Risk Surveillance Cohort</h6>
+        <a href="{{ url_for('high_risk_index') }}" class="btn btn-xs btn-outline-danger">Manage All</a>
+      </div>
+      <div class="p-3 fs-7">
+        {% for hr in high_risk_list %}
+        <div class="border rounded p-2 mb-2 bg-light">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-bold text-dark">{{ hr.first_name }} {{ hr.last_name }} ({{ hr.village }})</div>
+              <div class="text-danger fs-8 fw-semibold">{{ hr.category }}</div>
             </div>
-          </td>
-          <td><span class="badge bg-info bg-opacity-10 text-info">{{ act.module }}</span></td>
-          <td class="fw-semibold text-dark">{{ act.action }}</td>
-          <td class="text-muted">{{ act.details }}</td>
-        </tr>
+            <span class="badge {% if hr.severity_score == 5 %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+              Score: {{ hr.severity_score }}/5
+            </span>
+          </div>
+          <div class="text-muted fs-8 mt-1">{{ hr.risk_factors }}</div>
+          <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top fs-8">
+            <span class="text-muted">Assigned: {{ hr.assigned_worker_name or 'ASHA' }}</span>
+            <span class="fw-bold text-danger">Due: {{ hr.next_followup_date | format_date }}</span>
+          </div>
+        </div>
+        {% else %}
+        <div class="text-muted text-center py-3">No high-risk patients registered.</div>
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
+    </div>
+
+    <!-- Network Facilities Bed Occupancy Breakdown -->
+    <div class="card border-0 shadow-sm rounded-3">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-hospital text-success me-2"></i>Facility Bed Availability Matrix</h6>
+      </div>
+      <div class="p-3 fs-7">
+        {% for fo in facility_occupancy %}
+        <div class="mb-3">
+          <div class="d-flex justify-content-between fs-8 fw-semibold mb-1">
+            <span>{{ fo.name }} <small class="text-muted">({{ fo.tier_type }})</small></span>
+            <span>{{ fo.occupied_beds }} / {{ fo.total_beds }} Beds</span>
+          </div>
+          <div class="progress" style="height: 7px;">
+            {% set occ_pct = ((fo.occupied_beds / fo.total_beds) * 100) if fo.total_beds > 0 else 0 %}
+            <div class="progress-bar {% if occ_pct > 80 %}bg-danger{% elif occ_pct > 50 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ occ_pct }}%;"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
   </div>
+
 </div>
 
 {% endif %}
