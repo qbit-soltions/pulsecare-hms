@@ -322,28 +322,51 @@ TRANSLATIONS = {
         "chc": "কমিউনিটি স্বাস্থ্য কেন্দ্র",
         "district_hospital": "জেলা হাসপাতাল"
     },
-    "es": {
-        "teleconsultation": "Teleconsulta Asistida",
-        "referrals": "Seguimiento de Referencias",
-        "high_risk_registry": "Registro de Alto Riesgo",
-        "resource_grid": "Disponibilidad de Medicamentos",
-        "quality_analytics": "Analítica de Salud Pública",
-        "patients": "Registro de Pacientes",
-        "appointments": "Citas Ambulatorias",
-        "wards": "Salas y Camas",
-        "pharmacy": "Farmacia y Suministros",
-        "laboratory": "Laboratorio Clínico",
-        "billing": "Facturación y Cobertura",
-        "emergency_escalation": "Emergencia 108 / Ambulancia",
-        "offline_mode": "Modo Fuera de Línea",
-        "triage_red": "Emergencia / Crítico",
-        "triage_yellow": "Urgente / Alto Riesgo",
-        "triage_green": "Rutina / Estable",
-        "frontline_worker": "Trabajador Comunitario",
-        "sub_centre": "Puesto de Salud",
-        "phc": "Centro de Salud Primario",
-        "chc": "Centro de Salud Comunitario",
-        "district_hospital": "Hospital de Distrito"
+    "mr": {
+        "teleconsultation": "टेलिकन्सल्टेशन (दूरध्वनी वैद्यकीय सल्ला)",
+        "referrals": "रेफरल ट्रॅकिंग",
+        "high_risk_registry": "उच्च-जोखीम रुग्ण पाळत ठेवणे",
+        "resource_grid": "औषध आणि लॅब उपलब्धता",
+        "quality_analytics": "सार्वजनिक आरोग्य विश्लेषण",
+        "patients": "रुग्ण नोंदणी (ABHA)",
+        "appointments": "ओपीडी अपॉइंटमेंट",
+        "wards": "वॉर्ड आणि बेड व्यवस्थापन",
+        "pharmacy": "फार्मसी आणि औषधे",
+        "laboratory": "निदान प्रयोगशाळा",
+        "billing": "बिलिंग आणि आरोग्य योजना",
+        "emergency_escalation": "१०८ आपत्कालीन रुग्णवाहिका",
+        "offline_mode": "ऑफलाइन मोड",
+        "triage_red": "अतिगंभीर / आपत्कालीन",
+        "triage_yellow": "तातडीचे / उच्च जोखीम",
+        "triage_green": "सामान्य / स्थिर",
+        "frontline_worker": "आशा / आरोग्य कर्मचारी",
+        "sub_centre": "उप-केंद्र",
+        "phc": "प्राथमिक आरोग्य केंद्र",
+        "chc": "सामुदायिक आरोग्य केंद्र",
+        "district_hospital": "जिल्हा रुग्णालय"
+    },
+    "gu": {
+        "teleconsultation": "ટેલિકન્સલ્ટેશન સહાય",
+        "referrals": "રેફરલ ટ્રેકિંગ",
+        "high_risk_registry": "ઉચ્ચ જોખમવાળા દર્દીની દેખરેખ",
+        "resource_grid": "દવા અને લેબ ઉપલબ્ધતા",
+        "quality_analytics": "જાહેર આરોગ્ય વિશ્લેષણ",
+        "patients": "દર્દી નોંધણી (ABHA)",
+        "appointments": "ઓપીડી એપોઇન્ટમેન્ટ",
+        "wards": "વોર્ડ અને બેડ મેનેજમેન્ટ",
+        "pharmacy": "ફાર્મસી અને દવાઓ",
+        "laboratory": "નિદાન પ્રયોગશાળા",
+        "billing": "બિલિંગ અને આરોગ્ય યોજનાઓ",
+        "emergency_escalation": "૧૦૮ ઇમરજન્સી એમ્બ્યુલન્સ",
+        "offline_mode": "ઓફલાઇન મોડ",
+        "triage_red": "ગંભીર / કટોકટી",
+        "triage_yellow": "તાત્કાલિક / ઉચ્ચ જોખમ",
+        "triage_green": "સામાન્ય / સ્થિર",
+        "frontline_worker": "આશા / આરોગ્ય કાર્યકર",
+        "sub_centre": "ઉપ-કેન્દ્ર",
+        "phc": "પ્રાથમિક આરોગ્ય કેન્દ્ર",
+        "chc": "સામુદાયિક આરોગ્ય કેન્દ્ર",
+        "district_hospital": "જિલ્લા હોસ્પિટલ"
     }
 }
 
@@ -449,7 +472,8 @@ def inject_global_context():
             ("ta", "தமிழ் (Tamil)"),
             ("te", "తెలుగు (Telugu)"),
             ("bn", "বাংলা (Bengali)"),
-            ("es", "Español")
+            ("mr", "मराठी (Marathi)"),
+            ("gu", "ગુજરાતી (Gujarati)")
         ]
     }
 
