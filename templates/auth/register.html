@@ -11,6 +11,7 @@
     body { font-family: Inter, sans-serif; }
     .fs-7{font-size:.85rem!important}.fs-8{font-size:.78rem!important}.fs-9{font-size:.70rem!important}
     .otp-box:focus{border-color:#3b82f6!important;box-shadow:0 0 0 .2rem rgba(59,130,246,.25);}
+    .cursor-pointer{cursor:pointer;}
   </style>
 </head>
 <body style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0f172a 100%);min-height:100vh;">
@@ -21,7 +22,7 @@
     <!-- Header -->
     <div class="text-center mb-4">
       <div class="d-inline-flex align-items-center gap-2 mb-3">
-        <div class="rounded-circle bg-white d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
+        <div class="rounded-circle bg-white d-flex align-items-center justify-content-center shadow-sm" style="width:48px;height:48px;">
           <i class="bi bi-hospital-fill text-primary fs-4"></i>
         </div>
         <div class="text-start">
@@ -35,19 +36,26 @@
 
     <!-- Sandbox notice -->
     {% if sandbox_mode %}
-    <div class="alert alert-warning d-flex align-items-start gap-2 mb-4 py-2 px-3">
-      <i class="bi bi-cone-striped text-warning mt-1 flex-shrink-0"></i>
-      <div class="fs-8">
-        <strong>ABDM Sandbox Mode Active</strong> — Use mock Aadhaar: <code class="user-select-all fw-bold">{{ mock_aadhaar }}</code> &nbsp;·&nbsp; OTP: <code class="fw-bold">123456</code><br>
-        <span class="text-muted">No real Aadhaar data is processed during sandbox testing.</span>
+    <div class="alert alert-warning d-flex align-items-center justify-content-between gap-2 mb-4 py-2 px-3 shadow-sm">
+      <div class="d-flex align-items-start gap-2 fs-8">
+        <i class="bi bi-cone-striped text-warning mt-1 flex-shrink-0"></i>
+        <div>
+          <strong>ABDM Sandbox Active</strong> — Test Aadhaar: 
+          <code class="user-select-all fw-bold cursor-pointer text-decoration-underline" onclick="fillMockAadhaar('{{ mock_aadhaar }}')" title="Click to auto-fill">{{ mock_aadhaar }}</code>
+          &nbsp;·&nbsp; Test OTP: <code class="fw-bold">123456</code><br>
+          <span class="text-muted">Simulated Aadhaar verification for development. No real Aadhaar data is required.</span>
+        </div>
       </div>
+      <button type="button" class="btn btn-xs btn-outline-dark fs-9 fw-semibold flex-shrink-0" onclick="fillMockAadhaar('{{ mock_aadhaar }}')">
+        <i class="bi bi-magic me-1"></i>Auto Fill
+      </button>
     </div>
     {% endif %}
 
     <!-- Step progress bar -->
     <div class="d-flex align-items-center justify-content-center mb-4">
       <div class="d-flex align-items-center gap-0">
-        <div id="dot1" class="rounded-circle d-flex align-items-center justify-content-center fw-bold"
+        <div id="dot1" class="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm"
              style="width:38px;height:38px;background:#3b82f6;border:2px solid #3b82f6;color:#fff;font-size:.8rem;transition:all .3s;">
           <span id="dot1-label">1</span>
         </div>
@@ -68,7 +76,7 @@
     </div>
 
     <!-- Card -->
-    <div class="card border-0 shadow-lg rounded-4">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
 
       <!-- ── STEP 1: Aadhaar ────────────────────────── -->
       <div id="panel1" class="card-body p-4 p-md-5">
@@ -133,9 +141,14 @@
           </div>
         </div>
 
-        <div id="sandbox-hint" class="alert alert-info py-2 px-3 fs-8 d-none mb-3">
-          <i class="bi bi-info-circle-fill me-1"></i>
-          <strong>Sandbox Test OTP:</strong> <code class="fs-7 fw-bold user-select-all">123456</code>
+        <div id="sandbox-hint" class="alert alert-info py-2 px-3 fs-8 d-none mb-3 d-flex align-items-center justify-content-between">
+          <div>
+            <i class="bi bi-info-circle-fill me-1"></i>
+            <strong>Sandbox Test OTP:</strong> <code class="fs-7 fw-bold user-select-all">123456</code>
+          </div>
+          <button type="button" class="btn btn-xs btn-outline-primary fs-9 fw-semibold" onclick="fillTestOtp('123456')">
+            <i class="bi bi-magic me-1"></i>Auto Fill OTP
+          </button>
         </div>
 
         <div class="mb-4">
@@ -304,11 +317,16 @@
 // ── Panel switcher ──────────────────────────────────────────────────────
 function showPanel(n) {
   ['1','2','3'].forEach(p => {
-    document.getElementById('panel'+p).classList.add('d-none');
+    const el = document.getElementById('panel'+p);
+    if (el) el.classList.add('d-none');
   });
-  document.getElementById('panel'+n).classList.remove('d-none');
+  const target = document.getElementById('panel'+n);
+  if (target) target.classList.remove('d-none');
   updateDots(n);
-  if (n === 2) setTimeout(() => document.getElementById('o0').focus(), 80);
+  if (n === 2) setTimeout(() => {
+    const o0 = document.getElementById('o0');
+    if (o0) o0.focus();
+  }, 100);
 }
 
 function updateDots(active) {
@@ -316,24 +334,25 @@ function updateDots(active) {
     const dot  = document.getElementById('dot'+i);
     const lbl  = document.getElementById('lbl'+i);
     const dlbl = document.getElementById('dot'+i+'-label');
+    if (!dot) continue;
     if (i < active) {
       dot.style.background = '#22c55e';
       dot.style.borderColor = '#22c55e';
       dot.style.color = '#fff';
-      dlbl.innerHTML = '<i class="bi bi-check2"></i>';
-      if (lbl) { lbl.className = 'fw-semibold text-success fs-8'; }
+      if (dlbl) dlbl.innerHTML = '<i class="bi bi-check2"></i>';
+      if (lbl) lbl.className = 'fw-semibold text-success fs-8';
     } else if (i === active) {
       dot.style.background = '#3b82f6';
       dot.style.borderColor = '#3b82f6';
       dot.style.color = '#fff';
-      dlbl.textContent = i;
-      if (lbl) { lbl.className = 'fw-semibold text-white fs-8'; }
+      if (dlbl) dlbl.textContent = i;
+      if (lbl) lbl.className = 'fw-semibold text-white fs-8';
     } else {
       dot.style.background = 'transparent';
       dot.style.borderColor = 'rgba(255,255,255,0.3)';
       dot.style.color = 'rgba(255,255,255,0.4)';
-      dlbl.textContent = i;
-      if (lbl) { lbl.className = 'fw-semibold text-white-50 fs-8'; }
+      if (dlbl) dlbl.textContent = i;
+      if (lbl) lbl.className = 'fw-semibold text-white-50 fs-8';
     }
   }
 }
@@ -341,37 +360,65 @@ function updateDots(active) {
 // ── Helpers ─────────────────────────────────────────────────────────────
 function showErr(id, msg) {
   const el = document.getElementById(id);
+  if (!el) return;
   el.textContent = msg;
   el.classList.remove('d-none');
 }
-function hideErr(id) { document.getElementById(id).classList.add('d-none'); }
+function hideErr(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('d-none');
+}
 function setBusy(btnId, spId, busy) {
-  document.getElementById(btnId).disabled = busy;
-  document.getElementById(spId).classList.toggle('d-none', !busy);
+  const btn = document.getElementById(btnId);
+  const sp  = document.getElementById(spId);
+  if (btn) btn.disabled = busy;
+  if (sp) sp.classList.toggle('d-none', !busy);
 }
 function tp(id, btn) {
   const el = document.getElementById(id);
+  if (!el) return;
   el.type = el.type === 'password' ? 'text' : 'password';
-  btn.querySelector('i').className = el.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+  const icon = btn.querySelector('i');
+  if (icon) icon.className = el.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+}
+
+function fillMockAadhaar(aadhaar) {
+  const input = document.getElementById('aadhaar-input');
+  if (!input) return;
+  const digits = (aadhaar || '999941057058').replace(/\D/g, '').slice(0, 12);
+  input.value = digits.replace(/(\d{4})(?=\d)/g, '$1  ');
+  input.focus();
+}
+
+function fillTestOtp(val) {
+  const digits = (val || '123456').slice(0, 6);
+  digits.split('').forEach((d, idx) => {
+    const box = document.getElementById('o' + idx);
+    if (box) box.value = d;
+  });
+  const o5 = document.getElementById('o5');
+  if (o5) o5.focus();
 }
 
 // ── Aadhaar input formatter ──────────────────────────────────────────────
 const aaEl = document.getElementById('aadhaar-input');
-aaEl.addEventListener('input', function () {
-  const digits = this.value.replace(/\D/g, '').slice(0, 12);
-  this.value = digits.replace(/(\d{4})(?=\d)/g, '$1  ');
-});
-aaEl.addEventListener('keydown', e => { if (e.key === 'Enter') generateOtp(); });
+if (aaEl) {
+  aaEl.addEventListener('input', function () {
+    const digits = this.value.replace(/\D/g, '').slice(0, 12);
+    this.value = digits.replace(/(\d{4})(?=\d)/g, '$1  ');
+  });
+  aaEl.addEventListener('keydown', e => { if (e.key === 'Enter') generateOtp(); });
+}
 
 // ── OTP boxes ────────────────────────────────────────────────────────────
-const otpBoxes = [0,1,2,3,4,5].map(i => document.getElementById('o'+i));
+const otpBoxes = [0,1,2,3,4,5].map(i => document.getElementById('o'+i)).filter(Boolean);
 otpBoxes.forEach((box, i) => {
   box.addEventListener('input', () => {
     box.value = box.value.replace(/\D/,'').slice(-1);
-    if (box.value && i < 5) otpBoxes[i+1].focus();
+    if (box.value && i < 5 && otpBoxes[i+1]) otpBoxes[i+1].focus();
   });
   box.addEventListener('keydown', e => {
-    if (e.key === 'Backspace' && !box.value && i > 0) {
+    if (e.key === 'Backspace' && !box.value && i > 0 && otpBoxes[i-1]) {
       otpBoxes[i-1].focus();
       otpBoxes[i-1].value = '';
     }
@@ -382,39 +429,49 @@ otpBoxes.forEach((box, i) => {
     const digits = (e.clipboardData || window.clipboardData)
       .getData('text').replace(/\D/g,'').slice(0,6);
     [...digits].forEach((c, j) => { if (otpBoxes[j]) otpBoxes[j].value = c; });
-    otpBoxes[Math.min(digits.length, 5)].focus();
+    if (otpBoxes[Math.min(digits.length, 5)]) otpBoxes[Math.min(digits.length, 5)].focus();
   });
 });
 function getOtp() { return otpBoxes.map(b => b.value).join(''); }
 
 // ── Password strength ────────────────────────────────────────────────────
-document.getElementById('fp1').addEventListener('input', function () {
-  const v = this.value;
-  let s = 0;
-  if (v.length >= 8) s++;
-  if (/[A-Z]/.test(v)) s++;
-  if (/[0-9]/.test(v)) s++;
-  if (/[^A-Za-z0-9]/.test(v)) s++;
-  const bar = document.getElementById('pbar');
-  bar.className = 'progress-bar ' + (['bg-danger','bg-warning','bg-info','bg-success'][s-1] || 'bg-secondary');
-  bar.style.width = (s * 25) + '%';
-});
-document.getElementById('fp2').addEventListener('input', function () {
-  const m = document.getElementById('pmatch');
-  if (!this.value) { m.innerHTML = ''; return; }
-  if (this.value === document.getElementById('fp1').value) {
-    m.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i><span class="text-success fs-9">Passwords match</span>';
-  } else {
-    m.innerHTML = '<i class="bi bi-x-circle text-danger me-1"></i><span class="text-danger fs-9">Passwords do not match</span>';
-  }
-});
+const fp1 = document.getElementById('fp1');
+if (fp1) {
+  fp1.addEventListener('input', function () {
+    const v = this.value;
+    let s = 0;
+    if (v.length >= 8) s++;
+    if (/[A-Z]/.test(v)) s++;
+    if (/[0-9]/.test(v)) s++;
+    if (/[^A-Za-z0-9]/.test(v)) s++;
+    const bar = document.getElementById('pbar');
+    if (bar) {
+      bar.className = 'progress-bar ' + (['bg-danger','bg-warning','bg-info','bg-success'][s-1] || 'bg-secondary');
+      bar.style.width = (s * 25) + '%';
+    }
+  });
+}
+
+const fp2 = document.getElementById('fp2');
+if (fp2) {
+  fp2.addEventListener('input', function () {
+    const m = document.getElementById('pmatch');
+    if (!m) return;
+    if (!this.value) { m.innerHTML = ''; return; }
+    if (this.value === document.getElementById('fp1').value) {
+      m.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i><span class="text-success fs-9">Passwords match</span>';
+    } else {
+      m.innerHTML = '<i class="bi bi-x-circle text-danger me-1"></i><span class="text-danger fs-9">Passwords do not match</span>';
+    }
+  });
+}
 
 // ── STEP 1: Generate OTP ────────────────────────────────────────────────
 async function generateOtp(resend=false) {
   hideErr('err1');
-  const raw = document.getElementById('aadhaar-input').value.replace(/\s/g, '');
+  const raw = (document.getElementById('aadhaar-input').value || '').replace(/\D/g, '');
   if (raw.length !== 12) {
-    showErr('err1', 'Please enter a valid 12-digit Aadhaar number.');
+    showErr('err1', 'Please enter a valid 12-digit Aadhaar number (12 digits required).');
     return;
   }
   setBusy('btn1', 'sp1', true);
@@ -425,18 +482,19 @@ async function generateOtp(resend=false) {
       body: JSON.stringify({ aadhaar: raw })
     });
     const data = await res.json();
-    if (data.success) {
-      document.getElementById('mob-display').textContent = data.maskedMobile || 'your Aadhaar mobile';
-      if (data.sandbox) {
-        document.getElementById('sandbox-hint').classList.remove('d-none');
-      }
+    if (data && data.success) {
+      const mobEl = document.getElementById('mob-display');
+      if (mobEl) mobEl.textContent = data.maskedMobile || 'your Aadhaar mobile';
+      const hintEl = document.getElementById('sandbox-hint');
+      if (hintEl) hintEl.classList.remove('d-none');
       otpBoxes.forEach(b => { b.value = ''; });
       if (!resend) showPanel(2);
     } else {
-      showErr('err1', data.error || 'OTP generation failed. Please try again.');
+      showErr('err1', (data && data.error) || 'OTP generation failed. Please check Aadhaar number.');
     }
   } catch (ex) {
-    showErr('err1', 'Network error. Please check your connection and try again.');
+    console.error(ex);
+    showErr('err1', 'Network or server error. Please try again.');
   } finally {
     setBusy('btn1', 'sp1', false);
   }
@@ -458,14 +516,15 @@ async function verifyOtp() {
       body: JSON.stringify({ otp })
     });
     const data = await res.json();
-    if (data.success) {
+    if (data && data.success) {
       prefill(data.profile || {});
       showPanel(3);
     } else {
-      showErr('err2', data.error || 'OTP verification failed. Please try again.');
+      showErr('err2', (data && data.error) || 'OTP verification failed. Please try again.');
     }
   } catch (ex) {
-    showErr('err2', 'Network error. Please try again.');
+    console.error(ex);
+    showErr('err2', 'Network or server error. Please try again.');
   } finally {
     setBusy('btn2', 'sp2', false);
   }
@@ -473,33 +532,39 @@ async function verifyOtp() {
 
 function prefill(p) {
   const parts = (p.name || '').trim().split(' ');
-  document.getElementById('f1').value = parts[0] || '';
-  document.getElementById('f2').value = parts.slice(1).join(' ') || '';
-  document.getElementById('f3').value = p.mobile || '';
-  document.getElementById('f5').value = p.dob || '';
-  document.getElementById('f8').value = [p.address, p.district, p.state].filter(Boolean).join(', ');
+  const f1 = document.getElementById('f1');
+  const f2 = document.getElementById('f2');
+  const f3 = document.getElementById('f3');
+  const f5 = document.getElementById('f5');
+  const f6 = document.getElementById('f6');
+  const f8 = document.getElementById('f8');
+  if (f1) f1.value = parts[0] || '';
+  if (f2) f2.value = parts.slice(1).join(' ') || '';
+  if (f3) f3.value = p.mobile || '';
+  if (f5) f5.value = p.dob || '';
+  if (f8) f8.value = [p.address, p.district, p.state].filter(Boolean).join(', ');
   const g = { M:'M', Male:'M', F:'F', Female:'F' };
-  document.getElementById('f6').value = g[p.gender] || 'M';
+  if (f6) f6.value = g[p.gender] || 'M';
 }
 
 // ── STEP 3: Complete registration ───────────────────────────────────────
 async function completeReg() {
   hideErr('err3');
   const body = {
-    first_name: document.getElementById('f1').value.trim(),
-    last_name:  document.getElementById('f2').value.trim(),
-    mobile:     document.getElementById('f3').value.trim(),
-    email:      document.getElementById('f4').value.trim(),
-    dob:        document.getElementById('f5').value,
-    gender:     document.getElementById('f6').value,
-    preferred_language: document.getElementById('f7').value,
-    village:    document.getElementById('f8').value.trim(),
-    password:         document.getElementById('fp1').value,
-    confirm_password: document.getElementById('fp2').value,
+    first_name: (document.getElementById('f1')?.value || '').trim(),
+    last_name:  (document.getElementById('f2')?.value || '').trim(),
+    mobile:     (document.getElementById('f3')?.value || '').trim(),
+    email:      (document.getElementById('f4')?.value || '').trim(),
+    dob:        document.getElementById('f5')?.value || '',
+    gender:     document.getElementById('f6')?.value || 'M',
+    preferred_language: document.getElementById('f7')?.value || 'en',
+    village:    (document.getElementById('f8')?.value || '').trim(),
+    password:         document.getElementById('fp1')?.value || '',
+    confirm_password: document.getElementById('fp2')?.value || '',
   };
-  if (!body.first_name)            { showErr('err3','First name is required.'); return; }
+  if (!body.first_name) { showErr('err3','First name is required.'); return; }
   if (!body.mobile || body.mobile.length < 10) { showErr('err3','Enter a valid 10-digit mobile number.'); return; }
-  if (body.password.length < 8)    { showErr('err3','Password must be at least 8 characters.'); return; }
+  if (body.password.length < 8) { showErr('err3','Password must be at least 8 characters.'); return; }
   if (body.password !== body.confirm_password) { showErr('err3','Passwords do not match.'); return; }
 
   setBusy('btn3', 'sp3', true);
@@ -510,18 +575,28 @@ async function completeReg() {
       body: JSON.stringify(body)
     });
     const data = await res.json();
-    if (data.success) {
+    if (data && data.success) {
       // Show success panel
-      ['panel1','panel2','panel3'].forEach(p => document.getElementById(p).classList.add('d-none'));
-      document.getElementById('panel-ok').classList.remove('d-none');
-      document.getElementById('ok-abha').textContent = data.abha_id      || '—';
-      document.getElementById('ok-addr').textContent = data.abha_address || '—';
-      document.getElementById('ok-uid').textContent  = data.patient_uid  || '—';
-      document.getElementById('btn-dash').onclick = () => { window.location.href = data.redirect_url || '/'; };
+      ['panel1','panel2','panel3'].forEach(p => {
+        const el = document.getElementById(p);
+        if (el) el.classList.add('d-none');
+      });
+      const okPanel = document.getElementById('panel-ok');
+      if (okPanel) okPanel.classList.remove('d-none');
+      const okAbha = document.getElementById('ok-abha');
+      const okAddr = document.getElementById('ok-addr');
+      const okUid  = document.getElementById('ok-uid');
+      if (okAbha) okAbha.textContent = data.abha_id      || '—';
+      if (okAddr) okAddr.textContent = data.abha_address || '—';
+      if (okUid)  okUid.textContent  = data.patient_uid  || '—';
+      const btnDash = document.getElementById('btn-dash');
+      if (btnDash) btnDash.onclick = () => { window.location.href = data.redirect_url || '/'; };
+      updateDots(4);
     } else {
-      showErr('err3', data.error || 'Registration failed. Please try again.');
+      showErr('err3', (data && data.error) || 'Registration failed. Please try again.');
     }
   } catch (ex) {
+    console.error(ex);
     showErr('err3', 'Network error. Please try again.');
   } finally {
     setBusy('btn3', 'sp3', false);

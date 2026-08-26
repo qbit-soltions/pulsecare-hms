@@ -291,5 +291,51 @@ class TestPulseCarePublicHealthNetwork(unittest.TestCase):
         self.assertEqual(res_data["status"], "success")
         self.assertEqual(res_data["synced_records"], 1)
 
+    def test_11_abdm_sandbox_aadhaar_otp_registration_flow(self):
+        """Verify full 3-step ABDM sandbox registration flow from Aadhaar to ABHA generation."""
+        # Step 1: Generate OTP
+        res1 = self.client.post("/register/abha/generate-otp", json={"aadhaar": "999941057058"})
+        self.assertEqual(res1.status_code, 200)
+        data1 = res1.get_json()
+        self.assertTrue(data1["success"])
+        self.assertTrue(data1["txnId"].startswith("ABDM-SANDBOX-"))
+
+        # Step 2: Verify OTP
+        res2 = self.client.post("/register/abha/verify-otp", json={"otp": "123456"})
+        self.assertEqual(res2.status_code, 200)
+        data2 = res2.get_json()
+        self.assertTrue(data2["success"])
+        self.assertIn("profile", data2)
+        self.assertEqual(data2["profile"]["name"], "Ramesh Kumar")
+
+        # Step 3: Complete ABHA Registration
+        res3 = self.client.post("/register/abha/complete", json={
+            "first_name": "Ramesh",
+            "last_name": "Kumar",
+            "mobile": "9876599123",
+            "email": "ramesh.kumar@example.com",
+            "dob": "1990-01-01",
+            "gender": "Male",
+            "village": "Rampur Village",
+            "preferred_language": "hi",
+            "password": "password123",
+            "confirm_password": "password123"
+        })
+        self.assertEqual(res3.status_code, 200)
+        data3 = res3.get_json()
+        self.assertTrue(data3["success"])
+        self.assertTrue(data3["abha_id"].startswith("91-"))
+        self.assertTrue(data3["patient_uid"].startswith("PC-"))
+
+        # Verify patient and user exist in database
+        user = query_db("SELECT * FROM users WHERE username = '9876599123'", one=True)
+        self.assertIsNotNone(user)
+        self.assertEqual(user["role"], "patient")
+
+        patient = query_db("SELECT * FROM patients WHERE user_id = ?", (user["id"],), one=True)
+        self.assertIsNotNone(patient)
+        self.assertEqual(patient["abha_id"], data3["abha_id"])
+
 if __name__ == "__main__":
     unittest.main()
+
