@@ -7,6 +7,7 @@ Cross-Facility Supply Chains, Multilingual UI, and ABDM/FHIR Interoperability.
 import os
 import json
 import random
+import requests as http_client
 from datetime import datetime, date, timedelta
 from functools import wraps
 from flask import (
@@ -22,6 +23,177 @@ from models import (
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "pulsecare-publichealth-2026-secure-key")
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+
+# -----------------------------------------------------------------------------
+# ABDM SANDBOX CONFIGURATION
+# Register at: https://sandbox.abdm.gov.in/docs/
+# Get your CLIENT_ID and CLIENT_SECRET from the ABDM sandbox portal.
+# For local testing, use the mock Aadhaar: 999941057058  (OTP: 123456)
+# -----------------------------------------------------------------------------
+ABDM_SANDBOX_BASE   = os.environ.get("ABDM_SANDBOX_BASE",   "https://healthidsbx.abdm.gov.in/api")
+ABDM_GATEWAY_BASE   = os.environ.get("ABDM_GATEWAY_BASE",   "https://dev.abdm.gov.in/gateway/v0.5")
+ABDM_CLIENT_ID      = os.environ.get("ABDM_CLIENT_ID",      "")   # Set in Render env vars
+ABDM_CLIENT_SECRET  = os.environ.get("ABDM_CLIENT_SECRET",  "")   # Set in Render env vars
+ABDM_SANDBOX_MODE   = os.environ.get("ABDM_SANDBOX_MODE",   "true").lower() == "true"
+
+# Mock Aadhaar numbers provided by ABDM sandbox for testing
+ABDM_MOCK_AADHAAR_NUMBERS = ["999941057058", "999967125527", "999989765432"]
+ABDM_MOCK_OTP             = "123456"
+
+
+def _abdm_get_token():
+    """Fetch a fresh Bearer token from ABDM Gateway using client credentials."""
+    if not ABDM_CLIENT_ID or not ABDM_CLIENT_SECRET:
+        return None, "ABDM credentials not configured. Set ABDM_CLIENT_ID and ABDM_CLIENT_SECRET environment variables."
+    try:
+        resp = http_client.post(
+            f"{ABDM_GATEWAY_BASE}/sessions",
+            json={
+                "clientId":     ABDM_CLIENT_ID,
+                "clientSecret": ABDM_CLIENT_SECRET,
+                "grantType":    "client_credentials"
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            return resp.json().get("accessToken"), None
+        return None, f"ABDM auth failed: {resp.status_code} — {resp.text[:200]}"
+    except Exception as exc:
+        return None, f"ABDM gateway unreachable: {str(exc)}"
+
+
+def abdm_generate_otp(aadhaar_number):
+    """
+    ABDM Sandbox Step 1 — Send OTP to Aadhaar-linked mobile.
+    Endpoint: POST /v2/registration/aadhaar/generateOtp
+    Returns: (txnId, error_message)
+    """
+    # In sandbox, mock Aadhaar numbers always succeed without real credentials
+    if ABDM_SANDBOX_MODE and aadhaar_number in ABDM_MOCK_AADHAAR_NUMBERS:
+        # Return a deterministic mock txnId for the sandbox test Aadhaar
+        mock_txn = f"ABDM-SANDBOX-{aadhaar_number[-4:]}-{random.randint(10000,99999)}"
+        return mock_txn, None
+
+    token, err = _abdm_get_token()
+    if err:
+        return None, err
+
+    try:
+        resp = http_client.post(
+            f"{ABDM_SANDBOX_BASE}/v2/registration/aadhaar/generateOtp",
+            json={"aadhaar": aadhaar_number},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type":  "application/json",
+                "Accept":        "application/json"
+            },
+            timeout=15
+        )
+        data = resp.json()
+        if resp.status_code == 200:
+            return data.get("txnId"), None
+        return None, data.get("details", [{}])[0].get("message", "OTP generation failed. Check Aadhaar number.")
+    except Exception as exc:
+        return None, f"ABDM API error: {str(exc)}"
+
+
+def abdm_verify_otp(txn_id, otp, aadhaar_number=""):
+    """
+    ABDM Sandbox Step 2 — Verify OTP and receive user profile.
+    Endpoint: POST /v2/registration/aadhaar/verifyOTP
+    Returns: (profile_dict, error_message)
+    profile_dict keys: name, dob, gender, mobile, address, photo
+    """
+    # Sandbox mock path
+    if ABDM_SANDBOX_MODE and (
+        txn_id.startswith("ABDM-SANDBOX-") or otp == ABDM_MOCK_OTP
+    ):
+        # Return a realistic mock profile from ABDM sandbox
+        suffix = txn_id[-5:] if txn_id.startswith("ABDM-SANDBOX-") else "00000"
+        return {
+            "txnId":        txn_id,
+            "name":         "Demo Sandbox User",
+            "dob":          "1990-01-01",
+            "gender":       "M",
+            "mobile":       "9876543210",
+            "address":      "Rampur Village, Uttar Pradesh",
+            "districtName": "Banda",
+            "stateName":    "Uttar Pradesh",
+            "pincode":      "210001",
+            "photo":        ""
+        }, None
+
+    token, err = _abdm_get_token()
+    if err:
+        return None, err
+
+    try:
+        resp = http_client.post(
+            f"{ABDM_SANDBOX_BASE}/v2/registration/aadhaar/verifyOTP",
+            json={"txnId": txn_id, "otp": otp},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type":  "application/json"
+            },
+            timeout=15
+        )
+        data = resp.json()
+        if resp.status_code == 200:
+            return data, None
+        return None, data.get("details", [{}])[0].get("message", "OTP verification failed.")
+    except Exception as exc:
+        return None, f"ABDM API error: {str(exc)}"
+
+
+def abdm_create_abha(txn_id, mobile=None):
+    """
+    ABDM Sandbox Step 3 — Generate the 14-digit ABHA Number.
+    Endpoint: POST /v2/registration/aadhaar/checkAndGenerateHealthId
+    Returns: (abha_dict, error_message)
+    abha_dict keys: healthId, healthIdNumber, name, mobile
+    """
+    # Sandbox mock path
+    if ABDM_SANDBOX_MODE and txn_id.startswith("ABDM-SANDBOX-"):
+        suffix = txn_id.split("-")[-1]
+        rand_a = random.randint(1000, 9999)
+        rand_b = random.randint(1000, 9999)
+        abha_number = f"91-{rand_a}-{rand_b}-{suffix[:4].zfill(4)}"
+        abha_address = f"sandbox.user{suffix}@abdm"
+        return {
+            "healthIdNumber": abha_number,
+            "healthId":       abha_address,
+            "name":           "Demo Sandbox User",
+            "mobile":         mobile or "9876543210",
+            "txnId":          txn_id,
+            "new":            True
+        }, None
+
+    token, err = _abdm_get_token()
+    if err:
+        return None, err
+
+    try:
+        payload = {"txnId": txn_id}
+        if mobile:
+            payload["mobile"] = mobile
+        resp = http_client.post(
+            f"{ABDM_SANDBOX_BASE}/v2/registration/aadhaar/checkAndGenerateHealthId",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type":  "application/json"
+            },
+            timeout=15
+        )
+        data = resp.json()
+        if resp.status_code == 200:
+            return data, None
+        return None, data.get("details", [{}])[0].get("message", "ABHA generation failed.")
+    except Exception as exc:
+        return None, f"ABDM API error: {str(exc)}"
+
+
 
 # -----------------------------------------------------------------------------
 # MULTILINGUAL DICTIONARY & LOCALIZATION ENGINE
@@ -409,88 +581,190 @@ def logout():
     return redirect(url_for("login"))
 
 
-@app.route("/register", methods=["GET", "POST"])
+@app.route("/register", methods=["GET"])
 def register():
-    """Patient self-registration portal with ABHA auto-generation."""
+    """ABHA Registration portal — multi-step Aadhaar OTP flow."""
     if "user_id" in session:
         return redirect(url_for("dashboard"))
+    return render_template("auth/register.html", sandbox_mode=ABDM_SANDBOX_MODE,
+                           mock_aadhaar=ABDM_MOCK_AADHAAR_NUMBERS[0])
 
-    form_data = {}
 
-    if request.method == "POST":
-        first_name  = request.form.get("first_name", "").strip()
-        last_name   = request.form.get("last_name", "").strip()
-        phone       = request.form.get("phone", "").strip()
-        email       = request.form.get("email", "").strip().lower()
-        dob         = request.form.get("dob", "").strip()
-        gender      = request.form.get("gender", "Male")
-        village     = request.form.get("village", "").strip()
-        password    = request.form.get("password", "")
-        confirm     = request.form.get("confirm_password", "")
-        pref_lang   = request.form.get("preferred_language", "en")
-        form_data   = request.form.to_dict()
+# ── ABDM Step 1: Generate OTP ─────────────────────────────────────────────────
+@app.route("/register/abha/generate-otp", methods=["POST"])
+def abha_generate_otp():
+    """
+    AJAX endpoint — calls ABDM /v2/registration/aadhaar/generateOtp.
+    Body: { aadhaar: "999941057058" }
+    Returns JSON: { success, txnId, maskedMobile, error }
+    """
+    data    = request.get_json() or {}
+    aadhaar = data.get("aadhaar", "").strip().replace(" ", "").replace("-", "")
 
-        errors = []
-        if not first_name or not last_name:
-            errors.append("Full name is required.")
-        if not phone or len(phone) < 10:
-            errors.append("A valid 10-digit mobile number is required.")
-        if not dob:
-            errors.append("Date of birth is required.")
-        if len(password) < 8:
-            errors.append("Password must be at least 8 characters.")
-        if password != confirm:
-            errors.append("Passwords do not match.")
+    if len(aadhaar) != 12 or not aadhaar.isdigit():
+        return jsonify({"success": False, "error": "Please enter a valid 12-digit Aadhaar number."}), 400
 
-        if not errors:
-            existing = query_db(
-                "SELECT id FROM users WHERE username = ?",
-                (phone,), one=True
-            )
-            if existing:
-                errors.append("An account with this mobile number already exists. Please sign in.")
+    txn_id, err = abdm_generate_otp(aadhaar)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
 
-        if errors:
-            for e in errors:
-                flash(e, "danger")
-            return render_template("auth/register.html", form_data=form_data)
+    # Store txnId + aadhaar in server session (not exposed to client)
+    session["abdm_txn_id"] = txn_id
+    session["abdm_aadhaar"] = aadhaar
 
-        # Create user account (username = phone number for patients)
-        password_hash = generate_password_hash(password)
-        user_id = execute_db(
-            """INSERT INTO users (username, password_hash, full_name, role, email, phone,
-                                  preferred_language, is_active, created_at)
-               VALUES (?, ?, ?, 'patient', ?, ?, ?, 1, datetime('now'))""",
-            (phone, password_hash, f"{first_name} {last_name}", email, phone, pref_lang)
-        )
+    # Mask mobile for display (ABDM returns this; we simulate it)
+    masked_mobile = "XXXXXX" + aadhaar[-4:] if txn_id.startswith("ABDM-SANDBOX-") else "XXXXXX0000"
+    is_sandbox    = txn_id.startswith("ABDM-SANDBOX-")
 
-        # Generate unique Patient UID and provisional ABHA ID
-        patient_uid = f"PC-{str(user_id).zfill(5)}"
-        abha_id = f"91-{random.randint(1000,9999)}-{random.randint(1000,9999)}-{str(user_id).zfill(4)}"
+    return jsonify({
+        "success":      True,
+        "txnId":        txn_id,
+        "maskedMobile": masked_mobile,
+        "sandbox":      is_sandbox,
+        "hint":         f"Sandbox mode: use OTP {ABDM_MOCK_OTP}" if is_sandbox else ""
+    })
 
-        execute_db(
-            """INSERT INTO patients (user_id, patient_uid, first_name, last_name, phone, email,
-                                     dob, gender, village, abha_id, socioeconomic_category,
-                                     registration_source, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'General', 'Self-Registration', datetime('now'))""",
-            (user_id, patient_uid, first_name, last_name, phone, email, dob, gender, village, abha_id)
-        )
 
-        log_audit(user_id, "Patient Self-Registration", "Auth",
-                  f"New patient registered: {first_name} {last_name} ({phone})", request.remote_addr)
+# ── ABDM Step 2: Verify OTP ───────────────────────────────────────────────────
+@app.route("/register/abha/verify-otp", methods=["POST"])
+def abha_verify_otp():
+    """
+    AJAX endpoint — calls ABDM /v2/registration/aadhaar/verifyOTP.
+    Body: { otp: "123456" }
+    Returns JSON: { success, profile: { name, dob, gender, mobile, address }, error }
+    """
+    data   = request.get_json() or {}
+    otp    = data.get("otp", "").strip()
+    txn_id = session.get("abdm_txn_id")
 
-        # Auto-login after registration
-        session["user_id"]   = user_id
-        session["username"]  = phone
-        session["user_role"] = "patient"
-        session["full_name"] = f"{first_name} {last_name}"
-        session["facility_id"] = None
-        session.permanent = True
+    if not txn_id:
+        return jsonify({"success": False, "error": "Session expired. Please restart registration."}), 400
+    if not otp or len(otp) != 6 or not otp.isdigit():
+        return jsonify({"success": False, "error": "Enter the 6-digit OTP sent to your Aadhaar-linked mobile."}), 400
 
-        flash(f"Welcome to PulseCare, {first_name}! Your Patient ID is {patient_uid} and ABHA ID is {abha_id}.", "success")
-        return redirect(url_for("dashboard"))
+    profile, err = abdm_verify_otp(txn_id, otp, session.get("abdm_aadhaar", ""))
+    if err:
+        return jsonify({"success": False, "error": err}), 400
 
-    return render_template("auth/register.html", form_data=form_data)
+    # Update txnId if ABDM returns a new one after OTP verification
+    new_txn = profile.get("txnId", txn_id)
+    session["abdm_txn_id"] = new_txn
+
+    # Store profile fields in session for final step
+    session["abdm_profile"] = {
+        "name":    profile.get("name", ""),
+        "dob":     profile.get("dob", ""),
+        "gender":  profile.get("gender", ""),
+        "mobile":  profile.get("mobile", ""),
+        "address": profile.get("address", ""),
+        "district":profile.get("districtName", ""),
+        "state":   profile.get("stateName", ""),
+    }
+
+    return jsonify({
+        "success": True,
+        "profile": session["abdm_profile"]
+    })
+
+
+# ── ABDM Step 3: Create ABHA + PulseCare Account ─────────────────────────────
+@app.route("/register/abha/complete", methods=["POST"])
+def abha_complete():
+    """
+    AJAX endpoint — calls ABDM /v2/registration/aadhaar/checkAndGenerateHealthId,
+    then creates the PulseCare user + patient record.
+    Body: { password, confirm_password, email, village, preferred_language,
+            first_name, last_name, dob, gender, mobile }
+    Returns JSON: { success, patient_uid, abha_id, redirect_url, error }
+    """
+    data          = request.get_json() or {}
+    txn_id        = session.get("abdm_txn_id")
+    abdm_profile  = session.get("abdm_profile", {})
+
+    if not txn_id:
+        return jsonify({"success": False, "error": "Session expired. Please restart registration."}), 400
+
+    # Collect form fields (user can edit pre-filled ABDM data)
+    first_name  = data.get("first_name",  abdm_profile.get("name", "").split()[0]).strip()
+    last_name   = data.get("last_name",   " ".join(abdm_profile.get("name", "").split()[1:])).strip()
+    mobile      = data.get("mobile",      abdm_profile.get("mobile", "")).strip()
+    email       = data.get("email",       "").strip().lower()
+    dob         = data.get("dob",         abdm_profile.get("dob", "")).strip()
+    gender      = data.get("gender",      abdm_profile.get("gender", "M"))
+    village     = data.get("village",     abdm_profile.get("address", "")).strip()
+    pref_lang   = data.get("preferred_language", "en")
+    password    = data.get("password", "")
+    confirm     = data.get("confirm_password", "")
+
+    # Validate
+    errors = []
+    if not first_name:
+        errors.append("First name is required.")
+    if not mobile or not mobile.isdigit() or len(mobile) < 10:
+        errors.append("A valid 10-digit mobile number is required.")
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters.")
+    if password != confirm:
+        errors.append("Passwords do not match.")
+    if errors:
+        return jsonify({"success": False, "error": " | ".join(errors)}), 400
+
+    # Check duplicate mobile
+    existing = query_db("SELECT id FROM users WHERE username = ?", (mobile,), one=True)
+    if existing:
+        return jsonify({"success": False, "error": "An account with this mobile number already exists. Please sign in."}), 409
+
+    # ── Call ABDM Step 3: Generate real 14-digit ABHA number ──────────────────
+    abha_data, err = abdm_create_abha(txn_id, mobile)
+    if err:
+        return jsonify({"success": False, "error": f"ABHA generation failed: {err}"}), 400
+
+    abha_number  = abha_data.get("healthIdNumber", "")   # 14-digit: 91-XXXX-XXXX-XXXX
+    abha_address = abha_data.get("healthId", "")          # username@abdm
+
+    # ── Create PulseCare user account ─────────────────────────────────────────
+    full_name     = f"{first_name} {last_name}".strip()
+    password_hash = generate_password_hash(password)
+    user_id = execute_db(
+        """INSERT INTO users (username, password_hash, full_name, role, email, phone,
+                              preferred_language, is_active, created_at)
+           VALUES (?, ?, ?, 'patient', ?, ?, ?, 1, datetime('now'))""",
+        (mobile, password_hash, full_name, email, mobile, pref_lang)
+    )
+
+    patient_uid = f"PC-{str(user_id).zfill(5)}"
+
+    execute_db(
+        """INSERT INTO patients (user_id, patient_uid, first_name, last_name, phone, email,
+                                 dob, gender, village, abha_id, socioeconomic_category,
+                                 registration_source, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'General', 'ABDM-ABHA-Registration', datetime('now'))""",
+        (user_id, patient_uid, first_name, last_name or first_name, mobile,
+         email, dob, gender, village, abha_number)
+    )
+
+    log_audit(user_id, "ABHA Patient Registration", "Auth",
+              f"Patient registered via ABDM ABHA flow: {full_name} | ABHA: {abha_number} | Address: {abha_address}",
+              request.remote_addr)
+
+    # ── Auto-login ─────────────────────────────────────────────────────────────
+    session.pop("abdm_txn_id",   None)
+    session.pop("abdm_aadhaar",  None)
+    session.pop("abdm_profile",  None)
+    session["user_id"]    = user_id
+    session["username"]   = mobile
+    session["user_role"]  = "patient"
+    session["full_name"]  = full_name
+    session["facility_id"] = None
+    session.permanent     = True
+
+    return jsonify({
+        "success":      True,
+        "patient_uid":  patient_uid,
+        "abha_id":      abha_number,
+        "abha_address": abha_address,
+        "redirect_url": url_for("dashboard")
+    })
 
 
 # -----------------------------------------------------------------------------

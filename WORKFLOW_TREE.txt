@@ -1,0 +1,540 @@
+﻿================================================================================
+PULSECARE — COMPLETE ROLE TREE WORKFLOW
+Public Health & Rural Telemedicine Network
+================================================================================
+
+PulseCare Website
+|
+|-- [ENTRY POINT 1] LOGIN PAGE
+|       |-- Enter Username + Password
+|       |-- OR Click a Demo Persona Card (10 available)
+|       |-- Credential verified
+|       |-- Role detected --> branches below
+|
+|-- [ENTRY POINT 2] REGISTER PAGE (New Patients Only)
+        |-- Step 1: Enter Name, Date of Birth, Gender
+        |-- Step 2: Enter Mobile Number, Village, Language
+        |-- Step 3: Set Password + Confirm Password
+        |-- System Auto-Generates:
+        |       |-- Patient UID      : PC-00042
+        |       |-- ABHA ID          : 91-4821-7362-0042
+        |-- Auto-Login as Patient
+        |-- Goes to --> PATIENT branch below
+
+
+================================================================================
+BRANCH 1: ASHA WORKER  (username: asha.sunita)
+================================================================================
+
+ASHA Worker Dashboard
+|-- Overdue follow-up alerts (red if missed)
+|-- High-risk watchlist
+|-- Today's home visits scheduled
+|
+|-- [OPTION 1] START TELECONSULTATION
+|       |-- Select Patient
+|       |-- Record POC Vitals from handheld devices:
+|       |       |-- Blood Pressure (systolic / diastolic)
+|       |       |-- Heart Rate (bpm)
+|       |       |-- SpO2 Oxygen Saturation (%)
+|       |       |-- Temperature (C)
+|       |       |-- Blood Sugar / Glucometer (mg/dL)
+|       |       |-- Hemoglobin / HemoCue (g/dL)
+|       |       |-- Fetal Heart Rate (bpm) [for antenatal]
+|       |-- Auto Triage Flag set:
+|       |       |-- Green  = Normal / Routine care
+|       |       |-- Yellow = Urgent / Flag for teleconsult
+|       |       |-- Red    = Emergency / Escalate immediately
+|       |-- Select Destination Facility + Specialist
+|       |-- Enter Chief Complaint + Clinical Findings
+|       |-- LIVE TELECONSULT CHAMBER OPENS:
+|               |-- HD Video call with specialist
+|               |-- Specialist reviews vitals on screen
+|               |-- Specialist types SOAP clinical notes
+|               |-- Specialist builds e-Prescription
+|               |-- Prescription saved to patient EHR
+|               |-- Home-care plan sent back to ASHA
+|
+|-- [OPTION 2] 108 EMERGENCY
+|       |-- Select Patient
+|       |-- Select Emergency Reason:
+|       |       |-- Severe Pre-eclampsia / Eclampsia
+|       |       |-- Acute STEMI / Chest Pain
+|       |       |-- Severe Respiratory Distress (SpO2 < 90%)
+|       |       |-- Snakebite / Anaphylactic Shock
+|       |       |-- Infant SAM with Sepsis
+|       |       |-- Acute Trauma / Hemorrhagic Shock
+|       |-- SYSTEM INSTANTLY:
+|               |-- Dispatches 108 Ambulance to Sub-Centre
+|               |-- Reserves District Hospital Emergency Bay
+|               |-- Alerts on-call Specialist
+|               |-- Creates Red-priority Referral automatically
+|
+|-- [OPTION 3] HIGH-RISK HOME VISIT
+|       |-- Open High-Risk Patient Registry
+|       |-- Select Patient Entry:
+|       |       |-- Maternal HRP (Pre-eclampsia, Anaemia, GDM)
+|       |       |-- Child SAM/MAM (Malnutrition)
+|       |       |-- NCD Chronic (Diabetes, Hypertension, COPD)
+|       |-- Log Visit Findings and Vitals
+|       |-- Update Severity Score (1=Stable to 5=Critical)
+|       |-- Set Next Follow-up Date
+|       |-- If worsening --> Escalate to Teleconsult or 108
+|
+|-- [OPTION 4] REGISTER NEW PATIENT
+        |-- Enter: Name, DOB, Gender
+        |-- Enter: Phone, Village, Blood Group
+        |-- Patient record created in database
+
+
+================================================================================
+BRANCH 2: PHC MEDICAL OFFICER  (username: dr.rajesh)
+================================================================================
+
+PHC Doctor Dashboard
+|-- Today's OPD appointment count
+|-- Active referrals to manage
+|-- Lab results pending review
+|
+|-- [OPTION 1] OPD CONSULTATION
+|       |-- View appointment queue (Booked / Checked-In)
+|       |-- Open patient 360 EHR profile
+|       |-- Record examination findings
+|       |-- WRITE PRESCRIPTION:
+|       |       |-- Select medicine from catalog
+|       |       |-- Enter dose, frequency, duration, quantity
+|       |       |-- Add multiple medicines in one prescription
+|       |       |-- Prescription saved to EHR + pharmacy queue
+|       |-- ORDER LAB TESTS:
+|       |       |-- CBC, Blood Sugar, HbA1c, LFT, RFT
+|       |       |-- Urine routine, Stool exam
+|       |       |-- Sputum AFB (for TB suspects)
+|       |       |-- Lab order sent to lab tech queue
+|       |-- CREATE REFERRAL (if needed):
+|               |-- Select destination: CHC or District Hospital
+|               |-- Select specialty required
+|               |-- Enter clinical reason + diagnosis
+|               |-- Set triage: Emergency / Urgent / Routine
+|               |-- Select transport: 108 / Govt vehicle / Own
+|
+|-- [OPTION 2] TELECONSULT WITH DISTRICT SPECIALIST
+|       |-- Initiate from PHC level
+|       |-- Record patient vitals
+|       |-- Connect to district specialist for guidance
+|       |-- Joint consultation done remotely
+|
+|-- [OPTION 3] RECORD PATIENT VITALS
+|       |-- Enter BP, HR, Temperature, SpO2
+|       |-- Triage flag auto-set (Green / Yellow / Red)
+|       |-- Vitals saved to patient EHR with timestamp
+|
+|-- [OPTION 4] ENROLL HIGH-RISK PATIENT
+        |-- Select risk category (Maternal / Child / NCD)
+        |-- Assign ASHA worker for follow-up
+        |-- Set severity score and first follow-up date
+
+
+================================================================================
+BRANCH 3: DISTRICT SPECIALIST  (username: dr.anita / dr.sarah)
+================================================================================
+
+Specialist Dashboard
+|-- Incoming teleconsult queue (from ASHA and PHC)
+|-- Today's OPD appointments
+|-- Referrals waiting for acceptance
+|
+|-- [OPTION 1] TELECONSULT CHAMBER
+|       |-- Open patient's live vitals (sent remotely by ASHA)
+|       |-- Start live HD video call
+|       |-- Review vitals telemetry panel:
+|       |       |-- BP, SpO2, HR, Temp, Hb, Fetal HR, Sugar
+|       |       |-- Triage colour flag displayed
+|       |-- Type SOAP Clinical Notes:
+|       |       |-- Chief Complaint
+|       |       |-- Examination Findings
+|       |       |-- Provisional Diagnosis
+|       |       |-- Specialist Advice / Management Plan
+|       |-- BUILD E-PRESCRIPTION:
+|       |       |-- Add medicine rows
+|       |       |-- Each row: Medicine, Dose, Frequency, Duration
+|       |       |-- Saved to patient EHR + pharmacy notified
+|       |-- ESCALATE (if in-person care needed):
+|               |-- Create referral from teleconsult
+|               |-- Patient sent to District Hospital
+|
+|-- [OPTION 2] REFERRAL MANAGEMENT
+|       |-- Accept incoming referral from PHC/CHC
+|       |-- Patient arrives with full EHR pre-loaded
+|       |-- Examine and treat patient
+|       |-- Write Counter-Referral Plan:
+|       |       |-- Home-care instructions for ASHA
+|       |       |-- Follow-up schedule
+|       |       |-- Warning signs to watch for
+|       |-- Close referral loop (Status: Closed)
+|
+|-- [OPTION 3] DISTRICT OPD
+        |-- Scheduled district appointments
+        |-- Consult, prescribe, refer as needed
+
+
+================================================================================
+BRANCH 4: ADMIN / CMO  (username: admin)
+================================================================================
+
+Admin Dashboard
+|-- All-facility KPIs (full network view)
+|-- Network bed occupancy matrix
+|-- Complete system analytics
+|
+|-- [OPTION 1] PUBLIC HEALTH ANALYTICS
+|       |-- Teleconsults per facility this month
+|       |-- Referral turnaround times
+|       |-- High-risk patient coverage percentage
+|       |-- Bed occupancy by facility tier
+|       |-- Medicine stockout frequency
+|
+|-- [OPTION 2] STAFF MANAGEMENT
+|       |-- View all staff across all facilities
+|       |-- Add new staff account:
+|       |       |-- Set role (Doctor / Nurse / ASHA etc.)
+|       |       |-- Assign facility + department
+|       |       |-- Set qualifications + contact
+|       |-- Edit or deactivate existing staff
+|
+|-- [OPTION 3] CROSS-FACILITY AVAILABILITY GRID
+|       |-- Search any medicine across all facilities
+|       |-- See stock level + status per facility:
+|       |       |-- Green  = Adequate stock
+|       |       |-- Yellow = Low, approaching reorder
+|       |       |-- Red    = Stockout
+|       |-- View diagnostic equipment status:
+|               |-- Working / Under Maintenance / Broken
+|               |-- Average wait time per machine
+|
+|-- [OPTION 4] AUDIT TRAIL
+|       |-- Every single user action is logged:
+|       |       |-- Timestamp
+|       |       |-- User name and role
+|       |       |-- Facility
+|       |       |-- Action category and module
+|       |       |-- IP address
+|       |-- Used for NABH compliance and accountability
+|
+|-- [OPTION 5] SYSTEM SETTINGS
+        |-- Hospital name and tagline
+        |-- Currency symbol
+        |-- OPD working hours and slot duration
+        |-- Feature toggles on/off
+
+
+================================================================================
+BRANCH 5: WARD NURSE  (username: nurse.clara)
+================================================================================
+
+Nurse Dashboard
+|-- Current bed occupancy status
+|-- List of admitted patients
+|-- Vitals pending to be recorded
+|
+|-- [OPTION 1] BED MATRIX MANAGEMENT
+|       |-- View visual grid of all beds in the ward:
+|       |       |-- Green  = Available
+|       |       |-- Red    = Occupied
+|       |       |-- Yellow = Reserved
+|       |       |-- Grey   = Under Maintenance
+|       |-- ADMIT PATIENT to bed:
+|       |       |-- Select patient
+|       |       |-- Record admitting doctor, diagnosis, date
+|       |-- DISCHARGE PATIENT from bed:
+|               |-- Write discharge summary
+|               |-- Record condition at discharge
+|               |-- Add follow-up instructions
+|
+|-- [OPTION 2] RECORD PATIENT VITALS
+|       |-- Select admitted patient
+|       |-- Enter: BP, HR, Temperature, SpO2
+|       |-- Triage flag auto-assigned
+|       |-- Saved to patient EHR with timestamp
+|
+|-- [OPTION 3] VIEW PATIENT EHR
+        |-- View prescriptions and lab results
+        |-- Review vitals history and clinical notes
+
+
+================================================================================
+BRANCH 6: RECEPTIONIST  (username: reception.emma)
+================================================================================
+
+Receptionist Dashboard
+|-- Today's appointment list
+|-- Walk-in registrations pending
+|-- Queue status display
+|
+|-- [OPTION 1] BOOK OPD APPOINTMENT
+|       |-- Search existing patient or register new
+|       |-- Select doctor + department + date + time slot
+|       |-- Token number generated automatically
+|       |-- Status: Booked
+|       |-- Patient arrives:
+|               |-- Check-In --> Status: Checked-In
+|               |-- Waiting room TV display updated
+|
+|-- [OPTION 2] REGISTER NEW PATIENT
+|       |-- Enter: First name, Last name, DOB, Gender
+|       |-- Enter: Mobile, Village, Blood Group
+|       |-- Patient record created in database
+|       |-- ABHA ID added if available
+|
+|-- [OPTION 3] OPD TV BOARD  (/appointments/queue)
+        |-- Full-screen waiting room display
+        |-- Shows:
+                |-- Current token being called
+                |-- Next 3 tokens
+                |-- Doctor name and department
+                |-- Estimated wait time
+
+
+================================================================================
+BRANCH 7: PHARMACIST  (username: pharm.robert)
+================================================================================
+
+Pharmacist Dashboard
+|-- Prescriptions waiting to be dispensed
+|-- Low stock alerts (red badge)
+|-- Today's dispensing log
+|
+|-- [OPTION 1] DISPENSE PRESCRIPTION
+|       |-- Prescription received from:
+|       |       |-- OPD doctor
+|       |       |-- Teleconsult specialist
+|       |-- Verify: Patient name, Medicine, Dose
+|       |-- Dispense medicines to patient
+|       |-- Stock quantity reduced in database
+|       |-- Check: below reorder threshold?
+|       |       |-- YES --> Red low-stock alert appears
+|       |       |-- NO  --> Stock adequate, no action
+|
+|-- [OPTION 2] DRUG CATALOG MANAGEMENT
+|       |-- View full national essential medicines list
+|       |       |-- Generic name, Brand name
+|       |       |-- Strength, Form (tablet/injection/syrup)
+|       |-- Update current stock quantity
+|       |-- Set reorder threshold per medicine
+|
+|-- [OPTION 3] CROSS-FACILITY STOCK SEARCH
+        |-- Search any drug across all network facilities
+        |-- Find which facility has stock for emergency sourcing
+        |-- View equipment availability grid too
+
+
+================================================================================
+BRANCH 8: LAB PATHOLOGIST  (username: lab.lisa)
+================================================================================
+
+Lab Dashboard
+|-- Pending lab orders queue
+|-- In-testing samples
+|-- Reports ready to release
+|
+|-- [OPTION 1] PROCESS LAB ORDER (Step by Step)
+|       |
+|       |-- STEP 1: View order details
+|       |           Test name, Patient, Ordering doctor
+|       |           Clinical indication / reason
+|       |
+|       |-- STEP 2: Collect specimen from patient
+|       |           Status updated: Sample Collected
+|       |
+|       |-- STEP 3: Run test in laboratory
+|       |           Status updated: In Testing
+|       |
+|       |-- STEP 4: Enter results
+|       |           Result values + reference ranges
+|       |           Status updated: Verified
+|       |
+|       |-- STEP 5: Release official report
+|                   Status updated: Released
+|                   Report linked to patient EHR
+|                   Doctor receives notification
+|
+|-- [OPTION 2] VIEW TEST CATALOG
+        |-- CBC (Complete Blood Count)
+        |-- Blood Sugar (Fasting / Random / HbA1c)
+        |-- Liver Function Test (LFT)
+        |-- Kidney Function Test (RFT)
+        |-- Obstetric Ultrasound
+        |-- 12-Lead ECG
+        |-- Digital X-Ray
+        |-- Sputum AFB (Tuberculosis)
+        |-- Urine Routine Examination
+        |-- And many more...
+
+
+================================================================================
+BRANCH 9: PATIENT  (username: patient.meena / patient.john / any registered)
+================================================================================
+
+Patient Dashboard
+|-- My ABHA health card
+|-- My health summary
+|-- My upcoming appointments
+|
+|-- [OPTION 1] VIEW MY COMPLETE EHR
+|       |
+|       |-- TAB 1: My Teleconsultations
+|       |           Date, Specialist name, Clinical advice given
+|       |
+|       |-- TAB 2: My Prescriptions
+|       |           Medicine name, Dose, Frequency, Duration
+|       |           Prescribing doctor name
+|       |
+|       |-- TAB 3: My Lab Results
+|       |           Test name, Result value, Reference range
+|       |           Link to official lab report
+|       |
+|       |-- TAB 4: My Referrals
+|       |           Referred to which hospital/specialist
+|       |           Current status of referral
+|       |           Counter-referral home-care instructions
+|       |
+|       |-- TAB 5: My Vitals History
+|       |           All recorded readings with timestamps
+|       |           BP, HR, SpO2, Sugar, Hemoglobin
+|       |           Triage flag for each reading
+|       |
+|       |-- TAB 6: My High-Risk Surveillance
+|                   Enrolled cohort (Maternal/SAM/NCD)
+|                   Severity score history
+|                   Home visit log by ASHA
+|
+|-- [OPTION 2] MY ABHA ID
+|       |-- View 14-digit ABHA National Health ID
+|       |-- Generate ABHA if not yet created
+|       |-- Download HL7 FHIR health record bundle
+|               (Portable across all hospitals in India)
+|
+|-- [OPTION 3] MY APPOINTMENTS
+        |-- View upcoming booked appointments
+        |-- See token number and doctor details
+        |-- Appointment status: Booked / Checked-In / Done
+
+
+================================================================================
+SHARED FEATURES  (Available to ALL roles on every page)
+================================================================================
+
+|-- LANGUAGE SWITCH  (Globe icon, top bar)
+|       |-- English
+|       |-- Hindi        (हिंदी)
+|       |-- Tamil        (தமிழ்)
+|       |-- Telugu       (తెలుగు)
+|       |-- Bengali      (বাংলা)
+|       |-- Spanish      (Espanol)
+|       |-- All labels and triage terms change instantly
+|
+|-- 108 EMERGENCY BUTTON  (Red button, top bar, always visible)
+|       |-- Accessible from any page
+|       |-- Select patient + emergency reason
+|       |-- Dispatches ambulance + reserves bay immediately
+|
+|-- ONLINE / OFFLINE STATUS BADGE
+|       |-- Green badge = Network Online
+|       |-- Red badge   = Offline Mode active
+|       |-- Offline: Data cached locally
+|       |-- On reconnect: Auto-sync to server
+|
+|-- DEMO ROLE SWITCHER BAR  (Dark bar, top of every page)
+|       |-- 9 persona buttons visible
+|       |-- Active role highlighted in amber
+|       |-- One click to switch persona
+|       |-- Shows role + facility name in confirmation
+|
+|-- SIGN OUT
+        |-- Clears session
+        |-- Action logged in audit trail
+        |-- Returns to Login page
+
+
+================================================================================
+REFERRAL PIPELINE (Cross-role flow)
+================================================================================
+
+PHC Doctor / ASHA creates referral
+        |
+        v
+Status: INITIATED
+        |
+        v
+District Hospital accepts
+        |
+        v
+Status: ACCEPTED
+        |
+        v
+Patient transported (108 / vehicle)
+        |
+        v
+Status: IN-TRANSIT
+        |
+        v
+Patient arrives at District Hospital
+        |
+        v
+Status: ATTENDED
+        |
+        v
+Specialist examines and treats patient
+        |
+        v
+Specialist writes Counter-Referral plan
+        |
+        v
+Status: COUNTER-REFERRED
+        |
+        v
+Home-care instructions sent to ASHA
+        |
+        v
+ASHA follows up at patient's home
+        |
+        v
+Status: CLOSED
+
+
+================================================================================
+HIGH-RISK SURVEILLANCE CYCLE (Cross-role flow)
+================================================================================
+
+ASHA / Doctor identifies high-risk patient
+        |
+        v
+Enroll in High-Risk Registry
+        |
+        v
+Set: Category + Severity Score + ASHA worker + Follow-up date
+        |
+        v
+Follow-up due? ----NO----> RED ALERT on Dashboard
+        |                          |
+        | YES                      |
+        v                         v
+ASHA logs home visit          ASHA notified to visit
+        |
+        v
+Update vitals + severity score
+        |
+        v
+Improving? ----NO (worsening)----> Teleconsult or 108 Emergency
+        |
+        | YES
+        v
+Lower severity, schedule next visit
+        |
+        v
+Fully recovered? ----YES----> Status: Closed / Archived in EHR
+
+
+================================================================================
+END OF WORKFLOW TREE
+PulseCare - Equitable & Specialist-Enabled Care for All
+================================================================================
