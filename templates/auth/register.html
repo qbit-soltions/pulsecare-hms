@@ -1,11 +1,24 @@
-﻿{% extends "base.html" %}
-{% block title %}Create ABHA Account — PulseCare{% endblock %}
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create ABHA Account — PulseCare</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: Inter, sans-serif; }
+    .fs-7{font-size:.85rem!important}.fs-8{font-size:.78rem!important}.fs-9{font-size:.70rem!important}
+    .otp-box:focus{border-color:#3b82f6!important;box-shadow:0 0 0 .2rem rgba(59,130,246,.25);}
+  </style>
+</head>
+<body style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0f172a 100%);min-height:100vh;">
 
-{% block content %}
-<div class="min-vh-100 d-flex align-items-center justify-content-center py-5"
-     style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0f172a 100%);">
-  <div class="container" style="max-width:680px;">
+<div class="d-flex align-items-center justify-content-center py-5 px-3 min-vh-100">
+  <div class="w-100" style="max-width:660px;">
 
+    <!-- Header -->
     <div class="text-center mb-4">
       <div class="d-inline-flex align-items-center gap-2 mb-3">
         <div class="rounded-circle bg-white d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
@@ -20,220 +33,263 @@
       <p class="text-white-50 mb-0">Verify your Aadhaar to get a National Health ID (ABHA) instantly</p>
     </div>
 
+    <!-- Sandbox notice -->
     {% if sandbox_mode %}
-    <div class="alert alert-warning border-warning d-flex align-items-start gap-2 mb-4 py-2 px-3">
+    <div class="alert alert-warning d-flex align-items-start gap-2 mb-4 py-2 px-3">
       <i class="bi bi-cone-striped text-warning mt-1 flex-shrink-0"></i>
       <div class="fs-8">
-        <strong>ABDM Sandbox Mode Active</strong><br>
-        Use mock Aadhaar: <code class="user-select-all">{{ mock_aadhaar }}</code> &nbsp;·&nbsp; OTP: <code>123456</code><br>
-        <span class="text-muted">No real Aadhaar data is used during development testing.</span>
+        <strong>ABDM Sandbox Mode Active</strong> — Use mock Aadhaar: <code class="user-select-all fw-bold">{{ mock_aadhaar }}</code> &nbsp;·&nbsp; OTP: <code class="fw-bold">123456</code><br>
+        <span class="text-muted">No real Aadhaar data is processed during sandbox testing.</span>
       </div>
     </div>
     {% endif %}
 
-    <!-- Progress stepper -->
-    <div class="d-flex align-items-center justify-content-center mb-4 gap-0">
-      <div class="d-flex align-items-center">
-        <div id="step-dot-1" class="rounded-circle d-flex align-items-center justify-content-center fw-bold fs-8" style="width:36px;height:36px;border:2px solid #3b82f6;background:#3b82f6;color:#fff;transition:all .3s;">
-          <span id="step-dot-label-1">1</span>
+    <!-- Step progress bar -->
+    <div class="d-flex align-items-center justify-content-center mb-4">
+      <div class="d-flex align-items-center gap-0">
+        <div id="dot1" class="rounded-circle d-flex align-items-center justify-content-center fw-bold"
+             style="width:38px;height:38px;background:#3b82f6;border:2px solid #3b82f6;color:#fff;font-size:.8rem;transition:all .3s;">
+          <span id="dot1-label">1</span>
         </div>
-        <div class="ms-2 d-none d-sm-block"><div id="step-label-1" class="fs-9 fw-semibold text-white">Aadhaar Verify</div></div>
-        <div class="mx-2" style="width:40px;height:2px;background:rgba(255,255,255,0.15);"></div>
-      </div>
-      <div class="d-flex align-items-center">
-        <div id="step-dot-2" class="rounded-circle d-flex align-items-center justify-content-center fw-bold fs-8" style="width:36px;height:36px;border:2px solid rgba(255,255,255,0.3);background:transparent;color:rgba(255,255,255,0.4);transition:all .3s;">
-          <span id="step-dot-label-2">2</span>
+        <div class="ms-2 d-none d-sm-block"><span id="lbl1" class="fw-semibold text-white fs-8">Aadhaar</span></div>
+        <div style="width:50px;height:2px;background:rgba(255,255,255,0.2);margin:0 8px;"></div>
+        <div id="dot2" class="rounded-circle d-flex align-items-center justify-content-center fw-bold"
+             style="width:38px;height:38px;background:transparent;border:2px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.4);font-size:.8rem;transition:all .3s;">
+          <span id="dot2-label">2</span>
         </div>
-        <div class="ms-2 d-none d-sm-block"><div id="step-label-2" class="fs-9 fw-semibold text-white-50">OTP Confirm</div></div>
-        <div class="mx-2" style="width:40px;height:2px;background:rgba(255,255,255,0.15);"></div>
-      </div>
-      <div class="d-flex align-items-center">
-        <div id="step-dot-3" class="rounded-circle d-flex align-items-center justify-content-center fw-bold fs-8" style="width:36px;height:36px;border:2px solid rgba(255,255,255,0.3);background:transparent;color:rgba(255,255,255,0.4);transition:all .3s;">
-          <span id="step-dot-label-3">3</span>
+        <div class="ms-2 d-none d-sm-block"><span id="lbl2" class="fw-semibold text-white-50 fs-8">OTP</span></div>
+        <div style="width:50px;height:2px;background:rgba(255,255,255,0.2);margin:0 8px;"></div>
+        <div id="dot3" class="rounded-circle d-flex align-items-center justify-content-center fw-bold"
+             style="width:38px;height:38px;background:transparent;border:2px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.4);font-size:.8rem;transition:all .3s;">
+          <span id="dot3-label">3</span>
         </div>
-        <div class="ms-2 d-none d-sm-block"><div id="step-label-3" class="fs-9 fw-semibold text-white-50">Set Up Account</div></div>
+        <div class="ms-2 d-none d-sm-block"><span id="lbl3" class="fw-semibold text-white-50 fs-8">Profile</span></div>
       </div>
     </div>
 
-    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+    <!-- Card -->
+    <div class="card border-0 shadow-lg rounded-4">
 
-      <!-- STEP 1 -->
-      <div id="step-1" class="card-body p-4 p-md-5">
-        <div class="d-flex align-items-center gap-2 mb-4">
-          <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center" style="width:42px;height:42px;flex-shrink:0;">
-            <i class="bi bi-fingerprint text-primary fs-4"></i>
+      <!-- ── STEP 1: Aadhaar ────────────────────────── -->
+      <div id="panel1" class="card-body p-4 p-md-5">
+        <div class="d-flex align-items-center gap-3 mb-4">
+          <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center flex-shrink-0" style="width:44px;height:44px;">
+            <i class="bi bi-fingerprint text-primary" style="font-size:1.4rem;"></i>
           </div>
           <div>
             <h5 class="fw-bold mb-0">Aadhaar Verification</h5>
-            <p class="text-muted fs-8 mb-0">We will send a one-time password to your Aadhaar-linked mobile</p>
+            <p class="text-muted fs-8 mb-0">An OTP will be sent to your Aadhaar-linked mobile number</p>
           </div>
         </div>
+
         <div class="mb-4">
           <label class="form-label fw-semibold">Aadhaar Number <span class="text-danger">*</span></label>
           <div class="input-group input-group-lg">
-            <span class="input-group-text bg-light border-end-0"><i class="bi bi-person-badge text-primary"></i></span>
-            <input type="text" id="aadhaar-input" class="form-control border-start-0 fs-6" placeholder="XXXX  XXXX  XXXX" maxlength="14" autocomplete="off" inputmode="numeric">
+            <span class="input-group-text bg-light border-end-0">
+              <i class="bi bi-person-badge text-primary"></i>
+            </span>
+            <input type="text" id="aadhaar-input"
+                   class="form-control border-start-0 fw-semibold"
+                   placeholder="XXXX  XXXX  XXXX"
+                   maxlength="16"
+                   autocomplete="off"
+                   inputmode="numeric"
+                   style="letter-spacing:.12rem;">
           </div>
-          <div class="form-text"><i class="bi bi-shield-lock-fill text-success me-1"></i>Your Aadhaar is never stored. Only used to generate ABHA via ABDM APIs.</div>
+          <div class="form-text mt-1">
+            <i class="bi bi-shield-lock-fill text-success me-1"></i>
+            Your Aadhaar is never stored — only used via ABDM APIs to generate your ABHA ID
+          </div>
         </div>
-        <div id="step1-error" class="alert alert-danger d-none py-2 fs-8"></div>
+
+        <div id="err1" class="alert alert-danger d-none py-2 px-3 fs-8 mb-3"></div>
+
         <div class="d-grid">
-          <button id="btn-generate-otp" class="btn btn-primary btn-lg fw-semibold rounded-pill" onclick="generateOtp()">
+          <button id="btn1" class="btn btn-primary btn-lg fw-semibold rounded-pill" onclick="generateOtp()">
             <i class="bi bi-send-fill me-2"></i>Send OTP to Aadhaar Mobile
-            <span id="btn-generate-otp-spinner" class="spinner-border spinner-border-sm ms-2 d-none"></span>
+            <span id="sp1" class="spinner-border spinner-border-sm ms-2 d-none"></span>
           </button>
         </div>
-        <div class="text-center mt-3">
+
+        <div class="text-center mt-4">
           <span class="text-muted fs-8">Already have an account?</span>
-          <a href="{{ url_for('login') }}" class="ms-1 fw-semibold text-primary text-decoration-none fs-8">Sign In</a>
+          <a href="/login" class="ms-1 fw-semibold text-decoration-none fs-8">Sign In</a>
         </div>
-        <div class="mt-4 pt-3 border-top d-flex align-items-center justify-content-center gap-2">
-          <i class="bi bi-bank2 text-muted"></i>
-          <span class="text-muted fs-9">Powered by ABDM · National Health Authority, Govt. of India</span>
+
+        <div class="mt-4 pt-3 border-top text-center text-muted fs-9">
+          <i class="bi bi-bank2 me-1"></i>Powered by ABDM · National Health Authority, Govt. of India
         </div>
       </div>
 
-      <!-- STEP 2 -->
-      <div id="step-2" class="card-body p-4 p-md-5 d-none">
-        <div class="d-flex align-items-center gap-2 mb-4">
-          <div class="rounded-circle bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style="width:42px;height:42px;flex-shrink:0;">
-            <i class="bi bi-shield-check text-success fs-4"></i>
+      <!-- ── STEP 2: OTP ─────────────────────────────── -->
+      <div id="panel2" class="card-body p-4 p-md-5 d-none">
+        <div class="d-flex align-items-center gap-3 mb-4">
+          <div class="rounded-circle bg-success bg-opacity-10 d-flex align-items-center justify-content-center flex-shrink-0" style="width:44px;height:44px;">
+            <i class="bi bi-shield-check text-success" style="font-size:1.4rem;"></i>
           </div>
           <div>
             <h5 class="fw-bold mb-0">Enter OTP</h5>
-            <p class="text-muted fs-8 mb-0">6-digit OTP sent to <strong id="masked-mobile-display">XXXXXX****</strong></p>
+            <p class="text-muted fs-8 mb-0">6-digit OTP sent to <strong id="mob-display">your Aadhaar mobile</strong></p>
           </div>
         </div>
-        <div id="sandbox-otp-hint" class="alert alert-info py-2 fs-8 d-none">
-          <i class="bi bi-info-circle-fill me-1"></i><strong>Sandbox Test OTP:</strong> <code class="fs-7 user-select-all">123456</code>
+
+        <div id="sandbox-hint" class="alert alert-info py-2 px-3 fs-8 d-none mb-3">
+          <i class="bi bi-info-circle-fill me-1"></i>
+          <strong>Sandbox Test OTP:</strong> <code class="fs-7 fw-bold user-select-all">123456</code>
         </div>
+
         <div class="mb-4">
-          <label class="form-label fw-semibold">One-Time Password <span class="text-danger">*</span></label>
-          <div class="d-flex gap-2 justify-content-center mb-3">
-            <input type="text" class="form-control text-center fw-bold fs-5 otp-box rounded-3" style="width:52px;height:58px;border:2px solid #dee2e6;" maxlength="1" inputmode="numeric" id="otp-0">
-            <input type="text" class="form-control text-center fw-bold fs-5 otp-box rounded-3" style="width:52px;height:58px;border:2px solid #dee2e6;" maxlength="1" inputmode="numeric" id="otp-1">
-            <input type="text" class="form-control text-center fw-bold fs-5 otp-box rounded-3" style="width:52px;height:58px;border:2px solid #dee2e6;" maxlength="1" inputmode="numeric" id="otp-2">
-            <input type="text" class="form-control text-center fw-bold fs-5 otp-box rounded-3" style="width:52px;height:58px;border:2px solid #dee2e6;" maxlength="1" inputmode="numeric" id="otp-3">
-            <input type="text" class="form-control text-center fw-bold fs-5 otp-box rounded-3" style="width:52px;height:58px;border:2px solid #dee2e6;" maxlength="1" inputmode="numeric" id="otp-4">
-            <input type="text" class="form-control text-center fw-bold fs-5 otp-box rounded-3" style="width:52px;height:58px;border:2px solid #dee2e6;" maxlength="1" inputmode="numeric" id="otp-5">
+          <label class="form-label fw-semibold mb-3">Enter the 6-digit OTP</label>
+          <div class="d-flex gap-2 justify-content-center">
+            <input type="text" class="form-control text-center fw-bold fs-4 otp-box rounded-3" style="width:54px;height:60px;border:2px solid #dee2e6;" maxlength="1" inputmode="numeric" id="o0">
+            <input type="text" class="form-control text-center fw-bold fs-4 otp-box rounded-3" style="width:54px;height:60px;border:2px solid #dee2e6;" maxlength="1" inputmode="numeric" id="o1">
+            <input type="text" class="form-control text-center fw-bold fs-4 otp-box rounded-3" style="width:54px;height:60px;border:2px solid #dee2e6;" maxlength="1" inputmode="numeric" id="o2">
+            <input type="text" class="form-control text-center fw-bold fs-4 otp-box rounded-3" style="width:54px;height:60px;border:2px solid #dee2e6;" maxlength="1" inputmode="numeric" id="o3">
+            <input type="text" class="form-control text-center fw-bold fs-4 otp-box rounded-3" style="width:54px;height:60px;border:2px solid #dee2e6;" maxlength="1" inputmode="numeric" id="o4">
+            <input type="text" class="form-control text-center fw-bold fs-4 otp-box rounded-3" style="width:54px;height:60px;border:2px solid #dee2e6;" maxlength="1" inputmode="numeric" id="o5">
           </div>
-          <input type="hidden" id="otp-combined">
         </div>
-        <div id="step2-error" class="alert alert-danger d-none py-2 fs-8"></div>
+
+        <div id="err2" class="alert alert-danger d-none py-2 px-3 fs-8 mb-3"></div>
+
         <div class="d-grid mb-3">
-          <button id="btn-verify-otp" class="btn btn-success btn-lg fw-semibold rounded-pill" onclick="verifyOtp()">
+          <button id="btn2" class="btn btn-success btn-lg fw-semibold rounded-pill" onclick="verifyOtp()">
             <i class="bi bi-check-circle-fill me-2"></i>Verify OTP
-            <span id="btn-verify-otp-spinner" class="spinner-border spinner-border-sm ms-2 d-none"></span>
+            <span id="sp2" class="spinner-border spinner-border-sm ms-2 d-none"></span>
           </button>
         </div>
-        <div class="text-center">
-          <button class="btn btn-link text-muted fs-8 p-0" onclick="goToStep(1)"><i class="bi bi-arrow-left me-1"></i>Back / Change Aadhaar</button>
-          &nbsp;·&nbsp;
-          <button class="btn btn-link fs-8 p-0" onclick="generateOtp(true)">Resend OTP</button>
+
+        <div class="text-center fs-8">
+          <button class="btn btn-link text-muted p-0 fs-8" onclick="showPanel(1)">
+            <i class="bi bi-arrow-left me-1"></i>Change Aadhaar
+          </button>
+          <span class="text-muted mx-2">·</span>
+          <button class="btn btn-link p-0 fs-8" onclick="generateOtp(true)">Resend OTP</button>
         </div>
       </div>
 
-      <!-- STEP 3 -->
-      <div id="step-3" class="card-body p-4 p-md-5 d-none">
-        <div class="d-flex align-items-center gap-2 mb-3">
-          <div class="rounded-circle bg-warning bg-opacity-10 d-flex align-items-center justify-content-center" style="width:42px;height:42px;flex-shrink:0;">
-            <i class="bi bi-person-plus-fill text-warning fs-4"></i>
+      <!-- ── STEP 3: Profile ────────────────────────── -->
+      <div id="panel3" class="card-body p-4 p-md-5 d-none">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="rounded-circle bg-warning bg-opacity-10 d-flex align-items-center justify-content-center flex-shrink-0" style="width:44px;height:44px;">
+            <i class="bi bi-person-plus-fill text-warning" style="font-size:1.4rem;"></i>
           </div>
           <div>
             <h5 class="fw-bold mb-0">Complete Your Profile</h5>
-            <p class="text-muted fs-8 mb-0">Identity verified — fill in remaining details</p>
+            <p class="text-muted fs-8 mb-0">Fields are pre-filled from your Aadhaar. You may edit them.</p>
           </div>
         </div>
+
         <div class="alert alert-success py-2 px-3 fs-8 mb-3">
-          <i class="bi bi-check-circle-fill me-1"></i>Identity verified via ABDM ABHA APIs. Fields are pre-filled from your Aadhaar record. You may edit them.
+          <i class="bi bi-check-circle-fill me-1"></i>
+          Aadhaar identity verified via ABDM. Your ABHA number will be generated when you submit.
         </div>
+
         <div class="row g-3">
-          <div class="col-md-6">
+          <div class="col-6">
             <label class="form-label fw-semibold fs-8">First Name <span class="text-danger">*</span></label>
-            <input type="text" id="f-first-name" class="form-control" placeholder="First name">
+            <input type="text" id="f1" class="form-control" placeholder="First name">
           </div>
-          <div class="col-md-6">
+          <div class="col-6">
             <label class="form-label fw-semibold fs-8">Last Name</label>
-            <input type="text" id="f-last-name" class="form-control" placeholder="Last name">
+            <input type="text" id="f2" class="form-control" placeholder="Last name">
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold fs-8">Mobile Number <span class="text-danger">*</span></label>
-            <div class="input-group"><span class="input-group-text">+91</span><input type="tel" id="f-mobile" class="form-control" placeholder="10-digit" maxlength="10" inputmode="numeric"></div>
+            <div class="input-group">
+              <span class="input-group-text fw-semibold">+91</span>
+              <input type="tel" id="f3" class="form-control" placeholder="10-digit mobile" maxlength="10" inputmode="numeric">
+            </div>
           </div>
           <div class="col-md-6">
-            <label class="form-label fw-semibold fs-8">Email Address</label>
-            <input type="email" id="f-email" class="form-control" placeholder="Optional">
+            <label class="form-label fw-semibold fs-8">Email</label>
+            <input type="email" id="f4" class="form-control" placeholder="Optional">
           </div>
-          <div class="col-md-4">
+          <div class="col-4">
             <label class="form-label fw-semibold fs-8">Date of Birth</label>
-            <input type="date" id="f-dob" class="form-control">
+            <input type="date" id="f5" class="form-control">
           </div>
-          <div class="col-md-4">
+          <div class="col-4">
             <label class="form-label fw-semibold fs-8">Gender</label>
-            <select id="f-gender" class="form-select"><option value="M">Male</option><option value="F">Female</option><option value="O">Other</option></select>
+            <select id="f6" class="form-select">
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+              <option value="O">Other</option>
+            </select>
           </div>
-          <div class="col-md-4">
+          <div class="col-4">
             <label class="form-label fw-semibold fs-8">Language</label>
-            <select id="f-lang" class="form-select">
-              <option value="en">English</option><option value="hi">हिंदी</option>
-              <option value="ta">தமிழ்</option><option value="te">తెలుగు</option>
-              <option value="bn">বাংলা</option><option value="es">Español</option>
+            <select id="f7" class="form-select">
+              <option value="en">English</option>
+              <option value="hi">हिंदी</option>
+              <option value="ta">தமிழ்</option>
+              <option value="te">తెలుగు</option>
+              <option value="bn">বাংলা</option>
+              <option value="es">Español</option>
             </select>
           </div>
           <div class="col-12">
             <label class="form-label fw-semibold fs-8">Village / Address</label>
-            <input type="text" id="f-village" class="form-control" placeholder="Village, Block, District">
+            <input type="text" id="f8" class="form-control" placeholder="Village, Block, District">
           </div>
-          <div class="col-12"><hr class="my-1"><p class="fw-semibold fs-8 mb-2 text-muted">Set Your PulseCare Login Password</p></div>
+
+          <div class="col-12"><hr class="my-1"><p class="text-muted fs-8 fw-semibold mb-1">Set PulseCare Login Password</p></div>
+
           <div class="col-md-6">
             <label class="form-label fw-semibold fs-8">Password <span class="text-danger">*</span></label>
             <div class="input-group">
-              <input type="password" id="f-password" class="form-control" placeholder="Min 8 characters">
-              <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('f-password',this)"><i class="bi bi-eye"></i></button>
+              <input type="password" id="fp1" class="form-control" placeholder="Min 8 characters">
+              <button class="btn btn-outline-secondary" type="button" onclick="tp('fp1',this)"><i class="bi bi-eye"></i></button>
             </div>
-            <div class="progress mt-1" style="height:4px;"><div id="pwd-strength-bar" class="progress-bar" style="width:0%;transition:width .3s;"></div></div>
+            <div class="progress mt-1" style="height:4px;">
+              <div id="pbar" class="progress-bar" style="width:0%;transition:width .3s;"></div>
+            </div>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold fs-8">Confirm Password <span class="text-danger">*</span></label>
             <div class="input-group">
-              <input type="password" id="f-confirm-password" class="form-control" placeholder="Repeat password">
-              <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('f-confirm-password',this)"><i class="bi bi-eye"></i></button>
+              <input type="password" id="fp2" class="form-control" placeholder="Repeat password">
+              <button class="btn btn-outline-secondary" type="button" onclick="tp('fp2',this)"><i class="bi bi-eye"></i></button>
             </div>
-            <div id="pwd-match-msg" class="fs-9 mt-1"></div>
+            <div id="pmatch" class="fs-9 mt-1"></div>
           </div>
         </div>
-        <div id="step3-error" class="alert alert-danger d-none py-2 fs-8 mt-3"></div>
+
+        <div id="err3" class="alert alert-danger d-none py-2 px-3 fs-8 mt-3"></div>
+
         <div class="d-grid mt-4">
-          <button id="btn-complete" class="btn btn-primary btn-lg fw-bold rounded-pill" onclick="completeRegistration()">
+          <button id="btn3" class="btn btn-primary btn-lg fw-bold rounded-pill" onclick="completeReg()">
             <i class="bi bi-person-check-fill me-2"></i>Create ABHA Account &amp; Sign In
-            <span id="btn-complete-spinner" class="spinner-border spinner-border-sm ms-2 d-none"></span>
+            <span id="sp3" class="spinner-border spinner-border-sm ms-2 d-none"></span>
           </button>
         </div>
         <div class="text-center mt-3">
-          <button class="btn btn-link text-muted fs-8 p-0" onclick="goToStep(2)"><i class="bi bi-arrow-left me-1"></i>Back</button>
+          <button class="btn btn-link text-muted p-0 fs-8" onclick="showPanel(2)">
+            <i class="bi bi-arrow-left me-1"></i>Back
+          </button>
         </div>
       </div>
 
-      <!-- SUCCESS -->
-      <div id="step-success" class="card-body p-4 p-md-5 text-center d-none">
-        <div class="mb-4">
-          <div class="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width:80px;height:80px;">
-            <i class="bi bi-patch-check-fill text-success" style="font-size:2.5rem;"></i>
-          </div>
-          <h4 class="fw-bold text-success mb-1">ABHA Account Created!</h4>
-          <p class="text-muted mb-0">Your National Health ID is ready</p>
+      <!-- ── SUCCESS ──────────────────────────────────── -->
+      <div id="panel-ok" class="card-body p-4 p-md-5 text-center d-none">
+        <div class="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width:80px;height:80px;">
+          <i class="bi bi-patch-check-fill text-success" style="font-size:2.5rem;"></i>
         </div>
+        <h4 class="fw-bold text-success mb-1">ABHA Account Created!</h4>
+        <p class="text-muted mb-4">Your National Health ID is ready</p>
+
         <div class="card bg-primary bg-opacity-10 border-primary border-opacity-25 rounded-3 p-3 mb-4 mx-auto" style="max-width:340px;">
-          <div class="fs-9 text-muted mb-1">Your ABHA Number</div>
-          <div id="success-abha-number" class="fw-bold fs-5 text-primary font-monospace"></div>
-          <div class="fs-9 text-muted mt-2 mb-1">Your ABHA Address</div>
-          <div id="success-abha-address" class="fw-semibold fs-8 text-secondary font-monospace"></div>
+          <div class="fs-9 text-muted mb-1">ABHA Number</div>
+          <div id="ok-abha" class="fw-bold fs-5 text-primary font-monospace"></div>
+          <div class="fs-9 text-muted mt-2 mb-1">ABHA Address</div>
+          <div id="ok-addr" class="fw-semibold fs-8 text-secondary font-monospace"></div>
           <hr class="my-2">
           <div class="fs-9 text-muted mb-1">PulseCare Patient ID</div>
-          <div id="success-patient-uid" class="fw-bold text-dark"></div>
+          <div id="ok-uid" class="fw-bold text-dark"></div>
         </div>
+
         <div class="d-grid">
-          <button id="btn-go-dashboard" class="btn btn-success btn-lg fw-bold rounded-pill">
+          <button id="btn-dash" class="btn btn-success btn-lg fw-bold rounded-pill">
             <i class="bi bi-house-door-fill me-2"></i>Go to My Health Dashboard
           </button>
         </div>
@@ -242,178 +298,235 @@
     </div><!-- /card -->
   </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-let currentStep = 1;
-
-function goToStep(n) {
-  ['1','2','3'].forEach(s => document.getElementById('step-'+s).classList.add('d-none'));
-  document.getElementById('step-'+n).classList.remove('d-none');
-  currentStep = n;
-  updateStepper(n);
-  if (n === 2) setTimeout(()=>document.getElementById('otp-0').focus(), 100);
+// ── Panel switcher ──────────────────────────────────────────────────────
+function showPanel(n) {
+  ['1','2','3'].forEach(p => {
+    document.getElementById('panel'+p).classList.add('d-none');
+  });
+  document.getElementById('panel'+n).classList.remove('d-none');
+  updateDots(n);
+  if (n === 2) setTimeout(() => document.getElementById('o0').focus(), 80);
 }
 
-function updateStepper(active) {
+function updateDots(active) {
   for (let i = 1; i <= 3; i++) {
-    const dot = document.getElementById('step-dot-'+i);
-    const lbl = document.getElementById('step-label-'+i);
-    const dlbl = document.getElementById('step-dot-label-'+i);
+    const dot  = document.getElementById('dot'+i);
+    const lbl  = document.getElementById('lbl'+i);
+    const dlbl = document.getElementById('dot'+i+'-label');
     if (i < active) {
-      dot.style.cssText = 'width:36px;height:36px;border:2px solid #22c55e;background:#22c55e;color:#fff;transition:all .3s;';
-      dlbl.innerHTML = '<i class="bi bi-check2" style="font-size:1rem;"></i>';
-      if (lbl) lbl.className = 'fs-9 fw-semibold text-success';
+      dot.style.background = '#22c55e';
+      dot.style.borderColor = '#22c55e';
+      dot.style.color = '#fff';
+      dlbl.innerHTML = '<i class="bi bi-check2"></i>';
+      if (lbl) { lbl.className = 'fw-semibold text-success fs-8'; }
     } else if (i === active) {
-      dot.style.cssText = 'width:36px;height:36px;border:2px solid #3b82f6;background:#3b82f6;color:#fff;transition:all .3s;';
+      dot.style.background = '#3b82f6';
+      dot.style.borderColor = '#3b82f6';
+      dot.style.color = '#fff';
       dlbl.textContent = i;
-      if (lbl) lbl.className = 'fs-9 fw-semibold text-white';
+      if (lbl) { lbl.className = 'fw-semibold text-white fs-8'; }
     } else {
-      dot.style.cssText = 'width:36px;height:36px;border:2px solid rgba(255,255,255,0.3);background:transparent;color:rgba(255,255,255,0.4);transition:all .3s;';
+      dot.style.background = 'transparent';
+      dot.style.borderColor = 'rgba(255,255,255,0.3)';
+      dot.style.color = 'rgba(255,255,255,0.4)';
       dlbl.textContent = i;
-      if (lbl) lbl.className = 'fs-9 fw-semibold text-white-50';
+      if (lbl) { lbl.className = 'fw-semibold text-white-50 fs-8'; }
     }
   }
 }
 
-function showErr(id, msg) { const e=document.getElementById(id); e.textContent=msg; e.classList.remove('d-none'); }
+// ── Helpers ─────────────────────────────────────────────────────────────
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.remove('d-none');
+}
 function hideErr(id) { document.getElementById(id).classList.add('d-none'); }
-function setLoad(btn, sp, v) { document.getElementById(btn).disabled=v; document.getElementById(sp).classList.toggle('d-none',!v); }
-function togglePwd(id, btn) {
-  const i=document.getElementById(id); i.type=i.type==='password'?'text':'password';
-  btn.querySelector('i').className=i.type==='password'?'bi bi-eye':'bi bi-eye-slash';
+function setBusy(btnId, spId, busy) {
+  document.getElementById(btnId).disabled = busy;
+  document.getElementById(spId).classList.toggle('d-none', !busy);
+}
+function tp(id, btn) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+  btn.querySelector('i').className = el.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
 }
 
-// Aadhaar formatting
-document.getElementById('aadhaar-input').addEventListener('input', function() {
-  let v=this.value.replace(/\D/g,'').slice(0,12);
-  this.value=v.replace(/(\d{4})(?=\d)/g,'$1  ').trim();
+// ── Aadhaar input formatter ──────────────────────────────────────────────
+const aaEl = document.getElementById('aadhaar-input');
+aaEl.addEventListener('input', function () {
+  const digits = this.value.replace(/\D/g, '').slice(0, 12);
+  this.value = digits.replace(/(\d{4})(?=\d)/g, '$1  ');
 });
-document.getElementById('aadhaar-input').addEventListener('keydown',e=>{if(e.key==='Enter')generateOtp();});
+aaEl.addEventListener('keydown', e => { if (e.key === 'Enter') generateOtp(); });
 
-// OTP boxes
-const boxes = document.querySelectorAll('.otp-box');
-boxes.forEach((b,i)=>{
-  b.addEventListener('input',()=>{
-    b.value=b.value.replace(/\D/,'').slice(-1);
-    if(b.value&&i<5)boxes[i+1].focus();
-    syncOtp();
+// ── OTP boxes ────────────────────────────────────────────────────────────
+const otpBoxes = [0,1,2,3,4,5].map(i => document.getElementById('o'+i));
+otpBoxes.forEach((box, i) => {
+  box.addEventListener('input', () => {
+    box.value = box.value.replace(/\D/,'').slice(-1);
+    if (box.value && i < 5) otpBoxes[i+1].focus();
   });
-  b.addEventListener('keydown',e=>{
-    if(e.key==='Backspace'&&!b.value&&i>0){boxes[i-1].focus();boxes[i-1].value='';}
-    if(e.key==='Enter')verifyOtp();
+  box.addEventListener('keydown', e => {
+    if (e.key === 'Backspace' && !box.value && i > 0) {
+      otpBoxes[i-1].focus();
+      otpBoxes[i-1].value = '';
+    }
+    if (e.key === 'Enter') verifyOtp();
   });
-  b.addEventListener('paste',e=>{
+  box.addEventListener('paste', e => {
     e.preventDefault();
-    const p=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'');
-    [...p.slice(0,6)].forEach((c,j)=>{if(boxes[j])boxes[j].value=c;});
-    syncOtp();
-    boxes[Math.min(p.length,5)].focus();
+    const digits = (e.clipboardData || window.clipboardData)
+      .getData('text').replace(/\D/g,'').slice(0,6);
+    [...digits].forEach((c, j) => { if (otpBoxes[j]) otpBoxes[j].value = c; });
+    otpBoxes[Math.min(digits.length, 5)].focus();
   });
 });
-function syncOtp(){document.getElementById('otp-combined').value=[...boxes].map(b=>b.value).join('');}
+function getOtp() { return otpBoxes.map(b => b.value).join(''); }
 
-// Password strength
-document.getElementById('f-password').addEventListener('input',function(){
-  const v=this.value,bar=document.getElementById('pwd-strength-bar');
-  let s=0;
-  if(v.length>=8)s++;if(/[A-Z]/.test(v))s++;if(/[0-9]/.test(v))s++;if(/[^A-Za-z0-9]/.test(v))s++;
-  bar.className='progress-bar '+(['bg-danger','bg-warning','bg-info','bg-success'][s-1]||'bg-secondary');
-  bar.style.width=(s*25)+'%';
+// ── Password strength ────────────────────────────────────────────────────
+document.getElementById('fp1').addEventListener('input', function () {
+  const v = this.value;
+  let s = 0;
+  if (v.length >= 8) s++;
+  if (/[A-Z]/.test(v)) s++;
+  if (/[0-9]/.test(v)) s++;
+  if (/[^A-Za-z0-9]/.test(v)) s++;
+  const bar = document.getElementById('pbar');
+  bar.className = 'progress-bar ' + (['bg-danger','bg-warning','bg-info','bg-success'][s-1] || 'bg-secondary');
+  bar.style.width = (s * 25) + '%';
 });
-document.getElementById('f-confirm-password').addEventListener('input',function(){
-  const m=document.getElementById('pwd-match-msg');
-  if(!this.value){m.innerHTML='';return;}
-  if(this.value===document.getElementById('f-password').value)
-    m.innerHTML='<i class="bi bi-check-circle text-success me-1"></i><span class="text-success">Passwords match</span>';
-  else
-    m.innerHTML='<i class="bi bi-x-circle text-danger me-1"></i><span class="text-danger">Passwords do not match</span>';
+document.getElementById('fp2').addEventListener('input', function () {
+  const m = document.getElementById('pmatch');
+  if (!this.value) { m.innerHTML = ''; return; }
+  if (this.value === document.getElementById('fp1').value) {
+    m.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i><span class="text-success fs-9">Passwords match</span>';
+  } else {
+    m.innerHTML = '<i class="bi bi-x-circle text-danger me-1"></i><span class="text-danger fs-9">Passwords do not match</span>';
+  }
 });
 
-// STEP 1
-async function generateOtp(isResend=false) {
-  hideErr('step1-error');
-  const raw=document.getElementById('aadhaar-input').value.replace(/\s/g,'');
-  if(raw.length!==12){showErr('step1-error','Please enter a valid 12-digit Aadhaar number.');return;}
-  setLoad('btn-generate-otp','btn-generate-otp-spinner',true);
-  try{
-    const r=await fetch('/register/abha/generate-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({aadhaar:raw})});
-    const d=await r.json();
-    if(d.success){
-      document.getElementById('masked-mobile-display').textContent=d.maskedMobile||'your linked mobile';
-      if(d.sandbox)document.getElementById('sandbox-otp-hint').classList.remove('d-none');
-      boxes.forEach(b=>b.value='');
-      if(!isResend)goToStep(2);
-    } else showErr('step1-error',d.error||'OTP generation failed.');
-  } catch{showErr('step1-error','Network error. Please try again.');}
-  finally{setLoad('btn-generate-otp','btn-generate-otp-spinner',false);}
+// ── STEP 1: Generate OTP ────────────────────────────────────────────────
+async function generateOtp(resend=false) {
+  hideErr('err1');
+  const raw = document.getElementById('aadhaar-input').value.replace(/\s/g, '');
+  if (raw.length !== 12) {
+    showErr('err1', 'Please enter a valid 12-digit Aadhaar number.');
+    return;
+  }
+  setBusy('btn1', 'sp1', true);
+  try {
+    const res  = await fetch('/register/abha/generate-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aadhaar: raw })
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('mob-display').textContent = data.maskedMobile || 'your Aadhaar mobile';
+      if (data.sandbox) {
+        document.getElementById('sandbox-hint').classList.remove('d-none');
+      }
+      otpBoxes.forEach(b => { b.value = ''; });
+      if (!resend) showPanel(2);
+    } else {
+      showErr('err1', data.error || 'OTP generation failed. Please try again.');
+    }
+  } catch (ex) {
+    showErr('err1', 'Network error. Please check your connection and try again.');
+  } finally {
+    setBusy('btn1', 'sp1', false);
+  }
 }
 
-// STEP 2
+// ── STEP 2: Verify OTP ──────────────────────────────────────────────────
 async function verifyOtp() {
-  hideErr('step2-error');
-  const otp=document.getElementById('otp-combined').value;
-  if(otp.length!==6){showErr('step2-error','Please enter all 6 digits of your OTP.');return;}
-  setLoad('btn-verify-otp','btn-verify-otp-spinner',true);
-  try{
-    const r=await fetch('/register/abha/verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({otp})});
-    const d=await r.json();
-    if(d.success){prefillStep3(d.profile);goToStep(3);}
-    else showErr('step2-error',d.error||'OTP verification failed.');
-  } catch{showErr('step2-error','Network error. Please try again.');}
-  finally{setLoad('btn-verify-otp','btn-verify-otp-spinner',false);}
+  hideErr('err2');
+  const otp = getOtp();
+  if (otp.length !== 6) {
+    showErr('err2', 'Please enter all 6 digits of your OTP.');
+    return;
+  }
+  setBusy('btn2', 'sp2', true);
+  try {
+    const res  = await fetch('/register/abha/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ otp })
+    });
+    const data = await res.json();
+    if (data.success) {
+      prefill(data.profile || {});
+      showPanel(3);
+    } else {
+      showErr('err2', data.error || 'OTP verification failed. Please try again.');
+    }
+  } catch (ex) {
+    showErr('err2', 'Network error. Please try again.');
+  } finally {
+    setBusy('btn2', 'sp2', false);
+  }
 }
 
-function prefillStep3(p){
-  if(!p)return;
-  const parts=(p.name||'').trim().split(' ');
-  document.getElementById('f-first-name').value=parts[0]||'';
-  document.getElementById('f-last-name').value=parts.slice(1).join(' ')||'';
-  document.getElementById('f-mobile').value=p.mobile||'';
-  document.getElementById('f-dob').value=p.dob||'';
-  const gm={M:'M',Male:'M',F:'F',Female:'F'};
-  document.getElementById('f-gender').value=gm[p.gender]||'M';
-  document.getElementById('f-village').value=[p.address,p.district,p.state].filter(Boolean).join(', ');
+function prefill(p) {
+  const parts = (p.name || '').trim().split(' ');
+  document.getElementById('f1').value = parts[0] || '';
+  document.getElementById('f2').value = parts.slice(1).join(' ') || '';
+  document.getElementById('f3').value = p.mobile || '';
+  document.getElementById('f5').value = p.dob || '';
+  document.getElementById('f8').value = [p.address, p.district, p.state].filter(Boolean).join(', ');
+  const g = { M:'M', Male:'M', F:'F', Female:'F' };
+  document.getElementById('f6').value = g[p.gender] || 'M';
 }
 
-// STEP 3
-async function completeRegistration() {
-  hideErr('step3-error');
-  const payload={
-    first_name:document.getElementById('f-first-name').value.trim(),
-    last_name:document.getElementById('f-last-name').value.trim(),
-    mobile:document.getElementById('f-mobile').value.trim(),
-    email:document.getElementById('f-email').value.trim(),
-    dob:document.getElementById('f-dob').value,
-    gender:document.getElementById('f-gender').value,
-    village:document.getElementById('f-village').value.trim(),
-    preferred_language:document.getElementById('f-lang').value,
-    password:document.getElementById('f-password').value,
-    confirm_password:document.getElementById('f-confirm-password').value
+// ── STEP 3: Complete registration ───────────────────────────────────────
+async function completeReg() {
+  hideErr('err3');
+  const body = {
+    first_name: document.getElementById('f1').value.trim(),
+    last_name:  document.getElementById('f2').value.trim(),
+    mobile:     document.getElementById('f3').value.trim(),
+    email:      document.getElementById('f4').value.trim(),
+    dob:        document.getElementById('f5').value,
+    gender:     document.getElementById('f6').value,
+    preferred_language: document.getElementById('f7').value,
+    village:    document.getElementById('f8').value.trim(),
+    password:         document.getElementById('fp1').value,
+    confirm_password: document.getElementById('fp2').value,
   };
-  if(!payload.first_name){showErr('step3-error','First name is required.');return;}
-  if(!payload.mobile||payload.mobile.length<10){showErr('step3-error','Valid 10-digit mobile required.');return;}
-  if(payload.password.length<8){showErr('step3-error','Password must be at least 8 characters.');return;}
-  if(payload.password!==payload.confirm_password){showErr('step3-error','Passwords do not match.');return;}
-  setLoad('btn-complete','btn-complete-spinner',true);
-  try{
-    const r=await fetch('/register/abha/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    const d=await r.json();
-    if(d.success){
-      document.getElementById('step-3').classList.add('d-none');
-      document.getElementById('step-success').classList.remove('d-none');
-      document.getElementById('success-abha-number').textContent=d.abha_id||'—';
-      document.getElementById('success-abha-address').textContent=d.abha_address||'—';
-      document.getElementById('success-patient-uid').textContent=d.patient_uid||'—';
-      document.getElementById('btn-go-dashboard').onclick=()=>window.location.href=d.redirect_url||'/';
-      updateStepper(4);
-    } else showErr('step3-error',d.error||'Registration failed.');
-  } catch{showErr('step3-error','Network error. Please try again.');}
-  finally{setLoad('btn-complete','btn-complete-spinner',false);}
+  if (!body.first_name)            { showErr('err3','First name is required.'); return; }
+  if (!body.mobile || body.mobile.length < 10) { showErr('err3','Enter a valid 10-digit mobile number.'); return; }
+  if (body.password.length < 8)    { showErr('err3','Password must be at least 8 characters.'); return; }
+  if (body.password !== body.confirm_password) { showErr('err3','Passwords do not match.'); return; }
+
+  setBusy('btn3', 'sp3', true);
+  try {
+    const res  = await fetch('/register/abha/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Show success panel
+      ['panel1','panel2','panel3'].forEach(p => document.getElementById(p).classList.add('d-none'));
+      document.getElementById('panel-ok').classList.remove('d-none');
+      document.getElementById('ok-abha').textContent = data.abha_id      || '—';
+      document.getElementById('ok-addr').textContent = data.abha_address || '—';
+      document.getElementById('ok-uid').textContent  = data.patient_uid  || '—';
+      document.getElementById('btn-dash').onclick = () => { window.location.href = data.redirect_url || '/'; };
+    } else {
+      showErr('err3', data.error || 'Registration failed. Please try again.');
+    }
+  } catch (ex) {
+    showErr('err3', 'Network error. Please try again.');
+  } finally {
+    setBusy('btn3', 'sp3', false);
+  }
 }
 </script>
-<style>
-.otp-box:focus{border-color:#3b82f6!important;box-shadow:0 0 0 .2rem rgba(59,130,246,.25);}
-</style>
-{% endblock %}
+</body>
+</html>

@@ -722,25 +722,29 @@ def abha_complete():
     abha_number  = abha_data.get("healthIdNumber", "")   # 14-digit: 91-XXXX-XXXX-XXXX
     abha_address = abha_data.get("healthId", "")          # username@abdm
 
+    # ── Map gender to allowed database values ─────────────────────────────────
+    gender_map = {"M": "Male", "F": "Female", "O": "Other", "Male": "Male", "Female": "Female", "Other": "Other"}
+    db_gender = gender_map.get(gender, "Male")
+
     # ── Create PulseCare user account ─────────────────────────────────────────
     full_name     = f"{first_name} {last_name}".strip()
     password_hash = generate_password_hash(password)
     user_id = execute_db(
         """INSERT INTO users (username, password_hash, full_name, role, email, phone,
-                              preferred_language, is_active, created_at)
-           VALUES (?, ?, ?, 'patient', ?, ?, ?, 1, datetime('now'))""",
-        (mobile, password_hash, full_name, email, mobile, pref_lang)
+                              is_active, created_at)
+           VALUES (?, ?, ?, 'patient', ?, ?, 1, datetime('now'))""",
+        (mobile, password_hash, full_name, email or None, mobile)
     )
 
     patient_uid = f"PC-{str(user_id).zfill(5)}"
 
     execute_db(
         """INSERT INTO patients (user_id, patient_uid, first_name, last_name, phone, email,
-                                 dob, gender, village, abha_id, socioeconomic_category,
-                                 registration_source, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'General', 'ABDM-ABHA-Registration', datetime('now'))""",
+                                 dob, gender, village, address, abha_id, socioeconomic_category,
+                                 created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'General', datetime('now'))""",
         (user_id, patient_uid, first_name, last_name or first_name, mobile,
-         email, dob, gender, village, abha_number)
+         email or None, dob or "1990-01-01", db_gender, village or "", village or "", abha_number)
     )
 
     log_audit(user_id, "ABHA Patient Registration", "Auth",
@@ -751,12 +755,13 @@ def abha_complete():
     session.pop("abdm_txn_id",   None)
     session.pop("abdm_aadhaar",  None)
     session.pop("abdm_profile",  None)
-    session["user_id"]    = user_id
-    session["username"]   = mobile
-    session["user_role"]  = "patient"
-    session["full_name"]  = full_name
-    session["facility_id"] = None
-    session.permanent     = True
+    session["user_id"]       = user_id
+    session["username"]      = mobile
+    session["user_role"]     = "patient"
+    session["full_name"]     = full_name
+    session["facility_id"]   = None
+    session["selected_lang"] = pref_lang
+    session.permanent        = True
 
     return jsonify({
         "success":      True,
