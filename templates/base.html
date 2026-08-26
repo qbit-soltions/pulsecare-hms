@@ -19,39 +19,35 @@
 </head>
 <body class="bg-light">
 
-  <!-- 1. PERSISTENT DEMO ROLE SWITCHER BAR -->
-  <div class="demo-role-bar py-1 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2 text-white no-print">
-    <div class="d-flex align-items-center gap-2">
-      <span class="badge bg-warning text-dark fw-bold px-2 py-1"><i class="bi bi-person-badge-fill me-1"></i>DEMO PERSONA SWITCHER</span>
-      <span class="fs-8 d-none d-md-inline text-light">Experience different healthcare stakeholder perspectives:</span>
+  <!-- 1. PERSISTENT DEMO ROLE SWITCHER BAR (only shown when authenticated) -->
+  {% if current_user %}
+  <div class="demo-role-bar py-1 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2 text-white no-print" style="background:#0f172a; border-bottom:1px solid rgba(255,255,255,0.1);">
+    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+      <span class="badge bg-warning text-dark fw-bold px-2 py-1 fs-9"><i class="bi bi-person-badge-fill me-1"></i>DEMO</span>
+      <span class="fs-8 d-none d-lg-inline text-white-50">Switch stakeholder perspective:</span>
     </div>
     <div class="d-flex align-items-center gap-1 flex-wrap">
-      <a href="/switch-role/asha_cho" class="btn btn-xs {% if current_user and current_user.role == 'asha_cho' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="ASHA Frontline Health Worker">
-        <i class="bi bi-heart-pulse-fill me-1"></i> ASHA Worker
+      {% set persona_list = [
+        ('asha_cho',       'bi-heart-pulse-fill', 'ASHA',       'text-success'),
+        ('medical_officer','bi-hospital',          'PHC Doctor', 'text-info'),
+        ('doctor',         'bi-clipboard2-pulse',  'Specialist', 'text-danger'),
+        ('admin',          'bi-shield-lock',       'Admin/CMO',  'text-primary'),
+        ('nurse',          'bi-bandaid',           'Nurse',      'text-success'),
+        ('receptionist',   'bi-calendar-check',    'Reception',  'text-info'),
+        ('pharmacist',     'bi-capsule',           'Pharmacy',   'text-warning'),
+        ('lab_tech',       'bi-moisture',          'Lab',        'text-purple'),
+        ('patient',        'bi-person-heart',      'Patient',    'text-secondary')
+      ] %}
+      {% for role_key, icon, label, color in persona_list %}
+      <a href="{{ url_for('switch_role', role=role_key) }}"
+         class="btn btn-xs text-decoration-none {% if current_user.role == role_key %}bg-warning text-dark fw-bold{% else %}btn-outline-light{% endif %}"
+         title="Switch to {{ label }} persona">
+        <i class="bi {{ icon }} me-1 {{ '' if current_user.role == role_key else color }}"></i>{{ label }}
       </a>
-      <a href="/switch-role/medical_officer" class="btn btn-xs {% if current_user and current_user.role == 'medical_officer' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="Rural PHC Medical Officer">
-        <i class="bi bi-hospital me-1"></i> PHC Doctor
-      </a>
-      <a href="/switch-role/doctor" class="btn btn-xs {% if current_user and current_user.role == 'doctor' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="District Hospital Specialist">
-        <i class="bi bi-clipboard2-pulse me-1"></i> Specialist MD
-      </a>
-      <a href="/switch-role/admin" class="btn btn-xs {% if current_user and current_user.role == 'admin' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="Chief Medical Officer / Admin">
-        <i class="bi bi-shield-lock me-1"></i> Admin / CMO
-      </a>
-      <a href="/switch-role/nurse" class="btn btn-xs {% if current_user and current_user.role == 'nurse' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="Ward Nurse">
-        <i class="bi bi-bandaid me-1"></i> Nurse
-      </a>
-      <a href="/switch-role/pharmacist" class="btn btn-xs {% if current_user and current_user.role == 'pharmacist' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="Pharmacist">
-        <i class="bi bi-capsule me-1"></i> Pharmacy
-      </a>
-      <a href="/switch-role/lab_tech" class="btn btn-xs {% if current_user and current_user.role == 'lab_tech' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="Lab Pathologist">
-        <i class="bi bi-radioactive me-1"></i> Lab
-      </a>
-      <a href="/switch-role/patient" class="btn btn-xs {% if current_user and current_user.role == 'patient' %}btn-warning fw-bold text-dark{% else %}btn-outline-light{% endif %}" title="Rural Patient Portal">
-        <i class="bi bi-person me-1"></i> Patient
-      </a>
+      {% endfor %}
     </div>
   </div>
+  {% endif %}
 
   <div class="d-flex min-vh-100 main-app-wrapper">
     

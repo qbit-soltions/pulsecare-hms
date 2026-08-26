@@ -219,6 +219,7 @@ def inject_global_context():
     active_referral_count = 0
     high_risk_count = 0
     all_facilities = []
+    all_emergency_patients = []
 
     try:
         low_stock_row = query_db("SELECT COUNT(*) as c FROM medicines WHERE stock_quantity <= reorder_level", one=True)
@@ -321,7 +322,7 @@ def roles_accepted(*allowed_roles):
             if "user_id" not in session:
                 return redirect(url_for("login"))
             user_role = session.get("user_role")
-            if user_role not in allowed_roles and "admin" not in allowed_roles and user_role != "admin":
+            if user_role not in allowed_roles and user_role != "admin":
                 flash(f"Access restricted. Role '{user_role}' is not authorized for this resource.", "danger")
                 return redirect(url_for("dashboard"))
             return f(*args, **kwargs)
@@ -379,15 +380,24 @@ def switch_role(role):
         "patient": "patient.meena"
     }
     username = role_user_map.get(role, "admin")
-    user = query_db("SELECT * FROM users WHERE username = ?", (username,), one=True)
+    user = query_db(
+        """SELECT u.*, f.name as facility_name, f.tier_type as facility_tier
+           FROM users u LEFT JOIN facilities f ON u.facility_id = f.id
+           WHERE u.username = ?""",
+        (username,), one=True
+    )
     if user:
         session["user_id"] = user["id"]
         session["username"] = user["username"]
         session["user_role"] = user["role"]
         session["full_name"] = user["full_name"]
         session["facility_id"] = user["facility_id"]
-        flash(f"Switched persona to {user['full_name']} ({user['role'].upper()}) at {user.get('facility_id') and 'Assigned Facility' or 'Headquarters'}.", "info")
-    return redirect(request.referrer or url_for("dashboard"))
+        facility_label = user.get("facility_name") or "Central Headquarters"
+        role_label = user["role"].replace("_", " ").title()
+        flash(f"Demo persona switched → {user['full_name']} ({role_label}) — {facility_label}.", "info")
+    else:
+        flash("Demo persona not found. Please reseed the database with: python seed_data.py", "warning")
+    return redirect(url_for("dashboard"))
 
 @app.route("/logout")
 def logout():
@@ -397,6 +407,90 @@ def logout():
     session.clear()
     flash("You have been signed out safely.", "info")
     return redirect(url_for("login"))
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    """Patient self-registration portal with ABHA auto-generation."""
+    if "user_id" in session:
+        return redirect(url_for("dashboard"))
+
+    form_data = {}
+
+    if request.method == "POST":
+        first_name  = request.form.get("first_name", "").strip()
+        last_name   = request.form.get("last_name", "").strip()
+        phone       = request.form.get("phone", "").strip()
+        email       = request.form.get("email", "").strip().lower()
+        dob         = request.form.get("dob", "").strip()
+        gender      = request.form.get("gender", "Male")
+        village     = request.form.get("village", "").strip()
+        password    = request.form.get("password", "")
+        confirm     = request.form.get("confirm_password", "")
+        pref_lang   = request.form.get("preferred_language", "en")
+        form_data   = request.form.to_dict()
+
+        errors = []
+        if not first_name or not last_name:
+            errors.append("Full name is required.")
+        if not phone or len(phone) < 10:
+            errors.append("A valid 10-digit mobile number is required.")
+        if not dob:
+            errors.append("Date of birth is required.")
+        if len(password) < 8:
+            errors.append("Password must be at least 8 characters.")
+        if password != confirm:
+            errors.append("Passwords do not match.")
+
+        if not errors:
+            existing = query_db(
+                "SELECT id FROM users WHERE username = ?",
+                (phone,), one=True
+            )
+            if existing:
+                errors.append("An account with this mobile number already exists. Please sign in.")
+
+        if errors:
+            for e in errors:
+                flash(e, "danger")
+            return render_template("auth/register.html", form_data=form_data)
+
+        # Create user account (username = phone number for patients)
+        password_hash = generate_password_hash(password)
+        user_id = execute_db(
+            """INSERT INTO users (username, password_hash, full_name, role, email, phone,
+                                  preferred_language, is_active, created_at)
+               VALUES (?, ?, ?, 'patient', ?, ?, ?, 1, datetime('now'))""",
+            (phone, password_hash, f"{first_name} {last_name}", email, phone, pref_lang)
+        )
+
+        # Generate unique Patient UID and provisional ABHA ID
+        patient_uid = f"PC-{str(user_id).zfill(5)}"
+        abha_id = f"91-{random.randint(1000,9999)}-{random.randint(1000,9999)}-{str(user_id).zfill(4)}"
+
+        execute_db(
+            """INSERT INTO patients (user_id, patient_uid, first_name, last_name, phone, email,
+                                     dob, gender, village, abha_id, socioeconomic_category,
+                                     registration_source, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'General', 'Self-Registration', datetime('now'))""",
+            (user_id, patient_uid, first_name, last_name, phone, email, dob, gender, village, abha_id)
+        )
+
+        log_audit(user_id, "Patient Self-Registration", "Auth",
+                  f"New patient registered: {first_name} {last_name} ({phone})", request.remote_addr)
+
+        # Auto-login after registration
+        session["user_id"]   = user_id
+        session["username"]  = phone
+        session["user_role"] = "patient"
+        session["full_name"] = f"{first_name} {last_name}"
+        session["facility_id"] = None
+        session.permanent = True
+
+        flash(f"Welcome to PulseCare, {first_name}! Your Patient ID is {patient_uid} and ABHA ID is {abha_id}.", "success")
+        return redirect(url_for("dashboard"))
+
+    return render_template("auth/register.html", form_data=form_data)
 
 
 # -----------------------------------------------------------------------------
