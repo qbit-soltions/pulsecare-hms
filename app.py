@@ -379,30 +379,31 @@ def translate_term(key, lang="en"):
 @app.template_filter("t")
 def t_filter(key):
     """Jinja filter for localization."""
-    lang = session.get("lang", "en")
+    lang = session.get("lang") or (request.cookies.get("pulse_lang") if request else "en") or "en"
     return translate_term(key, lang)
 
 @app.route("/set-language/<lang_code>")
 def set_language(lang_code):
-    """Switches the active session language."""
+    """Switches the active session language and sets cookies for client-side/Google Translate."""
     if lang_code in TRANSLATIONS:
         session["lang"] = lang_code
-    
-    referrer = request.referrer
-    if not referrer:
-        return redirect(url_for("dashboard"))
-        
-    # Add cache-busting query parameter to force browser to reload the page
-    from urllib.parse import urlparse, urlencode, parse_qsl, urlunparse
-    import time
-    
-    parsed = urlparse(referrer)
-    query = dict(parse_qsl(parsed.query))
-    query['_ts'] = str(int(time.time())) # Cache buster
-    new_query = urlencode(query)
-    new_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
-    
-    return redirect(new_url)
+    else:
+        lang_code = "en"
+        session["lang"] = "en"
+
+    # Support AJAX fetch requests from translator.js
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", ""):
+        resp = make_response(jsonify({"status": "success", "lang": lang_code}))
+    else:
+        target_url = request.referrer or url_for("dashboard")
+        resp = make_response(redirect(target_url))
+
+    resp.set_cookie("pulse_lang", lang_code, max_age=30*86400, path="/")
+    if lang_code == "en":
+        resp.set_cookie("googtrans", "/en/en", max_age=30*86400, path="/")
+    else:
+        resp.set_cookie("googtrans", f"/en/{lang_code}", max_age=30*86400, path="/")
+    return resp
 
 
 # -----------------------------------------------------------------------------
@@ -480,7 +481,7 @@ def inject_global_context():
         "active_teleconsult_count": active_teleconsult_count,
         "active_referral_count": active_referral_count,
         "high_risk_count": high_risk_count,
-        "selected_lang": session.get("lang", "en"),
+        "selected_lang": session.get("lang") or (request.cookies.get("pulse_lang") if request else "en") or "en",
         "available_languages": [
             ("en", "English"),
             ("hi", "हिंदी (Hindi)"),

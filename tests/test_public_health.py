@@ -247,22 +247,31 @@ class TestPulseCarePublicHealthNetwork(unittest.TestCase):
         self.assertEqual(fhir_data["entry"][0]["resource"]["resourceType"], "Patient")
 
     def test_09_multilingual_localization(self):
-        """Verify multilingual translation filter and language switcher."""
+        """Verify multilingual translation filter, cookies, and language switcher across all 6 regional languages."""
         with self.client.session_transaction() as sess:
             sess["user_id"] = 1
             sess["user_role"] = "admin"
 
-        # Switch to Hindi
-        res_hi = self.client.get("/set-language/hi", follow_redirects=True)
-        self.assertEqual(res_hi.status_code, 200)
-        with self.client.session_transaction() as sess:
-            self.assertEqual(sess["lang"], "hi")
+        regional_languages = ["hi", "ta", "te", "bn", "mr", "gu"]
+        for lang in regional_languages:
+            res = self.client.get(f"/set-language/{lang}")
+            self.assertIn(res.status_code, [200, 302])
+            # Verify session was updated
+            with self.client.session_transaction() as sess:
+                self.assertEqual(sess["lang"], lang)
+            # Verify cookies were set in response
+            cookies = res.headers.getlist("Set-Cookie")
+            has_pulse_cookie = any(f"pulse_lang={lang}" in c for c in cookies)
+            has_google_cookie = any(f"googtrans=/en/{lang}" in c for c in cookies)
+            self.assertTrue(has_pulse_cookie, f"Missing pulse_lang cookie for {lang}")
+            self.assertTrue(has_google_cookie, f"Missing googtrans cookie for {lang}")
 
-        # Switch to Tamil
-        res_ta = self.client.get("/set-language/ta", follow_redirects=True)
-        self.assertEqual(res_ta.status_code, 200)
-        with self.client.session_transaction() as sess:
-            self.assertEqual(sess["lang"], "ta")
+        # Verify AJAX JSON response
+        res_ajax = self.client.get("/set-language/mr", headers={"X-Requested-With": "XMLHttpRequest"})
+        self.assertEqual(res_ajax.status_code, 200)
+        ajax_data = res_ajax.get_json()
+        self.assertEqual(ajax_data["status"], "success")
+        self.assertEqual(ajax_data["lang"], "mr")
 
     def test_10_offline_data_sync_api(self):
         """Verify offline-cached records synchronization API for low-connectivity rural health workers."""

@@ -473,3 +473,30 @@ body {
 .fs-9 { font-size: 0.6875rem !important; }
 .btn-xs { padding: 0.15rem 0.4rem; font-size: 0.75rem; border-radius: 0.25rem; }
 
+/* 🌐 Google Translate Seamless Overlay & Cleanup */
+.goog-te-banner-frame.skiptranslate,
+.goog-te-banner-frame,
+iframe.goog-te-banner-frame {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+}
+body {
+  top: 0px !important;
+  position: static !important;
+}
+#google_translate_element {
+  display: none !important;
+}
+.goog-tooltip,
+.goog-tooltip:hover {
+  display: none !important;
+}
+.goog-text-highlight {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+font[style] {
+  background: transparent !important;
+}
