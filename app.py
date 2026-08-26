@@ -387,7 +387,22 @@ def set_language(lang_code):
     """Switches the active session language."""
     if lang_code in TRANSLATIONS:
         session["lang"] = lang_code
-    return redirect(request.referrer or url_for("dashboard"))
+    
+    referrer = request.referrer
+    if not referrer:
+        return redirect(url_for("dashboard"))
+        
+    # Add cache-busting query parameter to force browser to reload the page
+    from urllib.parse import urlparse, urlencode, parse_qsl, urlunparse
+    import time
+    
+    parsed = urlparse(referrer)
+    query = dict(parse_qsl(parsed.query))
+    query['_ts'] = str(int(time.time())) # Cache buster
+    new_query = urlencode(query)
+    new_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
+    
+    return redirect(new_url)
 
 
 # -----------------------------------------------------------------------------
