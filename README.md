@@ -108,7 +108,7 @@ python -m unittest -v tests/test_public_health.py
 
 ---
 
-## 🚀 Deployment to Netlify or Render
+## 🚀 Deployment to Render / Cloud Hosting
 
-- **Netlify**: Pre-configured with [`netlify.toml`](file:///d:/antigravity/netlify.toml) and [`netlify/functions/app.py`](file:///d:/antigravity/netlify/functions/app.py). Connect your GitHub repository on [Netlify](https://app.netlify.com).
 - **Render**: Pre-configured with [`render.yaml`](file:///d:/antigravity/render.yaml) and [`Procfile`](file:///d:/antigravity/Procfile). Connect your GitHub repo on [Render](https://render.com).
+- **WSGI / Gunicorn**: Run with `gunicorn app:app --bind 0.0.0.0:8000`.
