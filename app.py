@@ -1177,6 +1177,14 @@ def teleconsult_index():
         WHERE 1=1
     """
     params = []
+    
+    # Patient role filter - only see own teleconsultations
+    if session.get("user_role") == "patient":
+        patient_rec = query_db("SELECT id FROM patients WHERE user_id = ?", (session.get("user_id"),), one=True)
+        pid = patient_rec["id"] if patient_rec else -1
+        sql += " AND t.patient_id = ?"
+        params.append(pid)
+
     if status_filter:
         sql += " AND t.status = ?"
         params.append(status_filter)
@@ -1335,6 +1343,7 @@ def teleconsult_update(session_id):
 
 @app.route("/referrals")
 @login_required
+@roles_accepted("admin", "doctor", "medical_officer", "asha_cho")
 def referrals_index():
     status_filter = request.args.get("status", "").strip()
     priority_filter = request.args.get("priority", "").strip()
@@ -1443,6 +1452,7 @@ def referral_status_update(ref_id):
 
 @app.route("/high-risk")
 @login_required
+@roles_accepted("admin", "doctor", "medical_officer", "asha_cho", "nurse")
 def high_risk_index():
     category_filter = request.args.get("category", "").strip()
     status_filter = request.args.get("status", "").strip()
@@ -1596,6 +1606,7 @@ def network_availability():
 
 @app.route("/facility/analytics")
 @login_required
+@roles_accepted("admin", "doctor", "medical_officer")
 def facility_analytics():
     # Public health quality indicators
     stats = {
@@ -1786,6 +1797,10 @@ def sync_offline_records():
 @app.route("/patients")
 @login_required
 def patients_index():
+    if session.get("user_role") == "patient":
+        flash("Institutional patient directory is reserved for clinical staff. Redirected to your personal Health Hub.", "info")
+        return redirect(url_for("dashboard"))
+
     query_param = request.args.get("q", "").strip()
     status_filter = request.args.get("status", "").strip()
     facility_filter = request.args.get("facility_id", "").strip()
@@ -1834,6 +1849,9 @@ def patients_index():
 @app.route("/patients/new", methods=["GET", "POST"])
 @login_required
 def patient_create():
+    if session.get("user_role") == "patient":
+        flash("Direct patient record creation is restricted to clinical staff and reception desks.", "warning")
+        return redirect(url_for("dashboard"))
     if request.method == "POST":
         first_name = request.form.get("first_name", "").strip()
         last_name = request.form.get("last_name", "").strip()
@@ -2017,18 +2035,36 @@ def vitals_create(patient_id):
 @login_required
 def appointments_index():
     date_filter = request.args.get("date", date.today().strftime("%Y-%m-%d"))
-    sql = """
-        SELECT a.*, p.first_name, p.last_name, p.patient_uid, p.phone, p.village, p.abha_id,
-               u.full_name as doctor_name, d.name as department_name, f.name as facility_name
-        FROM appointments a
-        JOIN patients p ON a.patient_id = p.id
-        JOIN users u ON a.doctor_id = u.id
-        LEFT JOIN departments d ON a.department_id = d.id
-        LEFT JOIN facilities f ON a.facility_id = f.id
-        WHERE a.appointment_date = ?
-        ORDER BY a.token_number ASC
-    """
-    appointments = query_db(sql, (date_filter,))
+    
+    if session.get("user_role") == "patient":
+        patient_rec = query_db("SELECT id FROM patients WHERE user_id = ?", (session.get("user_id"),), one=True)
+        pid = patient_rec["id"] if patient_rec else -1
+        sql = """
+            SELECT a.*, p.first_name, p.last_name, p.patient_uid, p.phone, p.village, p.abha_id,
+                   u.full_name as doctor_name, d.name as department_name, f.name as facility_name
+            FROM appointments a
+            JOIN patients p ON a.patient_id = p.id
+            JOIN users u ON a.doctor_id = u.id
+            LEFT JOIN departments d ON a.department_id = d.id
+            LEFT JOIN facilities f ON a.facility_id = f.id
+            WHERE a.patient_id = ?
+            ORDER BY a.appointment_date DESC, a.token_number ASC
+        """
+        appointments = query_db(sql, (pid,))
+    else:
+        sql = """
+            SELECT a.*, p.first_name, p.last_name, p.patient_uid, p.phone, p.village, p.abha_id,
+                   u.full_name as doctor_name, d.name as department_name, f.name as facility_name
+            FROM appointments a
+            JOIN patients p ON a.patient_id = p.id
+            JOIN users u ON a.doctor_id = u.id
+            LEFT JOIN departments d ON a.department_id = d.id
+            LEFT JOIN facilities f ON a.facility_id = f.id
+            WHERE a.appointment_date = ?
+            ORDER BY a.token_number ASC
+        """
+        appointments = query_db(sql, (date_filter,))
+
     doctors = query_db("SELECT id, full_name, specialization FROM users WHERE role IN ('doctor', 'medical_officer') ORDER BY full_name")
     departments = query_db("SELECT id, name FROM departments ORDER BY name")
     patients = query_db("SELECT id, patient_uid, first_name, last_name, village, abha_id FROM patients ORDER BY first_name")
@@ -2046,6 +2082,10 @@ def appointments_index():
 @login_required
 def appointment_create():
     patient_id = request.form.get("patient_id")
+    if session.get("user_role") == "patient":
+        patient_rec = query_db("SELECT id FROM patients WHERE user_id = ?", (session.get("user_id"),), one=True)
+        if patient_rec:
+            patient_id = patient_rec["id"]
     doctor_id = request.form.get("doctor_id")
     dept_id = request.form.get("department_id") or None
     facility_id = request.form.get("facility_id") or session.get("facility_id") or 1
@@ -2110,6 +2150,7 @@ def appointments_queue():
 
 @app.route("/wards")
 @login_required
+@roles_accepted("admin", "doctor", "medical_officer", "nurse", "receptionist")
 def wards_index():
     facility_filter = request.args.get("facility_id", "").strip()
 
@@ -2244,14 +2285,28 @@ def pharmacy_catalog():
     categories = query_db("SELECT DISTINCT category FROM medicines ORDER BY category")
 
     # Pending prescriptions for dispensing
-    pending_prescriptions = query_db(
-        """SELECT pr.*, p.first_name, p.last_name, p.patient_uid, p.village, p.abha_id, u.full_name as doctor_name
-           FROM prescriptions pr
-           JOIN patients p ON pr.patient_id = p.id
-           JOIN users u ON pr.doctor_id = u.id
-           WHERE pr.status IN ('Pending', 'Partially Dispensed')
-           ORDER BY pr.created_at DESC"""
-    )
+    if session.get("user_role") == "patient":
+        patient_rec = query_db("SELECT id FROM patients WHERE user_id = ?", (session.get("user_id"),), one=True)
+        pid = patient_rec["id"] if patient_rec else -1
+        pending_prescriptions = query_db(
+            """SELECT pr.*, p.first_name, p.last_name, p.patient_uid, p.village, p.abha_id, u.full_name as doctor_name
+               FROM prescriptions pr
+               JOIN patients p ON pr.patient_id = p.id
+               JOIN users u ON pr.doctor_id = u.id
+               WHERE pr.patient_id = ?
+               ORDER BY pr.created_at DESC""",
+            (pid,)
+        )
+    else:
+        pending_prescriptions = query_db(
+            """SELECT pr.*, p.first_name, p.last_name, p.patient_uid, p.village, p.abha_id, u.full_name as doctor_name
+               FROM prescriptions pr
+               JOIN patients p ON pr.patient_id = p.id
+               JOIN users u ON pr.doctor_id = u.id
+               WHERE pr.status IN ('Pending', 'Partially Dispensed')
+               ORDER BY pr.created_at DESC"""
+        )
+
     for rx in pending_prescriptions:
         rx_items = query_db(
             """SELECT pi.*, m.brand_name, m.generic_name, m.unit_price, m.stock_quantity 
@@ -2274,6 +2329,7 @@ def pharmacy_catalog():
 
 @app.route("/pharmacy/dispense/<int:rx_id>", methods=["POST"])
 @login_required
+@roles_accepted("admin", "pharmacist")
 def prescription_dispense(rx_id):
     rx = query_db("SELECT * FROM prescriptions WHERE id = ?", (rx_id,), one=True)
     if not rx:
@@ -2348,6 +2404,12 @@ def laboratory_index():
         WHERE 1=1
     """
     params = []
+    if session.get("user_role") == "patient":
+        patient_rec = query_db("SELECT id FROM patients WHERE user_id = ?", (session.get("user_id"),), one=True)
+        pid = patient_rec["id"] if patient_rec else -1
+        sql += " AND lo.patient_id = ?"
+        params.append(pid)
+
     if status_filter:
         sql += " AND lo.status = ?"
         params.append(status_filter)
@@ -2492,13 +2554,26 @@ def lab_report_view(order_id):
 @app.route("/billing", methods=["GET"])
 @login_required
 def billing_index():
-    invoices = query_db(
-        """SELECT inv.*, p.first_name, p.last_name, p.patient_uid, p.phone, p.village, p.abha_id, p.socioeconomic_category, f.name as facility_name
-           FROM invoices inv
-           JOIN patients p ON inv.patient_id = p.id
-           LEFT JOIN facilities f ON inv.facility_id = f.id
-           ORDER BY inv.created_at DESC"""
-    )
+    if session.get("user_role") == "patient":
+        patient_rec = query_db("SELECT id FROM patients WHERE user_id = ?", (session.get("user_id"),), one=True)
+        pid = patient_rec["id"] if patient_rec else -1
+        invoices = query_db(
+            """SELECT inv.*, p.first_name, p.last_name, p.patient_uid, p.phone, p.village, p.abha_id, p.socioeconomic_category, f.name as facility_name
+               FROM invoices inv
+               JOIN patients p ON inv.patient_id = p.id
+               LEFT JOIN facilities f ON inv.facility_id = f.id
+               WHERE inv.patient_id = ?
+               ORDER BY inv.created_at DESC""",
+            (pid,)
+        )
+    else:
+        invoices = query_db(
+            """SELECT inv.*, p.first_name, p.last_name, p.patient_uid, p.phone, p.village, p.abha_id, p.socioeconomic_category, f.name as facility_name
+               FROM invoices inv
+               JOIN patients p ON inv.patient_id = p.id
+               LEFT JOIN facilities f ON inv.facility_id = f.id
+               ORDER BY inv.created_at DESC"""
+        )
     patients = query_db("SELECT id, patient_uid, first_name, last_name, village, abha_id, socioeconomic_category FROM patients ORDER BY first_name")
 
     # Compute billing KPI aggregates
@@ -2521,6 +2596,7 @@ def billing_index():
 
 @app.route("/billing/new", methods=["POST"])
 @login_required
+@roles_accepted("admin", "receptionist", "pharmacist")
 def billing_create_invoice():
     """Create a new itemized invoice from the modal form."""
     patient_id = request.form.get("patient_id")

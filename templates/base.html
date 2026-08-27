@@ -46,13 +46,62 @@
       <div class="sidebar-menu flex-grow-1 overflow-y-auto px-2 py-2">
         <ul class="nav nav-pills flex-column gap-1">
           
+          <!-- ════════════════════════════════════════════════════════════════
+               A. CITIZEN & PATIENT EXCLUSIVE PORTAL MENU
+               ════════════════════════════════════════════════════════════════ -->
+          {% if current_user and current_user.role == 'patient' %}
+          <li class="nav-item">
+            <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+              <i class="bi bi-person-circle me-2 text-primary"></i> My Health Hub
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('appointments_index') }}" class="nav-link {% if 'appointments' in request.path %}active{% endif %}">
+              <i class="bi bi-calendar2-check-fill me-2 text-info"></i> My Appointments
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('teleconsult_index') }}" class="nav-link {% if 'teleconsult' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
+              <div><i class="bi bi-camera-video-fill me-2 text-success"></i> Teleconsultation</div>
+              {% if active_teleconsult_count > 0 %}
+                <span class="badge bg-danger rounded-pill">{{ active_teleconsult_count }}</span>
+              {% endif %}
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('laboratory_index') }}" class="nav-link {% if 'laboratory' in request.path %}active{% endif %}">
+              <i class="bi bi-file-earmark-medical-fill me-2 text-danger"></i> My Lab Reports
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('pharmacy_catalog') }}" class="nav-link {% if 'pharmacy' in request.path %}active{% endif %}">
+              <i class="bi bi-capsule me-2 text-warning"></i> Prescriptions & Meds
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('billing_index') }}" class="nav-link {% if 'billing' in request.path %}active{% endif %}">
+              <i class="bi bi-receipt me-2 text-secondary"></i> Invoices & Receipts
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('network_availability') }}" class="nav-link {% if 'network' in request.path %}active{% endif %}">
+              <i class="bi bi-search-heart me-2 text-primary"></i> Facility Directory
+            </a>
+          </li>
+
+          <!-- ════════════════════════════════════════════════════════════════
+               B. CLINICAL, FRONTLINE & ADMINISTRATIVE STAFF MENUS
+               ════════════════════════════════════════════════════════════════ -->
+          {% else %}
+          
           <li class="nav-item">
             <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
               <i class="bi bi-grid-1x2-fill me-2"></i> Dashboard
             </a>
           </li>
 
-          <!-- Teleconsultation Module -->
+          <!-- Teleconsultation (Doctors, ASHA/CHO, Admin) -->
+          {% if not current_user or current_user.role in ['admin', 'doctor', 'medical_officer', 'asha_cho'] %}
           <li class="nav-item">
             <a href="{{ url_for('teleconsult_index') }}" class="nav-link {% if 'teleconsult' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
               <div><i class="bi bi-camera-video-fill me-2 text-primary"></i> {{ 'teleconsultation' | t }}</div>
@@ -61,8 +110,10 @@
               {% endif %}
             </a>
           </li>
+          {% endif %}
 
-          <!-- Closed-Loop Referrals -->
+          <!-- Closed-Loop Referrals (Doctors, ASHA/CHO, Admin) -->
+          {% if not current_user or current_user.role in ['admin', 'doctor', 'medical_officer', 'asha_cho'] %}
           <li class="nav-item">
             <a href="{{ url_for('referrals_index') }}" class="nav-link {% if 'referrals' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
               <div><i class="bi bi-arrow-left-right me-2 text-warning"></i> {{ 'referrals' | t }}</div>
@@ -71,8 +122,10 @@
               {% endif %}
             </a>
           </li>
+          {% endif %}
 
-          <!-- High-Risk Patient Surveillance -->
+          <!-- High-Risk Patient Surveillance (Doctors, ASHA/CHO, Nurses, Admin) -->
+          {% if not current_user or current_user.role in ['admin', 'doctor', 'medical_officer', 'asha_cho', 'nurse'] %}
           <li class="nav-item">
             <a href="{{ url_for('high_risk_index') }}" class="nav-link {% if 'high-risk' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
               <div><i class="bi bi-shield-exclamation me-2 text-danger"></i> {{ 'high_risk_registry' | t }}</div>
@@ -81,30 +134,37 @@
               {% endif %}
             </a>
           </li>
+          {% endif %}
 
-          <!-- Cross-Facility Supply & Diagnostic Grid -->
+          <!-- Cross-Facility Supply & Diagnostic Grid (Available across facility staff) -->
           <li class="nav-item">
             <a href="{{ url_for('network_availability') }}" class="nav-link {% if 'network' in request.path %}active{% endif %}">
               <i class="bi bi-search-heart me-2 text-info"></i> {{ 'resource_grid' | t }}
             </a>
           </li>
 
-          <!-- Quality Analytics -->
+          <!-- Quality Analytics (Admin, Doctors) -->
+          {% if not current_user or current_user.role in ['admin', 'doctor', 'medical_officer'] %}
           <li class="nav-item">
             <a href="{{ url_for('facility_analytics') }}" class="nav-link {% if 'facility' in request.path and 'analytics' in request.path %}active{% endif %}">
               <i class="bi bi-bar-chart-line-fill me-2 text-success"></i> {{ 'quality_analytics' | t }}
             </a>
           </li>
+          {% endif %}
 
           <hr class="my-2 border-secondary-subtle">
 
-          <!-- Core Hospital Modules -->
+          <!-- Patient Registry ABHA (Admin, Doctors, ASHA/CHO, Nurses, Reception) -->
+          {% if not current_user or current_user.role in ['admin', 'doctor', 'medical_officer', 'asha_cho', 'nurse', 'receptionist'] %}
           <li class="nav-item">
             <a href="{{ url_for('patients_index') }}" class="nav-link {% if 'patients' in request.path %}active{% endif %}">
               <i class="bi bi-people-fill me-2"></i> {{ 'patients' | t }}
             </a>
           </li>
+          {% endif %}
 
+          <!-- OPD Appointments & Queue (Admin, Doctors, ASHA/CHO, Nurses, Reception) -->
+          {% if not current_user or current_user.role in ['admin', 'doctor', 'medical_officer', 'asha_cho', 'nurse', 'receptionist'] %}
           <li class="nav-item">
             <a href="{{ url_for('appointments_index') }}" class="nav-link {% if 'appointments' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
               <div><i class="bi bi-calendar2-check-fill me-2"></i> {{ 'appointments' | t }}</div>
@@ -113,13 +173,19 @@
               {% endif %}
             </a>
           </li>
+          {% endif %}
 
+          <!-- Inpatient Wards & Bed Matrix (Admin, Doctors, Nurses, Reception) -->
+          {% if not current_user or current_user.role in ['admin', 'doctor', 'medical_officer', 'nurse', 'receptionist'] %}
           <li class="nav-item">
             <a href="{{ url_for('wards_index') }}" class="nav-link {% if 'wards' in request.path %}active{% endif %}">
               <i class="bi bi-hospital-fill me-2"></i> {{ 'wards' | t }}
             </a>
           </li>
+          {% endif %}
 
+          <!-- Pharmacy & Supplies (Admin, Pharmacist, Doctors) -->
+          {% if not current_user or current_user.role in ['admin', 'pharmacist', 'doctor', 'medical_officer'] %}
           <li class="nav-item">
             <a href="{{ url_for('pharmacy_catalog') }}" class="nav-link {% if 'pharmacy' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
               <div><i class="bi bi-capsule me-2"></i> {{ 'pharmacy' | t }}</div>
@@ -128,7 +194,10 @@
               {% endif %}
             </a>
           </li>
+          {% endif %}
 
+          <!-- Diagnostic Laboratory (Admin, Lab Tech, Doctors, Nurses) -->
+          {% if not current_user or current_user.role in ['admin', 'lab_tech', 'doctor', 'medical_officer', 'nurse'] %}
           <li class="nav-item">
             <a href="{{ url_for('laboratory_index') }}" class="nav-link {% if 'laboratory' in request.path %}active{% endif %} d-flex justify-content-between align-items-center">
               <div><i class="bi bi-radioactive me-2"></i> {{ 'laboratory' | t }}</div>
@@ -137,13 +206,18 @@
               {% endif %}
             </a>
           </li>
+          {% endif %}
 
+          <!-- Billing & Schemes (Admin, Reception, Pharmacist) -->
+          {% if not current_user or current_user.role in ['admin', 'receptionist', 'pharmacist'] %}
           <li class="nav-item">
             <a href="{{ url_for('billing_index') }}" class="nav-link {% if 'billing' in request.path %}active{% endif %}">
               <i class="bi bi-receipt me-2"></i> {{ 'billing' | t }}
             </a>
           </li>
+          {% endif %}
 
+          <!-- Administration Section (Admin only) -->
           {% if current_user and current_user.role == 'admin' %}
           <li class="nav-header text-uppercase text-muted fs-8 fw-bold mt-2 px-3">Administration</li>
           <li class="nav-item">
@@ -163,6 +237,7 @@
           </li>
           {% endif %}
 
+          {% endif %}
         </ul>
       </div>
 
