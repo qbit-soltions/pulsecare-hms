@@ -361,30 +361,21 @@
     if (isGlobalVoiceDisabled()) return;
     if (e.target.closest("#voice-assist-widget") || e.target.closest("#topbar-speak-btn") || e.target.closest("#opd-speak-btn")) return;
 
-    // Dedicated speak button
-    const speakBtn = e.target.closest(".btn-speak-text, [data-speak]");
+    // Dedicated speak button (ONLY elements explicitly designated with .btn-speak-text)
+    const speakBtn = e.target.closest(".btn-speak-text");
     if (speakBtn) {
-      if (speakBtn.classList.contains("btn-speak-text")) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+      e.preventDefault();
+      e.stopPropagation();
       const text = speakBtn.getAttribute("data-speak") || speakBtn.innerText;
       speak(text, speakBtn.closest("[data-voice-region], .card, tr, .alert, div") || speakBtn);
-      
-      if (speakBtn.classList.contains("btn-speak-text")) {
-        return;
-      }
+      return;
     }
 
     if (!tapToSpeakActive) return;
 
-    const target = e.target.closest("button, a, .card, .persona-card, tr, .badge, .alert, label, input, h1, h2, h3, h4, h5, h6, p, li, .queue-card-tv");
+    // Only in active Tap-To-Speak mode:
+    const target = e.target.closest(".persona-card, .badge, .alert, label, input, h1, h2, h3, h4, h5, h6, p, li, .queue-card-tv");
     if (target) {
-      // Do NOT prevent default navigation so the app remains functional
-      if (target.classList.contains("btn-speak-text")) {
-        e.preventDefault();
-      }
-      
       let textToSpeak = "";
       if (target.tagName === "INPUT") {
         const lbl = document.querySelector(`label[for="${target.id}"]`);
@@ -538,7 +529,7 @@
 
   document.addEventListener("DOMContentLoaded", function() {
     injectVoiceWidget();
-    document.addEventListener("click", handleDocumentTap, true);
+    document.addEventListener("click", handleDocumentTap, false);
     updateWidgetUI();
   });
 
