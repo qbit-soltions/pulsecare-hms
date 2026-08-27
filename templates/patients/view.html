@@ -45,6 +45,10 @@
     <!-- Quick Action Buttons -->
     <div class="col-lg-5 text-lg-end">
       <div class="d-flex gap-2 justify-content-lg-end flex-wrap">
+        <button type="button" class="btn btn-sm btn-outline-light fw-semibold btn-speak-text" data-speak="Patient {{ patient.first_name }} {{ patient.last_name }}, Age {{ patient.age }}, Gender {{ patient.gender }}. ABHA ID {{ patient.abha_id or 'Pending' }}. Village {{ patient.village }}. Blood Group {{ patient.blood_group or 'O positive' }}. Allergies: {{ patient.allergies or 'None reported' }}. Chronic Conditions: {{ patient.chronic_conditions or 'None' }}." title="Listen to Patient Summary Aloud">
+          <i class="bi bi-volume-up-fill me-1"></i> Listen
+        </button>
+
         <a href="{{ url_for('export_fhir_bundle', patient_id=patient.id) }}" class="btn btn-sm btn-outline-light" title="Download Standard HL7 FHIR Bundle JSON">
           <i class="bi bi-filetype-json me-1"></i> FHIR Export
         </a>
@@ -274,7 +278,12 @@
               <span class="fw-bold text-primary fs-6">{{ rx.prescription_number }}</span>
               <span class="text-muted fs-8 ms-2">Prescribed by Dr. {{ rx.doctor_name }} • {{ rx.created_at | format_date }}</span>
             </div>
-            <span class="badge bg-success">{{ rx.status }}</span>
+            <div class="d-flex align-items-center gap-2">
+              <button type="button" class="btn btn-xs btn-outline-success fw-semibold btn-speak-text" data-speak="Prescription {{ rx.prescription_number }} prescribed by Doctor {{ rx.doctor_name }}. {% for itm in rx.rx_items %} Medicine: {{ itm.brand_name }}, Dosage: {{ itm.dosage }}, Frequency: {{ itm.frequency }}, Duration: {{ itm.duration_days }} days. Instructions: {{ itm.instructions or 'As directed' }}. {% endfor %}">
+                <i class="bi bi-volume-up-fill me-1"></i> Listen to Prescription
+              </button>
+              <span class="badge bg-success">{{ rx.status }}</span>
+            </div>
           </div>
 
           <table class="table table-sm table-bordered fs-7 mb-2">

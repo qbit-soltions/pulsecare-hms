@@ -171,8 +171,12 @@
         {% endif %}
       {% endwith %}
 
-      <!-- Language Switcher Bar in Login -->
-      <div class="d-flex justify-content-end mb-2">
+      <!-- Language & Voice Bar in Login -->
+      <div class="d-flex align-items-center justify-content-end gap-2 mb-2">
+        <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 py-1 px-2 fs-8 rounded-pill" id="topbar-speak-btn" onclick="window.PulseCareVoice ? window.PulseCareVoice.readPage() : null;" title="Speak Aloud (आवाज से सुनें)">
+          <i class="bi bi-volume-up-fill"></i>
+          <span>Speak Aloud</span>
+        </button>
         <div class="dropdown">
           <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1 py-1 px-2 fs-8 rounded-pill" type="button" data-bs-toggle="dropdown">
             <i class="bi bi-translate text-primary"></i>
@@ -368,6 +372,8 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <!-- Multilingual Translator JS -->
 <script src="/static/js/translator.js"></script>
+<!-- Voice Accessibility & Speak Aloud JS -->
+<script src="/static/js/voice_assist.js"></script>
 <script>
   // 1-click persona login: fill form and submit
   function loginAs(username, password, card) {

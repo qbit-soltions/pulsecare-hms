@@ -500,3 +500,117 @@ body {
 font[style] {
   background: transparent !important;
 }
+
+/* 🔊 Speak Aloud & Voice Accessibility Widget */
+.voice-assist-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1060;
+  font-family: 'Inter', sans-serif;
+}
+
+.voice-pill {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 50px;
+  padding: 6px 14px 6px 8px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.voice-pill:hover {
+  transform: translateY(-2px);
+  border-color: #0284c7;
+  box-shadow: 0 12px 24px -6px rgba(2, 132, 199, 0.25) !important;
+}
+
+.voice-icon-box {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3);
+}
+
+.voice-panel {
+  width: 290px;
+  position: absolute;
+  bottom: 56px;
+  right: 0;
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.2) !important;
+  animation: voiceSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes voiceSlideUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Animated Equalizer Wave */
+.voice-equalizer {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+}
+
+.voice-equalizer span {
+  display: inline-block;
+  width: 3px;
+  height: 100%;
+  background: #0284c7;
+  border-radius: 3px;
+  animation: soundWave 0.8s ease-in-out infinite alternate;
+}
+
+.voice-equalizer span:nth-child(1) { animation-delay: 0.1s; }
+.voice-equalizer span:nth-child(2) { animation-delay: 0.3s; }
+.voice-equalizer span:nth-child(3) { animation-delay: 0.2s; }
+.voice-equalizer span:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes soundWave {
+  0% { height: 4px; }
+  100% { height: 18px; }
+}
+
+/* Visual Glow on Actively Spoken Element */
+.voice-reading-highlight {
+  outline: 3px solid #0284c7 !important;
+  outline-offset: 3px;
+  background-color: rgba(224, 242, 254, 0.45) !important;
+  border-radius: 8px;
+  transition: outline 0.2s ease, background-color 0.2s ease;
+  box-shadow: 0 0 16px rgba(2, 132, 199, 0.35) !important;
+}
+
+/* Tap to Speak Interactive Cursor */
+body.tap-to-speak-active {
+  cursor: help !important;
+}
+
+body.tap-to-speak-active a,
+body.tap-to-speak-active button,
+body.tap-to-speak-active .card,
+body.tap-to-speak-active .persona-card,
+body.tap-to-speak-active tr {
+  cursor: help !important;
+}
+
+body.tap-to-speak-active .card:hover,
+body.tap-to-speak-active .persona-card:hover,
+body.tap-to-speak-active button:hover {
+  outline: 2px dashed #0284c7;
+  outline-offset: 2px;
+}
+
+@media (max-width: 576px) {
+  .voice-assist-container {
+    bottom: 16px;
+    right: 16px;
+  }
+  .voice-panel {
+    width: 270px;
+    right: 0;
+  }
+}
