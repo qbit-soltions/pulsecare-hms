@@ -7,12 +7,12 @@ Cross-Facility Supply Chains, Multilingual UI, and ABDM/FHIR Interoperability.
 import os
 import json
 import random
-import requests as http_client
+import requests
 from datetime import datetime, date, timedelta
 from functools import wraps
 from flask import (
     Flask, render_template, request, redirect, url_for, flash,
-    session, jsonify, abort, g, make_response
+    session, jsonify, abort, g, make_response, Response
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import (
@@ -404,6 +404,46 @@ def set_language(lang_code):
     else:
         resp.set_cookie("googtrans", f"/en/{lang_code}", max_age=30*86400, path="/")
     return resp
+
+@app.route("/api/tts")
+def api_tts():
+    """High-fidelity Text-to-Speech audio streaming endpoint for rural & regional languages."""
+    text = request.args.get("q", "").strip()
+    lang = request.args.get("lang", "en").strip().lower()
+    
+    if not text:
+        return Response(b"", mimetype="audio/mpeg")
+    
+    lang_map = {
+        "hi-in": "hi", "hindi": "hi",
+        "ta-in": "ta", "tamil": "ta",
+        "te-in": "te", "telugu": "te",
+        "bn-in": "bn", "bengali": "bn",
+        "mr-in": "mr", "marathi": "mr",
+        "gu-in": "gu", "gujarati": "gu",
+        "en-in": "en", "en-us": "en", "english": "en"
+    }
+    lang = lang_map.get(lang, lang)
+    if lang not in ["hi", "ta", "te", "bn", "mr", "gu", "en"]:
+        lang = "en"
+        
+    try:
+        # Fetch high-quality natural audio stream
+        url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl={lang}&client=tw-ob&q={requests.utils.quote(text[:250])}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        res = requests.get(url, headers=headers, timeout=6)
+        if res.status_code == 200 and "audio" in res.headers.get("Content-Type", ""):
+            return Response(res.content, mimetype="audio/mpeg", headers={
+                "Cache-Control": "public, max-age=86400",
+                "Access-Control-Allow-Origin": "*"
+            })
+    except Exception as exc:
+        app.logger.warning(f"TTS audio streaming notice: {exc}")
+    
+    return Response(b"", mimetype="audio/mpeg")
+
 
 
 # -----------------------------------------------------------------------------

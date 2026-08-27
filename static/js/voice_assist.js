@@ -1,24 +1,25 @@
 /**
- * PulseCare Speak Aloud & Voice Accessibility Engine
- * Designed for illiterate, elderly, and rural patients, ASHA workers, and caregivers.
+ * PulseCare Dual-Engine Speak Aloud & Voice Accessibility
+ * Designed for illiterate and rural patients, ASHA workers, and caregivers.
  * 
- * Features:
- * 1. Automatic sync with active site language: Hindi (hi-IN), Tamil (ta-IN), Telugu (te-IN),
- *    Bengali (bn-IN), Marathi (mr-IN), Gujarati (gu-IN), English (en-IN).
- * 2. Real-time translation of speech text to match user's selected language.
- * 3. Read Page Aloud (Intelligent conversational audio tour of any screen in native language).
+ * Capabilities:
+ * 1. Hybrid Engine: Uses high-fidelity cloud MP3 audio stream (/api/tts) for perfect native
+ *    pronunciation in Hindi (hi), Tamil (ta), Telugu (te), Bengali (bn), Marathi (mr), Gujarati (gu),
+ *    with automatic fallback to Web Speech API (SpeechSynthesis).
+ * 2. Instant sync with selected site language.
+ * 3. Read Page Aloud (Intelligent conversational audio tour of any screen).
  * 4. Interactive "Tap to Speak / Point & Hear" mode for illiterate users.
  * 5. Dedicated "Listen to Prescription / Clinical Advice" speaker buttons.
- * 6. Visual synchronized highlighting of spoken elements with animated equalizer wave.
- * 7. Device voice matcher for Android, iOS, Windows, Mac, ChromeOS.
+ * 6. Visual synchronized glow highlighting of elements currently being spoken.
  */
 
 (function () {
   'use strict';
 
-  // Language mapping configuration
+  // Language configurations
   const VOICE_LANGS = {
     hi: {
+      code: "hi",
       bcp47: "hi-IN",
       name: "हिंदी",
       label: "आवाज से सुनें",
@@ -32,10 +33,10 @@
       welcome: "पल्सकेयर सार्वजनिक स्वास्थ्य नेटवर्क में आपका स्वागत है।",
       tapInstruction: "टैप टू स्पीक चालू है। किसी भी कार्ड, बटन या टेक्स्ट पर क्लिक करके उसकी आवाज सुनें।",
       stopped: "आवाज बंद कर दी गई है।",
-      paused: "आवाज रोक दी गई है।",
-      langSwitched: "हिंदी भाषा चुनी गई है। आवाज सहायता तैयार है।"
+      paused: "आवाज रोक दी गई है।"
     },
     ta: {
+      code: "ta",
       bcp47: "ta-IN",
       name: "தமிழ்",
       label: "கேட்டு அறியவும்",
@@ -49,10 +50,10 @@
       welcome: "பல்ஸ்கேர் பொது சுகாதார வலைப்பின்னலுக்கு நல்வரவு.",
       tapInstruction: "தொட்டு கேட்கும் முறை ஆன் செய்யப்பட்டுள்ளது. எந்த பொத்தான் அல்லது தகவலையும் தொட்டு கேட்கலாம்.",
       stopped: "வாசிப்பு நிறுத்தப்பட்டது.",
-      paused: "வாசிப்பு இடைநிறுத்தப்பட்டது.",
-      langSwitched: "தமிழ் மொழி தேர்ந்தெடுக்கப்பட்டது. ஒலி உதவி தயார்."
+      paused: "வாசிப்பு இடைநிறுத்தப்பட்டது."
     },
     te: {
+      code: "te",
       bcp47: "te-IN",
       name: "తెలుగు",
       label: "వినండి",
@@ -66,10 +67,10 @@
       welcome: "పల్స్‌కేర్ ప్రజారోగ్య వ్యవస్థకు స్వాగతం.",
       tapInstruction: "తాకి వినే మోడ్ ఆన్ చేయబడింది. వివరాలు వినడానికి ఏదైనా బటన్ లేదా కార్డును తాకండి.",
       stopped: "ధ్వని ఆపబడింది.",
-      paused: "ధ్వని నిలిపివేయబడింది.",
-      langSwitched: "తెలుగు భాష ఎంపిక చేయబడింది. ధ్వని సహాయం సిద్ధంగా ఉంది."
+      paused: "ధ్వని నిలిపివేయబడింది."
     },
     bn: {
+      code: "bn",
       bcp47: "bn-IN",
       name: "বাংলা",
       label: "শুনে নিন",
@@ -83,10 +84,10 @@
       welcome: "পালসকেয়ার জনস্বাস্থ্য নেটওয়ার্কে আপনাকে স্বাগতম।",
       tapInstruction: "ট্যাপ করে শোনার মোড চালু হয়েছে। যেকোনো বোতাম বা কার্ডে ট্যাপ করে ভয়েস শুনুন।",
       stopped: "পড়া বন্ধ করা হয়েছে।",
-      paused: "পড়া স্থগিত রাখা হয়েছে।",
-      langSwitched: "বাংলা ভাষা নির্বাচন করা হয়েছে। ভয়েস সহায়তা প্রস্তুত।"
+      paused: "পড়া স্থগিত রাখা হয়েছে।"
     },
     mr: {
+      code: "mr",
       bcp47: "mr-IN",
       name: "मराठी",
       label: "ऐका",
@@ -100,10 +101,10 @@
       welcome: "पल्सकेअर सार्वजनिक आरोग्य नेटवर्कमध्ये आपले स्वागत आहे.",
       tapInstruction: "टॅप करून ऐकण्याची सुविधा सुरू झाली आहे. माहिती ऐकण्यासाठी कोणत्याही घटकावर क्लिक करा.",
       stopped: "आवाज थांबवला आहे.",
-      paused: "आवाज स्थगित केला आहे.",
-      langSwitched: "मराठी भाषा निवडली आहे. व्हॉइस असिस्ट तयार आहे."
+      paused: "आवाज स्थगित केला आहे."
     },
     gu: {
+      code: "gu",
       bcp47: "gu-IN",
       name: "ગુજરાતી",
       label: "સાંભળો",
@@ -117,10 +118,10 @@
       welcome: "પલ્સકેર જાહેર આરોગ્ય નેટવર્કમાં આપનું સ્વાગત છે.",
       tapInstruction: "ટેપ કરીને સાંભળવાનો મોડ ચાલુ છે. માહિતી સાંભળવા માટે કોઈપણ કાર્ડ અથવા બટન પર ક્લિક કરો.",
       stopped: "વાંચન બંધ કરવામાં આવ્યું છે.",
-      paused: "વાંચન અટકાવવામાં આવ્યું છે.",
-      langSwitched: "ગુજરાતી ભાષા પસંદ કરવામાં આવી છે. અવાજ સહાય તૈયાર છે."
+      paused: "વાંચન અટકાવવામાં આવ્યું છે."
     },
     en: {
+      code: "en",
       bcp47: "en-IN",
       name: "English",
       label: "Speak Aloud",
@@ -134,37 +135,22 @@
       welcome: "Welcome to PulseCare Public Health Network.",
       tapInstruction: "Tap to Speak mode is active. Tap or click any card, badge, or button to hear it aloud.",
       stopped: "Speech stopped.",
-      paused: "Speech paused.",
-      langSwitched: "English language selected. Voice Assist is ready."
+      paused: "Speech paused."
     }
   };
 
   // State
-  let synth = window.speechSynthesis;
   let isSpeaking = false;
   let isPaused = false;
   let tapToSpeakActive = false;
-  let currentUtterance = null;
+  let currentAudio = null;
   let currentHighlightedEl = null;
   let speechQueue = [];
-  let speechRate = 0.88; // Slower, clearer cadence suited for rural patients
-  let cachedVoices = [];
+  let speechRate = 0.95;
   let activeLangOverride = null;
 
-  function loadVoices() {
-    if (!synth) return;
-    cachedVoices = synth.getVoices();
-  }
-
-  if (synth) {
-    loadVoices();
-    if (speechSynthesis.onvoiceschanged !== undefined) {
-      speechSynthesis.onvoiceschanged = loadVoices;
-    }
-  }
-
   /**
-   * Automatically resolves the current active site language
+   * Resolves active site language code
    */
   function getLangKey() {
     if (activeLangOverride && VOICE_LANGS[activeLangOverride]) {
@@ -184,46 +170,6 @@
     if (htmlLang && VOICE_LANGS[htmlLang]) return htmlLang;
 
     return "en";
-  }
-
-  /**
-   * Searches available system voices for the best match for Indian regional languages
-   */
-  function findBestVoice(bcp47) {
-    if (!cachedVoices || cachedVoices.length === 0) loadVoices();
-    const langPrefix = bcp47.split("-")[0].toLowerCase();
-
-    // 1. Exact match (e.g. hi-IN or hi_IN)
-    let match = cachedVoices.find(v => v.lang && (v.lang.toLowerCase() === bcp47.toLowerCase() || v.lang.toLowerCase().replace('_', '-') === bcp47.toLowerCase()));
-    if (match) return match;
-
-    // 2. Prefix match (e.g. hi, ta, te, bn, mr, gu)
-    match = cachedVoices.find(v => v.lang && v.lang.toLowerCase().startsWith(langPrefix));
-    if (match) return match;
-
-    // 3. Match voice names containing language keywords across Android, Windows, Mac, and Chrome
-    const voiceKeywords = {
-      hi: ["hindi", "देवनागरी", "kalpana", "hemant", "lekha", "sangeeta"],
-      ta: ["tamil", "தமிழ்", "valluvar", "kavya"],
-      te: ["telugu", "తెలుగు", "chitra", "mohan"],
-      bn: ["bengali", "বাংলা", "bangla", "bashkar", "tanisha"],
-      mr: ["marathi", "मराठी", "aarohi"],
-      gu: ["gujarati", "ગુજરાતી", "dhwani", "niranjan"],
-      en: ["india", "en-in", "heera", "ravi", "veena", "neerja", "prabhat"]
-    };
-    const keywords = voiceKeywords[langPrefix] || [];
-    match = cachedVoices.find(v => {
-      const name = (v.name || "").toLowerCase();
-      return keywords.some(k => name.includes(k.toLowerCase()));
-    });
-    if (match) return match;
-
-    // 4. Indian English fallback (sounds natural for Indian numbers/medical terms)
-    match = cachedVoices.find(v => v.lang && (v.lang.toLowerCase().includes("en-in") || v.name.toLowerCase().includes("india")));
-    if (match) return match;
-
-    // 5. Default device voice
-    return cachedVoices.find(v => v.default) || cachedVoices[0] || null;
   }
 
   /**
@@ -279,6 +225,16 @@
     const langKey = getLangKey();
     const lang = VOICE_LANGS[langKey] || VOICE_LANGS.en;
 
+    // Update floating labels
+    const langLabel = document.getElementById("voice-lang-name");
+    if (langLabel) langLabel.innerText = `${lang.name} Audio`;
+
+    const playText = document.getElementById("voice-play-text");
+    if (playText) playText.innerText = lang.label;
+
+    const tapText = document.getElementById("voice-tap-text");
+    if (tapText) tapText.innerText = tapToSpeakActive ? lang.tapMode : lang.tapModeOff;
+
     if (isSpeaking && !isPaused) {
       if (playBtn) playBtn.classList.add("d-none");
       if (pauseBtn) pauseBtn.classList.remove("d-none");
@@ -319,63 +275,109 @@
   }
 
   /**
-   * Speak a text string in the currently selected language
+   * Stops current playback
+   */
+  function stopSpeaking() {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
+    }
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    speechQueue = [];
+    isSpeaking = false;
+    isPaused = false;
+    clearHighlight();
+    updateWidgetUI();
+  }
+
+  /**
+   * Primary Speech Engine: Uses /api/tts endpoint for native regional audio streaming
    */
   function speak(text, targetEl = null, onEndCallback = null) {
-    if (!synth) {
-      alert("Text-to-Speech is not supported in this browser. Please use Chrome, Edge, or Firefox.");
-      return;
-    }
-
-    synth.cancel();
+    stopSpeaking();
     if (!text || !text.trim()) return;
 
     const langKey = getLangKey();
     const langConfig = VOICE_LANGS[langKey] || VOICE_LANGS.en;
     
-    // Translate text into selected language if needed
+    // Translate text into selected language
     const translatedText = translateForSpeech(text, langKey);
     const cleanText = translatedText.replace(/[\n\r]+/g, " ").replace(/\s{2,}/g, " ").trim();
 
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = langConfig.bcp47;
-    utterance.rate = speechRate;
-    utterance.pitch = 1.0;
+    // Construct server-side high-quality audio URL
+    const audioUrl = `/api/tts?lang=${encodeURIComponent(langConfig.code)}&q=${encodeURIComponent(cleanText.substring(0, 200))}`;
+    const audio = new Audio(audioUrl);
+    audio.playbackRate = speechRate;
+    currentAudio = audio;
 
-    const bestVoice = findBestVoice(langConfig.bcp47);
-    if (bestVoice) {
-      utterance.voice = bestVoice;
-    }
-
-    utterance.onstart = function () {
+    audio.onplay = function () {
       isSpeaking = true;
       isPaused = false;
       highlightElement(targetEl);
       updateWidgetUI();
     };
 
-    utterance.onend = function () {
+    audio.onended = function () {
       isSpeaking = false;
       isPaused = false;
+      currentAudio = null;
       clearHighlight();
       updateWidgetUI();
       if (onEndCallback) onEndCallback();
     };
 
-    utterance.onerror = function (e) {
-      console.warn("Speech synthesis notice:", e);
-      isSpeaking = false;
-      isPaused = false;
-      clearHighlight();
-      updateWidgetUI();
+    audio.onerror = function (err) {
+      console.warn("Server TTS fallback to browser synthesis:", err);
+      // Fallback to browser SpeechSynthesis if audio fetch fails
+      if (window.speechSynthesis) {
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = langConfig.bcp47;
+        utterance.rate = speechRate;
+        utterance.onstart = function() {
+          isSpeaking = true;
+          isPaused = false;
+          highlightElement(targetEl);
+          updateWidgetUI();
+        };
+        utterance.onend = function() {
+          isSpeaking = false;
+          isPaused = false;
+          clearHighlight();
+          updateWidgetUI();
+          if (onEndCallback) onEndCallback();
+        };
+        utterance.onerror = function() {
+          isSpeaking = false;
+          isPaused = false;
+          clearHighlight();
+          updateWidgetUI();
+        };
+        window.speechSynthesis.speak(utterance);
+      } else {
+        isSpeaking = false;
+        isPaused = false;
+        clearHighlight();
+        updateWidgetUI();
+      }
     };
 
-    currentUtterance = utterance;
-    synth.speak(utterance);
+    audio.play().catch(function (e) {
+      console.warn("Audio play prevented or interrupted:", e);
+      // Auto-fallback to browser SpeechSynthesis
+      if (window.speechSynthesis) {
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = langConfig.bcp47;
+        utterance.rate = speechRate;
+        window.speechSynthesis.speak(utterance);
+      }
+    });
   }
 
   /**
-   * Speak an array of elements or text segments sequentially
+   * Speak an array of elements or text segments sequentially in the selected language
    */
   function speakSequence(items) {
     if (!items || items.length === 0) return;
@@ -399,7 +401,7 @@
       }
 
       speak(text, el, function () {
-        setTimeout(playNext, 250);
+        setTimeout(playNext, 300);
       });
     }
 
@@ -407,7 +409,7 @@
   }
 
   /**
-   * Reads the entire page content aloud intelligently in sequence in the chosen language.
+   * Reads the full screen content in the user's selected regional language
    */
   function readFullPage() {
     if (isSpeaking) {
@@ -429,28 +431,21 @@
       itemsToRead.push({ el: subTitleEl, text: `${subTitleEl.innerText.trim()}. ` });
     }
 
-    // 2. Active Facility & User Role if present
-    const facilityEl = document.querySelector(".topbar, .demo-role-bar, .persona-facility");
-    if (facilityEl && facilityEl.innerText.trim()) {
-      const facText = facilityEl.innerText.trim().replace(/\n+/g, " ");
-      itemsToRead.push({ el: facilityEl, text: `${facText}. ` });
-    }
-
-    // 3. Stat Cards / Dashboard Metrics
+    // 2. Stat Cards / Dashboard Metrics
     const metricCards = document.querySelectorAll(".card, .stat-card, .metric-box, .alert");
     metricCards.forEach(function (card) {
       if (card.closest(".sidebar") || card.closest("#voice-assist-widget")) return;
       const text = card.innerText ? card.innerText.trim().replace(/[\n\r]+/g, " - ") : "";
-      if (text && text.length > 5 && text.length < 300) {
+      if (text && text.length > 5 && text.length < 250) {
         itemsToRead.push({ el: card, text: `${text}. ` });
       }
     });
 
-    // 4. Clinical tables / Appointment rows / Prescription rows
+    // 3. Clinical tables / Appointment rows / Prescription rows
     const tableRows = document.querySelectorAll("tbody tr");
     tableRows.forEach(function (row) {
       const text = row.innerText ? row.innerText.trim().replace(/\t+/g, " ").replace(/[\n\r]+/g, ", ") : "";
-      if (text && text.length > 5 && text.length < 400) {
+      if (text && text.length > 5 && text.length < 300) {
         itemsToRead.push({ el: row, text: `${text}. ` });
       }
     });
@@ -474,16 +469,16 @@
   }
 
   function pauseSpeaking() {
-    if (synth && isSpeaking && !isPaused) {
-      synth.pause();
+    if (currentAudio && isSpeaking && !isPaused) {
+      currentAudio.pause();
       isPaused = true;
       updateWidgetUI();
     }
   }
 
   function resumeSpeaking() {
-    if (synth && isPaused) {
-      synth.resume();
+    if (currentAudio && isPaused) {
+      currentAudio.play();
       isPaused = false;
       updateWidgetUI();
     } else if (!isSpeaking) {
@@ -491,25 +486,12 @@
     }
   }
 
-  function stopSpeaking() {
-    if (synth) {
-      synth.cancel();
-    }
-    speechQueue = [];
-    isSpeaking = false;
-    isPaused = false;
-    clearHighlight();
-    updateWidgetUI();
-  }
-
   function setSpeechRate(rate) {
-    speechRate = parseFloat(rate) || 0.88;
+    speechRate = parseFloat(rate) || 0.95;
     const rateLabel = document.getElementById("voice-speed-val");
     if (rateLabel) rateLabel.innerText = `${speechRate}x`;
-    if (isSpeaking && !isPaused) {
-      const curText = currentUtterance ? currentUtterance.text : "";
-      const curEl = currentHighlightedEl;
-      speak(curText, curEl);
+    if (currentAudio) {
+      currentAudio.playbackRate = speechRate;
     }
   }
 
@@ -539,7 +521,7 @@
   }
 
   /**
-   * Triggered whenever user switches language via the dropdown
+   * Synchronizes audio language immediately when user switches language
    */
   function handleLanguageChanged(newLangCode) {
     if (!newLangCode || !VOICE_LANGS[newLangCode]) return;
@@ -583,16 +565,16 @@
         const lbl = document.querySelector(`label[for="${target.id}"]`) || target.closest(".mb-3")?.querySelector("label");
         const placeholder = target.placeholder || "";
         const val = target.value || "";
-        textToSpeak = `${lbl ? lbl.innerText : ''} ${placeholder ? 'Placeholder: ' + placeholder : ''} ${val ? 'Value: ' + val : ''}`;
+        textToSpeak = `${lbl ? lbl.innerText : ''} ${placeholder ? placeholder : ''} ${val ? val : ''}`;
       } else if (target.tagName === "SELECT") {
         const lbl = target.closest(".mb-3")?.querySelector("label");
         const opt = target.options[target.selectedIndex]?.text || "";
-        textToSpeak = `${lbl ? lbl.innerText : 'Select menu'}. Selected: ${opt}`;
+        textToSpeak = `${lbl ? lbl.innerText : 'Select menu'}. ${opt}`;
       } else if (target.classList.contains("persona-card")) {
         const name = target.querySelector(".persona-name")?.innerText || "";
         const role = target.querySelector(".persona-role")?.innerText || "";
         const fac = target.querySelector(".persona-facility")?.innerText || "";
-        textToSpeak = `Sign in as ${name}, ${role}, at ${fac}. Click to login.`;
+        textToSpeak = `${name}, ${role}, ${fac}`;
       } else {
         textToSpeak = target.innerText ? target.innerText.trim().replace(/[\n\r]+/g, " ") : target.getAttribute("title") || "";
       }
@@ -674,9 +656,9 @@
         <div class="d-flex align-items-center justify-content-between bg-light p-2 rounded-3 fs-8">
           <span class="text-muted fw-semibold"><i class="bi bi-speedometer2 me-1"></i>${lang.speed}:</span>
           <div class="btn-group btn-group-sm" role="group">
-            <button type="button" class="btn btn-outline-secondary py-0 px-2 fs-9" onclick="window.PulseCareVoice.setRate(0.75)">0.8x</button>
-            <button type="button" class="btn btn-primary py-0 px-2 fs-9 fw-bold" id="voice-speed-val" onclick="window.PulseCareVoice.setRate(0.9)">0.9x</button>
-            <button type="button" class="btn btn-outline-secondary py-0 px-2 fs-9" onclick="window.PulseCareVoice.setRate(1.1)">1.1x</button>
+            <button type="button" class="btn btn-outline-secondary py-0 px-2 fs-9" onclick="window.PulseCareVoice.setRate(0.8)">0.8x</button>
+            <button type="button" class="btn btn-primary py-0 px-2 fs-9 fw-bold" id="voice-speed-val" onclick="window.PulseCareVoice.setRate(0.95)">1.0x</button>
+            <button type="button" class="btn btn-outline-secondary py-0 px-2 fs-9" onclick="window.PulseCareVoice.setRate(1.2)">1.2x</button>
           </div>
         </div>
       </div>

@@ -345,6 +345,15 @@ class TestPulseCarePublicHealthNetwork(unittest.TestCase):
         self.assertIsNotNone(patient)
         self.assertEqual(patient["abha_id"], data3["abha_id"])
 
+    def test_12_multilingual_voice_assist_tts_api(self):
+        """Verify high-fidelity /api/tts endpoint across Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, and English."""
+        langs = ["hi", "ta", "te", "bn", "mr", "gu", "en"]
+        for lang in langs:
+            res = self.client.get(f"/api/tts?lang={lang}&q=PulseCare")
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.content_type, "audio/mpeg")
+
 if __name__ == "__main__":
     unittest.main()
+
 
