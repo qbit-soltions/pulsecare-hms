@@ -1,130 +1,34 @@
-================================================================================
- PULSECARE PUBLIC HEALTH & RURAL TELEMEDICINE NETWORK
- TECHNOLOGIES AND METHODOLOGIES SPECIFICATION
-================================================================================
+TECHNOLOGIES:
+- Python 3.13
+- Flask Framework
+- Jinja2
+- Werkzeug Security
+- SQLite 3
+- HTML5
+- CSS3
+- Bootstrap 5.3.3
+- Bootstrap Icons 1.11.3
+- Vanilla JavaScript (ES6+)
+- Google Translate TTS API
+- HTML5 Web Speech Synthesis API
+- ABDM (Ayushman Bharat Digital Mission) Sandbox APIs
+- HL7 / FHIR R4 Standard
+- Python unittest Framework
+- Git
 
---------------------------------------------------------------------------------
-1. TECHNOLOGIES USED
---------------------------------------------------------------------------------
-
-[Core Backend & Server Engine]
-* Python 3.13: Primary backend programming language.
-* Flask Framework: Lightweight WSGI web application server, request routing,
-  and REST API endpoint management.
-* Jinja2: Server-side HTML template rendering with custom filters for regional
-  translations, date formatting, and financial calculations.
-* Werkzeug Security: Cryptographic password hashing (pbkdf2:sha256) and secure
-  session handling.
-* Requests & Urllib: HTTP client libraries for integration with ABDM national
-  health sandbox gateways and regional TTS audio streaming services.
-
-[Database & Persistence Layer]
-* SQLite 3: Embedded relational database engine.
-* PRAGMA Foreign Keys: Enforced relational integrity across multi-tiered health
-  facility tables, patients, appointments, vitals, prescriptions, and wards.
-* Thread-Safe Database Handlers: Custom query helper layer (query_db, execute_db,
-  execute_many_db) with row-factory dictionary mapping.
-
-[Frontend & User Experience (UX)]
-* HTML5: Semantic, accessible document structure.
-* Vanilla JavaScript (ES6+): Zero-dependency client-side scripting optimized
-  for low-latency execution on low-bandwidth rural networks (2G/3G).
-* CSS3 Custom Design System: Modular stylesheet with custom variables,
-  Glassmorphism styling, responsive cards, and dynamic health-tier color codes.
-* Bootstrap 5.3.3: Responsive 12-column grid layout, interactive modals,
-  navigation bars, and utility classes.
-* Bootstrap Icons 1.11.3: Vector iconography for clinical indicators, vitals,
-  facility tiers, and status badges.
-
-[Speech Synthesis & Voice Accessibility Engine]
-* Dual-Engine Hybrid Audio Architecture:
-  1. Primary: Server-side TTS proxy (/api/tts) streaming native Indian accent
-     regional audio.
-  2. Fallback: HTML5 Web Speech Synthesis API (window.speechSynthesis).
-* Dynamic Equalizer & DOM Highlighting: Custom CSS animation indicating active
-  voice playback with automatic smooth-scrolling focus.
-
-[Multilingual Localization (i18n)]
-* 7-Language Client-Side Dictionary (translator.js): Supports English (en),
-  Hindi (hi), Tamil (ta), Telugu (te), Bengali (bn), Marathi (mr), and
-  Gujarati (gu).
-* Persistent Locale State: Synchronized via cookies (pulse_lang, googtrans),
-  localStorage, and server-side Flask session.
-
-[Interoperability & National Health Standards]
-* ABDM (Ayushman Bharat Digital Mission) Sandbox APIs: Integration for Aadhaar
-  OTP verification, Demographic Authentication, and 14-digit ABHA Health ID
-  generation.
-* HL7 / FHIR R4 Standard: Electronic Health Records (EHR) exported as
-  structured, compliant FHIR JSON Bundles (/api/patients/<id>/fhir).
-
-[Quality Assurance & Testing]
-* Python unittest Framework: Automated test suite (tests/test_public_health.py)
-  covering all 12 core clinical and public health workflows.
-* Git: Distributed version control and source code management.
-
-
---------------------------------------------------------------------------------
-2. METHODOLOGIES USED
---------------------------------------------------------------------------------
-
-[Tiered Hub-and-Spoke Public Health Continuum]
-* 4-Tier Hierarchical Structure:
-  - Sub-Centres / Health & Wellness Centres (HWC): Frontline ASHA/CHO workers.
-  - Primary Health Centres (PHC): General Medical Officers.
-  - Community Health Centres (CHC): Secondary specialist referral units.
-  - District Hospital / Medical College: Tertiary multi-specialty hub.
-
-[Assisted Rural Telemedicine & Tele-Triage]
-* Frontline Worker-to-Specialist Teleconsultation: ASHA/CHO enters patient
-  vitals at the rural point of care, instantly streamed to the district doctor.
-* Point-of-Care Digital Triage: Automated physiological risk classification
-  (Normal, Warning, Emergency) based on BP, SpO2, Pulse, and Blood Glucose.
-
-[Closed-Loop Inter-Facility Referrals]
-* End-to-end patient transit tracking across facility tiers to eliminate referral
-  dropouts with priority tags (Emergency, Urgent, Routine).
-
-[Dual-Engine Hybrid Voice Assist (Accessibility-First Design)]
-* Purpose-built for non-literate, elderly, and rural patients.
-* Semantic Region Targeting ([data-voice-region]): Restricts speech reading to
-  critical clinical elements (OPD tokens, vitals, prescriptions, lab results)
-  while silencing generic website navigation.
-* Tap-to-Speak Exploration Mode: Allows illiterate patients to tap any card,
-  badge, or table row to hear its contents spoken in their native language.
-
-[High-Risk Patient (HRP) & NCD Surveillance Cohort Tracking]
-* Automated algorithmic risk stratification for High-Risk Pregnancy (HRP),
-  Hypertension, Diabetes, Malnutrition, and Geriatric Vulnerabilities.
-* Due-date tracking for scheduled home visits by assigned ASHA workers.
-
-[Role-Based Access Control (RBAC) & Governance]
-* Granular access control across 9 distinct user personas: Admin, Doctor,
-  Medical Officer, ASHA/CHO, Nurse, Pharmacist, Lab Technician, Receptionist,
-  and Patient.
-* Immutable Audit Trail (log_audit): Comprehensive ledger capturing user ID,
-  facility ID, module, action timestamp, and client IP address.
-
-[Three-Phase Diagnostic Laboratory Workflow]
-* Structured diagnostic cycle: Requisition Ordered -> Specimen Collected ->
-  Result Parameter Entry & Verification -> Printable Lab Report.
-
-[Supply Chain Inventory & Auto-Reorder Alerts]
-* Real-time monitoring of life-saving essential medicines, batch expiration
-  tracking, and one-click prescription dispensing.
-
-[Visual Inpatient Ward & Bed Matrix Management]
-* Dynamic visual ward grid tracking Vacant, Occupied, and Maintenance states
-  with quick admission and discharge workflows.
-
-[Cashless PM-JAY & Public Health Billing]
-* Itemized invoicing with automatic tax calculations, subsidy discounts, and
-  multi-mode payment recording.
-
-[Test-Driven & Schema-First Engineering]
-* Automated regression test coverage validating database models, APIs, and page
-  rendering across all user personas.
-
-================================================================================
- PulseCare HMS - Engineering & Architecture Documentation
-================================================================================
+METHODOLOGIES:
+- Tiered Hub-and-Spoke Health Continuum
+- Assisted Rural Telemedicine (Store-and-Forward & Live Tele-Triage)
+- Closed-Loop Inter-Facility Referrals
+- Dual-Engine Hybrid Voice Assist (Accessibility-First Design)
+- Semantic DOM Voice Targeting ([data-voice-region] & [data-speak])
+- Multilingual Localization (i18n)
+- High-Risk Patient (HRP) & NCD Surveillance Cohort Tracking
+- Role-Based Access Control (RBAC)
+- Point-of-Care Digital Triage
+- Three-Phase Laboratory Diagnostic Pipeline
+- Inventory Stock-Monitoring & Auto-Reorder Alerts
+- Visual Inpatient Bed Matrix Management
+- Cashless Health Scheme (PM-JAY) Billing
+- Immutable Audit Trail & Regulatory Governance
+- Test-Driven & Schema-First Development
