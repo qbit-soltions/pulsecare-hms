@@ -1,14 +1,16 @@
 /**
  * PulseCare Speak Aloud & Voice Accessibility Engine
- * Designed for illiterate and low-literacy rural patients, ASHA workers, and caregivers.
+ * Designed for illiterate, elderly, and rural patients, ASHA workers, and caregivers.
  * 
  * Features:
- * 1. Read Page Aloud (Conversational native language summary of current screen)
- * 2. Interactive "Tap to Speak / Point & Hear" touch mode
- * 3. Individual "Listen to Prescription / Clinical Advice" speaker buttons
- * 4. Multi-language speech synthesis: Hindi (hi-IN), Tamil (ta-IN), Telugu (te-IN), Bengali (bn-IN), Marathi (mr-IN), Gujarati (gu-IN), English (en-IN)
- * 5. Visual sync highlighting of elements currently being spoken
- * 6. Floating audio controller with Play/Pause/Stop and speed controls
+ * 1. Automatic sync with active site language: Hindi (hi-IN), Tamil (ta-IN), Telugu (te-IN),
+ *    Bengali (bn-IN), Marathi (mr-IN), Gujarati (gu-IN), English (en-IN).
+ * 2. Real-time translation of speech text to match user's selected language.
+ * 3. Read Page Aloud (Intelligent conversational audio tour of any screen in native language).
+ * 4. Interactive "Tap to Speak / Point & Hear" mode for illiterate users.
+ * 5. Dedicated "Listen to Prescription / Clinical Advice" speaker buttons.
+ * 6. Visual synchronized highlighting of spoken elements with animated equalizer wave.
+ * 7. Device voice matcher for Android, iOS, Windows, Mac, ChromeOS.
  */
 
 (function () {
@@ -30,7 +32,8 @@
       welcome: "पल्सकेयर सार्वजनिक स्वास्थ्य नेटवर्क में आपका स्वागत है।",
       tapInstruction: "टैप टू स्पीक चालू है। किसी भी कार्ड, बटन या टेक्स्ट पर क्लिक करके उसकी आवाज सुनें।",
       stopped: "आवाज बंद कर दी गई है।",
-      paused: "आवाज रोक दी गई है।"
+      paused: "आवाज रोक दी गई है।",
+      langSwitched: "हिंदी भाषा चुनी गई है। आवाज सहायता तैयार है।"
     },
     ta: {
       bcp47: "ta-IN",
@@ -46,7 +49,8 @@
       welcome: "பல்ஸ்கேர் பொது சுகாதார வலைப்பின்னலுக்கு நல்வரவு.",
       tapInstruction: "தொட்டு கேட்கும் முறை ஆன் செய்யப்பட்டுள்ளது. எந்த பொத்தான் அல்லது தகவலையும் தொட்டு கேட்கலாம்.",
       stopped: "வாசிப்பு நிறுத்தப்பட்டது.",
-      paused: "வாசிப்பு இடைநிறுத்தப்பட்டது."
+      paused: "வாசிப்பு இடைநிறுத்தப்பட்டது.",
+      langSwitched: "தமிழ் மொழி தேர்ந்தெடுக்கப்பட்டது. ஒலி உதவி தயார்."
     },
     te: {
       bcp47: "te-IN",
@@ -62,7 +66,8 @@
       welcome: "పల్స్‌కేర్ ప్రజారోగ్య వ్యవస్థకు స్వాగతం.",
       tapInstruction: "తాకి వినే మోడ్ ఆన్ చేయబడింది. వివరాలు వినడానికి ఏదైనా బటన్ లేదా కార్డును తాకండి.",
       stopped: "ధ్వని ఆపబడింది.",
-      paused: "ధ్వని నిలిపివేయబడింది."
+      paused: "ధ్వని నిలిపివేయబడింది.",
+      langSwitched: "తెలుగు భాష ఎంపిక చేయబడింది. ధ్వని సహాయం సిద్ధంగా ఉంది."
     },
     bn: {
       bcp47: "bn-IN",
@@ -78,7 +83,8 @@
       welcome: "পালসকেয়ার জনস্বাস্থ্য নেটওয়ার্কে আপনাকে স্বাগতম।",
       tapInstruction: "ট্যাপ করে শোনার মোড চালু হয়েছে। যেকোনো বোতাম বা কার্ডে ট্যাপ করে ভয়েস শুনুন।",
       stopped: "পড়া বন্ধ করা হয়েছে।",
-      paused: "পড়া স্থগিত রাখা হয়েছে।"
+      paused: "পড়া স্থগিত রাখা হয়েছে।",
+      langSwitched: "বাংলা ভাষা নির্বাচন করা হয়েছে। ভয়েস সহায়তা প্রস্তুত।"
     },
     mr: {
       bcp47: "mr-IN",
@@ -94,7 +100,8 @@
       welcome: "पल्सकेअर सार्वजनिक आरोग्य नेटवर्कमध्ये आपले स्वागत आहे.",
       tapInstruction: "टॅप करून ऐकण्याची सुविधा सुरू झाली आहे. माहिती ऐकण्यासाठी कोणत्याही घटकावर क्लिक करा.",
       stopped: "आवाज थांबवला आहे.",
-      paused: "आवाज स्थगित केला आहे."
+      paused: "आवाज स्थगित केला आहे.",
+      langSwitched: "मराठी भाषा निवडली आहे. व्हॉइस असिस्ट तयार आहे."
     },
     gu: {
       bcp47: "gu-IN",
@@ -110,7 +117,8 @@
       welcome: "પલ્સકેર જાહેર આરોગ્ય નેટવર્કમાં આપનું સ્વાગત છે.",
       tapInstruction: "ટેપ કરીને સાંભળવાનો મોડ ચાલુ છે. માહિતી સાંભળવા માટે કોઈપણ કાર્ડ અથવા બટન પર ક્લિક કરો.",
       stopped: "વાંચન બંધ કરવામાં આવ્યું છે.",
-      paused: "વાંચન અટકાવવામાં આવ્યું છે."
+      paused: "વાંચન અટકાવવામાં આવ્યું છે.",
+      langSwitched: "ગુજરાતી ભાષા પસંદ કરવામાં આવી છે. અવાજ સહાય તૈયાર છે."
     },
     en: {
       bcp47: "en-IN",
@@ -126,7 +134,8 @@
       welcome: "Welcome to PulseCare Public Health Network.",
       tapInstruction: "Tap to Speak mode is active. Tap or click any card, badge, or button to hear it aloud.",
       stopped: "Speech stopped.",
-      paused: "Speech paused."
+      paused: "Speech paused.",
+      langSwitched: "English language selected. Voice Assist is ready."
     }
   };
 
@@ -138,8 +147,9 @@
   let currentUtterance = null;
   let currentHighlightedEl = null;
   let speechQueue = [];
-  let speechRate = 0.9; // Slower rate for clear pronunciation
+  let speechRate = 0.88; // Slower, clearer cadence suited for rural patients
   let cachedVoices = [];
+  let activeLangOverride = null;
 
   function loadVoices() {
     if (!synth) return;
@@ -153,7 +163,14 @@
     }
   }
 
+  /**
+   * Automatically resolves the current active site language
+   */
   function getLangKey() {
+    if (activeLangOverride && VOICE_LANGS[activeLangOverride]) {
+      return activeLangOverride;
+    }
+
     const pMatch = document.cookie.match(/(?:^|;\s*)pulse_lang=([^;]+)/);
     if (pMatch && pMatch[1] && VOICE_LANGS[pMatch[1]]) return pMatch[1];
 
@@ -169,24 +186,69 @@
     return "en";
   }
 
+  /**
+   * Searches available system voices for the best match for Indian regional languages
+   */
   function findBestVoice(bcp47) {
     if (!cachedVoices || cachedVoices.length === 0) loadVoices();
     const langPrefix = bcp47.split("-")[0].toLowerCase();
 
-    // 1. Exact match (e.g. hi-IN)
-    let match = cachedVoices.find(v => v.lang && v.lang.toLowerCase() === bcp47.toLowerCase());
+    // 1. Exact match (e.g. hi-IN or hi_IN)
+    let match = cachedVoices.find(v => v.lang && (v.lang.toLowerCase() === bcp47.toLowerCase() || v.lang.toLowerCase().replace('_', '-') === bcp47.toLowerCase()));
     if (match) return match;
 
-    // 2. Prefix match (e.g. hi)
+    // 2. Prefix match (e.g. hi, ta, te, bn, mr, gu)
     match = cachedVoices.find(v => v.lang && v.lang.toLowerCase().startsWith(langPrefix));
     if (match) return match;
 
-    // 3. Indian English / English fallback
+    // 3. Match voice names containing language keywords across Android, Windows, Mac, and Chrome
+    const voiceKeywords = {
+      hi: ["hindi", "देवनागरी", "kalpana", "hemant", "lekha", "sangeeta"],
+      ta: ["tamil", "தமிழ்", "valluvar", "kavya"],
+      te: ["telugu", "తెలుగు", "chitra", "mohan"],
+      bn: ["bengali", "বাংলা", "bangla", "bashkar", "tanisha"],
+      mr: ["marathi", "मराठी", "aarohi"],
+      gu: ["gujarati", "ગુજરાતી", "dhwani", "niranjan"],
+      en: ["india", "en-in", "heera", "ravi", "veena", "neerja", "prabhat"]
+    };
+    const keywords = voiceKeywords[langPrefix] || [];
+    match = cachedVoices.find(v => {
+      const name = (v.name || "").toLowerCase();
+      return keywords.some(k => name.includes(k.toLowerCase()));
+    });
+    if (match) return match;
+
+    // 4. Indian English fallback (sounds natural for Indian numbers/medical terms)
     match = cachedVoices.find(v => v.lang && (v.lang.toLowerCase().includes("en-in") || v.name.toLowerCase().includes("india")));
     if (match) return match;
 
-    // 4. Default voice
+    // 5. Default device voice
     return cachedVoices.find(v => v.default) || cachedVoices[0] || null;
+  }
+
+  /**
+   * Translates text into the target language using the UI Dictionary before speech
+   */
+  function translateForSpeech(text, langKey) {
+    if (!text || langKey === "en") return text;
+    const dict = (window.PulseCareUIDictionary && window.PulseCareUIDictionary[langKey]) || {};
+
+    let translated = text.trim();
+
+    // Direct match
+    if (dict[translated]) {
+      return dict[translated];
+    }
+
+    // Replace known dictionary terms inside the sentence
+    Object.keys(dict).forEach(function (enKey) {
+      if (enKey.length > 2 && translated.includes(enKey)) {
+        const reg = new RegExp(enKey, "gi");
+        translated = translated.replace(reg, dict[enKey]);
+      }
+    });
+
+    return translated;
   }
 
   function highlightElement(el) {
@@ -214,7 +276,8 @@
     const statusText = document.getElementById("voice-status-text");
     const waveEl = document.getElementById("voice-wave-anim");
     const topSpeakerBtn = document.getElementById("topbar-speak-btn");
-    const lang = VOICE_LANGS[getLangKey()] || VOICE_LANGS.en;
+    const langKey = getLangKey();
+    const lang = VOICE_LANGS[langKey] || VOICE_LANGS.en;
 
     if (isSpeaking && !isPaused) {
       if (playBtn) playBtn.classList.add("d-none");
@@ -224,7 +287,7 @@
       if (statusText) statusText.innerText = lang.reading;
       if (topSpeakerBtn) {
         topSpeakerBtn.classList.add("btn-danger", "pulse-animation");
-        topSpeakerBtn.classList.remove("btn-outline-primary");
+        topSpeakerBtn.classList.remove("btn-outline-primary", "btn-warning");
         topSpeakerBtn.innerHTML = `<i class="bi bi-stop-circle-fill"></i> <span class="d-none d-lg-inline">${lang.stop}</span>`;
       }
     } else if (isPaused) {
@@ -256,7 +319,7 @@
   }
 
   /**
-   * Speak a text string with highlighting and fallback handling.
+   * Speak a text string in the currently selected language
    */
   function speak(text, targetEl = null, onEndCallback = null) {
     if (!synth) {
@@ -269,7 +332,10 @@
 
     const langKey = getLangKey();
     const langConfig = VOICE_LANGS[langKey] || VOICE_LANGS.en;
-    const cleanText = text.replace(/[\n\r]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    
+    // Translate text into selected language if needed
+    const translatedText = translateForSpeech(text, langKey);
+    const cleanText = translatedText.replace(/[\n\r]+/g, " ").replace(/\s{2,}/g, " ").trim();
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = langConfig.bcp47;
@@ -341,7 +407,7 @@
   }
 
   /**
-   * Reads the entire page content aloud intelligently in sequence.
+   * Reads the entire page content aloud intelligently in sequence in the chosen language.
    */
   function readFullPage() {
     if (isSpeaking) {
@@ -389,7 +455,7 @@
       }
     });
 
-    // If no complex structure found, gather headings & paragraphs
+    // Fallback if no structured cards found
     if (itemsToRead.length <= 1) {
       const generalNodes = document.querySelectorAll(".main-content p, .main-content h2, .main-content h3, .main-content h4, .auth-card p, .auth-card h4");
       generalNodes.forEach(function (node) {
@@ -437,7 +503,7 @@
   }
 
   function setSpeechRate(rate) {
-    speechRate = parseFloat(rate) || 0.9;
+    speechRate = parseFloat(rate) || 0.88;
     const rateLabel = document.getElementById("voice-speed-val");
     if (rateLabel) rateLabel.innerText = `${speechRate}x`;
     if (isSpeaking && !isPaused) {
@@ -469,6 +535,16 @@
       }
       stopSpeaking();
     }
+    updateWidgetUI();
+  }
+
+  /**
+   * Triggered whenever user switches language via the dropdown
+   */
+  function handleLanguageChanged(newLangCode) {
+    if (!newLangCode || !VOICE_LANGS[newLangCode]) return;
+    activeLangOverride = newLangCode;
+    stopSpeaking();
     updateWidgetUI();
   }
 
@@ -507,7 +583,7 @@
         const lbl = document.querySelector(`label[for="${target.id}"]`) || target.closest(".mb-3")?.querySelector("label");
         const placeholder = target.placeholder || "";
         const val = target.value || "";
-        textToSpeak = `${lbl ? lbl.innerText : ''} ${placeholder ? 'Placeholder: ' + placeholder : ''} ${val ? 'Current value: ' + val : ''}`;
+        textToSpeak = `${lbl ? lbl.innerText : ''} ${placeholder ? 'Placeholder: ' + placeholder : ''} ${val ? 'Value: ' + val : ''}`;
       } else if (target.tagName === "SELECT") {
         const lbl = target.closest(".mb-3")?.querySelector("label");
         const opt = target.options[target.selectedIndex]?.text || "";
@@ -547,7 +623,7 @@
         </div>
         <div class="voice-pill-info text-start d-none d-sm-block">
           <div class="fw-bold fs-8 text-dark" id="voice-status-text">${lang.label}</div>
-          <div class="text-muted fs-9">${lang.name} Audio</div>
+          <div class="text-muted fs-9" id="voice-lang-name">${lang.name} Audio</div>
         </div>
         <!-- Animated Equalizer Waveform -->
         <div class="voice-equalizer d-none" id="voice-wave-anim">
@@ -565,19 +641,19 @@
             <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-1 px-2">
               <i class="bi bi-soundwave me-1"></i>Voice Assist
             </span>
-            <span class="fs-8 fw-bold text-dark">${lang.name}</span>
+            <span class="fs-8 fw-bold text-dark" id="voice-panel-lang">${lang.name}</span>
           </div>
           <button type="button" class="btn-close fs-9" onclick="window.PulseCareVoice.toggleExpand(event)"></button>
         </div>
 
         <p class="fs-8 text-muted mb-3">
-          Listen to page contents, clinical prescriptions, and OPD token updates.
+          Listen to page contents, clinical prescriptions, and OPD token updates in your language.
         </p>
 
         <!-- Primary Action Buttons -->
         <div class="d-grid gap-2 mb-3">
           <button type="button" class="btn btn-primary btn-sm fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm" id="voice-btn-play" onclick="window.PulseCareVoice.readPage()">
-            <i class="bi bi-play-fill fs-6"></i> <span>${lang.label}</span>
+            <i class="bi bi-play-fill fs-6"></i> <span id="voice-play-text">${lang.label}</span>
           </button>
           <button type="button" class="btn btn-warning btn-sm fw-bold d-flex align-items-center justify-content-center gap-2 d-none shadow-sm" id="voice-btn-pause" onclick="window.PulseCareVoice.pause()">
             <i class="bi bi-pause-fill fs-6"></i> <span>${lang.pause}</span>
@@ -590,7 +666,7 @@
         <!-- Interactive Tap-to-Speak Mode Toggle -->
         <div class="mb-3">
           <button type="button" class="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2" id="voice-btn-tapmode" onclick="window.PulseCareVoice.toggleTapMode()">
-            <i class="bi bi-hand-index-thumb me-1"></i> <span>${lang.tapModeOff}</span>
+            <i class="bi bi-hand-index-thumb me-1"></i> <span id="voice-tap-text">${lang.tapModeOff}</span>
           </button>
         </div>
 
@@ -598,9 +674,9 @@
         <div class="d-flex align-items-center justify-content-between bg-light p-2 rounded-3 fs-8">
           <span class="text-muted fw-semibold"><i class="bi bi-speedometer2 me-1"></i>${lang.speed}:</span>
           <div class="btn-group btn-group-sm" role="group">
-            <button type="button" class="btn btn-outline-secondary py-0 px-2 fs-9" onclick="window.PulseCareVoice.setRate(0.8)">0.8x</button>
-            <button type="button" class="btn btn-primary py-0 px-2 fs-9 fw-bold" id="voice-speed-val" onclick="window.PulseCareVoice.setRate(1.0)">1.0x</button>
-            <button type="button" class="btn btn-outline-secondary py-0 px-2 fs-9" onclick="window.PulseCareVoice.setRate(1.2)">1.2x</button>
+            <button type="button" class="btn btn-outline-secondary py-0 px-2 fs-9" onclick="window.PulseCareVoice.setRate(0.75)">0.8x</button>
+            <button type="button" class="btn btn-primary py-0 px-2 fs-9 fw-bold" id="voice-speed-val" onclick="window.PulseCareVoice.setRate(0.9)">0.9x</button>
+            <button type="button" class="btn btn-outline-secondary py-0 px-2 fs-9" onclick="window.PulseCareVoice.setRate(1.1)">1.1x</button>
           </div>
         </div>
       </div>
@@ -618,6 +694,7 @@
     speakText: speak,
     setRate: setSpeechRate,
     toggleTapMode: toggleTapToSpeak,
+    onLanguageChanged: handleLanguageChanged,
     toggleExpand: function (e) {
       if (e) e.stopPropagation();
       const panel = document.getElementById("voice-expanded-panel");

@@ -628,10 +628,16 @@
     }
   }
 
+  window.PulseCareUIDictionary = UI_DICTIONARY;
+
   // Language Switch Action
   window.changePulseCareLanguage = function (langCode, e) {
     if (e && e.preventDefault) e.preventDefault();
     setLanguageCookies(langCode);
+
+    if (window.PulseCareVoice && window.PulseCareVoice.onLanguageChanged) {
+      window.PulseCareVoice.onLanguageChanged(langCode);
+    }
     
     // Switch Google Translate combo if present
     const select = document.querySelector(".goog-te-combo");
