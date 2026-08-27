@@ -341,24 +341,50 @@
     updateWidgetUI();
   }
 
+  function isGlobalVoiceDisabled() {
+    return localStorage.getItem("pulsecare_voice_disabled") === "true";
+  }
+
+  function toggleGlobalVoice() {
+    const isDisabled = isGlobalVoiceDisabled();
+    if (isDisabled) {
+      localStorage.setItem("pulsecare_voice_disabled", "false");
+      speak("Voice assistance enabled.");
+    } else {
+      stopSpeaking();
+      localStorage.setItem("pulsecare_voice_disabled", "true");
+    }
+    updateWidgetUI();
+  }
+
   function handleDocumentTap(e) {
+    if (isGlobalVoiceDisabled()) return;
     if (e.target.closest("#voice-assist-widget") || e.target.closest("#topbar-speak-btn") || e.target.closest("#opd-speak-btn")) return;
 
-    // Dedicated speak button (that is not a whole page reader)
+    // Dedicated speak button
     const speakBtn = e.target.closest(".btn-speak-text, [data-speak]");
     if (speakBtn) {
-      e.preventDefault();
+      if (speakBtn.classList.contains("btn-speak-text")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       const text = speakBtn.getAttribute("data-speak") || speakBtn.innerText;
       speak(text, speakBtn.closest("[data-voice-region], .card, tr, .alert, div") || speakBtn);
-      return;
+      
+      if (speakBtn.classList.contains("btn-speak-text")) {
+        return;
+      }
     }
 
     if (!tapToSpeakActive) return;
 
     const target = e.target.closest("button, a, .card, .persona-card, tr, .badge, .alert, label, input, h1, h2, h3, h4, h5, h6, p, li, .queue-card-tv");
     if (target) {
-      e.preventDefault();
-      e.stopPropagation();
+      // Do NOT prevent default navigation so the app remains functional
+      if (target.classList.contains("btn-speak-text")) {
+        e.preventDefault();
+      }
+      
       let textToSpeak = "";
       if (target.tagName === "INPUT") {
         const lbl = document.querySelector(`label[for="${target.id}"]`);
@@ -377,16 +403,21 @@
   function injectVoiceWidget() {
     if (document.getElementById("voice-assist-widget")) return;
     const lang = VOICE_LANGS[getLangKey()] || VOICE_LANGS.en;
+    const isDisabled = isGlobalVoiceDisabled();
     const widget = document.createElement("div");
     widget.id = "voice-assist-widget";
     widget.className = "voice-assist-container no-print";
+    
+    // If disabled globally, hide widget unless we want to show a small toggle
+    // We will show a muted pill if disabled
+    
     widget.innerHTML = `
       <div id="voice-mini-pill" class="voice-pill shadow-lg d-flex align-items-center gap-2" onclick="window.PulseCareVoice.toggleExpand(event)">
-        <div class="voice-icon-box bg-primary text-white d-flex align-items-center justify-content-center rounded-circle">
-          <i class="bi bi-volume-up-fill fs-5"></i>
+        <div class="voice-icon-box ${isDisabled ? 'bg-secondary' : 'bg-primary'} text-white d-flex align-items-center justify-content-center rounded-circle">
+          <i class="bi ${isDisabled ? 'bi-volume-mute-fill' : 'bi-volume-up-fill'} fs-5" id="voice-pill-icon"></i>
         </div>
         <div class="voice-pill-info text-start d-none d-sm-block">
-          <div class="fw-bold fs-8 text-dark" id="voice-status-text">${lang.label}</div>
+          <div class="fw-bold fs-8 ${isDisabled ? 'text-muted' : 'text-dark'}" id="voice-status-text">${isDisabled ? 'Voice Off' : lang.label}</div>
           <div class="text-muted fs-9" id="voice-lang-name">${lang.name} Audio</div>
         </div>
         <div class="voice-equalizer d-none" id="voice-wave-anim">
@@ -405,34 +436,82 @@
           <button type="button" class="btn-close fs-9" onclick="window.PulseCareVoice.toggleExpand(event)"></button>
         </div>
         <p class="fs-8 text-muted mb-3">Listen to page content in your language. Tap any item to hear it.</p>
-        <div class="d-grid gap-2 mb-3">
-          <button type="button" class="btn btn-primary btn-sm fw-bold d-flex align-items-center justify-content-center gap-2" id="voice-btn-play" onclick="window.PulseCareVoice.readPage()">
-            <i class="bi bi-play-fill fs-6"></i> <span id="voice-play-text">${lang.label}</span>
-          </button>
-          <button type="button" class="btn btn-warning btn-sm fw-bold d-flex align-items-center justify-content-center gap-2 d-none" id="voice-btn-pause" onclick="window.PulseCareVoice.pause()">
-            <i class="bi bi-pause-fill fs-6"></i> <span>${lang.pause}</span>
-          </button>
-          <button type="button" class="btn btn-outline-danger btn-sm fw-bold d-flex align-items-center justify-content-center gap-2 d-none" id="voice-btn-stop" onclick="window.PulseCareVoice.stop()">
-            <i class="bi bi-stop-fill fs-6"></i> <span>${lang.stop}</span>
-          </button>
+        
+        <div class="form-check form-switch mb-3 p-2 bg-light rounded-3 d-flex align-items-center justify-content-between border">
+          <label class="form-check-label fw-bold fs-7 text-dark m-0 ps-1" for="globalVoiceToggle"><i class="bi bi-person-fill-up me-1 text-primary"></i> Enable Voice Assist</label>
+          <input class="form-check-input m-0" type="checkbox" role="switch" id="globalVoiceToggle" ${!isDisabled ? 'checked' : ''} onchange="window.PulseCareVoice.toggleGlobalVoice()">
         </div>
-        <div class="mb-3">
-          <button type="button" class="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2" id="voice-btn-tapmode" onclick="window.PulseCareVoice.toggleTapMode()">
-            <i class="bi bi-hand-index-thumb me-1"></i> <span id="voice-tap-text">${lang.tapModeOff}</span>
-          </button>
-        </div>
-        <div class="d-flex align-items-center justify-content-between bg-light p-2 rounded-3 fs-8">
-          <span class="text-muted fw-semibold"><i class="bi bi-speedometer2 me-1"></i>${lang.speed}:</span>
-          <div class="btn-group btn-group-sm">
-            <button type="button" class="btn btn-outline-secondary py-0 px-2 fs-9" onclick="window.PulseCareVoice.setRate(0.8)">0.8x</button>
-            <button type="button" class="btn btn-primary py-0 px-2 fs-9 fw-bold" id="voice-speed-val" onclick="window.PulseCareVoice.setRate(0.95)">1.0x</button>
-            <button type="button" class="btn btn-outline-secondary py-0 px-2 fs-9" onclick="window.PulseCareVoice.setRate(1.2)">1.2x</button>
+
+        <div id="voice-controls-section" class="${isDisabled ? 'opacity-50 pe-none' : ''}">
+          <div class="d-grid gap-2 mb-3">
+            <button type="button" class="btn btn-primary btn-sm fw-bold d-flex align-items-center justify-content-center gap-2" id="voice-btn-play" onclick="window.PulseCareVoice.readPage()">
+              <i class="bi bi-play-fill fs-6"></i> <span id="voice-play-text">${lang.label}</span>
+            </button>
+            <button type="button" class="btn btn-warning btn-sm fw-bold d-flex align-items-center justify-content-center gap-2 d-none" id="voice-btn-pause" onclick="window.PulseCareVoice.pause()">
+              <i class="bi bi-pause-fill fs-6"></i> <span>${lang.pause}</span>
+            </button>
+            <button type="button" class="btn btn-outline-danger btn-sm fw-bold d-flex align-items-center justify-content-center gap-2 d-none" id="voice-btn-stop" onclick="window.PulseCareVoice.stop()">
+              <i class="bi bi-stop-fill fs-6"></i> <span>${lang.stop}</span>
+            </button>
+          </div>
+          <div class="mb-3">
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2" id="voice-btn-tapmode" onclick="window.PulseCareVoice.toggleTapMode()">
+              <i class="bi bi-hand-index-thumb me-1"></i> <span id="voice-tap-text">${lang.tapModeOff}</span>
+            </button>
+          </div>
+          <div class="d-flex align-items-center justify-content-between bg-light p-2 rounded-3 fs-8 border">
+            <span class="text-muted fw-semibold"><i class="bi bi-speedometer2 me-1"></i>${lang.speed}:</span>
+            <div class="btn-group btn-group-sm">
+              <button type="button" class="btn btn-outline-secondary py-0 px-2 fs-9" onclick="window.PulseCareVoice.setRate(0.8)">0.8x</button>
+              <button type="button" class="btn btn-primary py-0 px-2 fs-9 fw-bold" id="voice-speed-val" onclick="window.PulseCareVoice.setRate(0.95)">1.0x</button>
+              <button type="button" class="btn btn-outline-secondary py-0 px-2 fs-9" onclick="window.PulseCareVoice.setRate(1.2)">1.2x</button>
+            </div>
           </div>
         </div>
       </div>
     `;
     document.body.appendChild(widget);
   }
+
+  // Override updateWidgetUI to handle Global Disabled state
+  const originalUpdateWidgetUI = updateWidgetUI;
+  updateWidgetUI = function() {
+    const isDisabled = isGlobalVoiceDisabled();
+    const ctrlSection = document.getElementById("voice-controls-section");
+    const iconBox = document.querySelector("#voice-mini-pill .voice-icon-box");
+    const pillIcon = document.getElementById("voice-pill-icon");
+    const statusText = document.getElementById("voice-status-text");
+    
+    if (isDisabled) {
+      if (ctrlSection) { ctrlSection.classList.add("opacity-50", "pe-none"); }
+      if (iconBox) { iconBox.classList.remove("bg-primary"); iconBox.classList.add("bg-secondary"); }
+      if (pillIcon) { pillIcon.className = "bi bi-volume-mute-fill fs-5"; }
+      if (statusText) { statusText.innerText = "Voice Off"; statusText.classList.remove("text-dark"); statusText.classList.add("text-muted"); }
+      const gToggle = document.getElementById("globalVoiceToggle");
+      if (gToggle) gToggle.checked = false;
+    } else {
+      if (ctrlSection) { ctrlSection.classList.remove("opacity-50", "pe-none"); }
+      if (iconBox) { iconBox.classList.add("bg-primary"); iconBox.classList.remove("bg-secondary"); }
+      if (pillIcon) { pillIcon.className = "bi bi-volume-up-fill fs-5"; }
+      if (statusText) { statusText.classList.add("text-dark"); statusText.classList.remove("text-muted"); }
+      const gToggle = document.getElementById("globalVoiceToggle");
+      if (gToggle) gToggle.checked = true;
+      originalUpdateWidgetUI();
+    }
+  };
+
+  // Override speak and readFullPage to check global disable
+  const originalSpeak = speak;
+  speak = function(text, targetEl, onEndCallback) {
+    if (isGlobalVoiceDisabled()) return;
+    originalSpeak(text, targetEl, onEndCallback);
+  };
+  
+  const originalReadFullPage = readFullPage;
+  readFullPage = function() {
+    if (isGlobalVoiceDisabled()) return;
+    originalReadFullPage();
+  };
 
   window.PulseCareVoice = {
     readPage: readFullPage,
@@ -443,6 +522,8 @@
     setRate: setSpeechRate,
     toggleTapMode: toggleTapToSpeak,
     onLanguageChanged: handleLanguageChanged,
+    toggleGlobalVoice: toggleGlobalVoice,
+    isGlobalVoiceDisabled: isGlobalVoiceDisabled,
     toggleExpand: function(e) {
       if (e) e.stopPropagation();
       const panel = document.getElementById("voice-expanded-panel");
