@@ -1898,6 +1898,15 @@ def appointment_create():
     flash(f"Appointment booked successfully! Token #{token_num} ({apt_num}).", "success")
     return redirect(url_for("appointments_index", date=apt_date))
 
+@app.route("/appointments/<int:apt_id>/status", methods=["POST"])
+@login_required
+def appointment_update_status(apt_id):
+    new_status = request.form.get("status")
+    if new_status:
+        execute_db("UPDATE appointments SET status = ? WHERE id = ?", (new_status, apt_id))
+        flash(f"Appointment status updated to {new_status}.", "info")
+    return redirect(url_for("appointments_index"))
+
 @app.route("/appointments/queue")
 @login_required
 def appointments_queue():
@@ -1944,7 +1953,7 @@ def wards_index():
     wards = query_db(sql, params)
 
     for w in wards:
-        w["beds"] = query_db(
+        beds = query_db(
             """SELECT b.*, adm.admission_number, adm.admitted_at, p.first_name, p.last_name, p.patient_uid, p.village, p.abha_id, u.full_name as doctor_name
                FROM beds b
                LEFT JOIN admissions adm ON b.current_admission_id = adm.id
@@ -1954,6 +1963,10 @@ def wards_index():
                ORDER BY b.bed_number""",
             (w["id"],)
         )
+        w["beds"] = beds
+        w["available_count"] = sum(1 for b in beds if b["status"] == "Available")
+        w["occupied_count"] = sum(1 for b in beds if b["status"] == "Occupied")
+        w["maintenance_count"] = sum(1 for b in beds if b["status"] == "Maintenance")
 
     facilities = query_db("SELECT id, name, tier_type FROM facilities ORDER BY id ASC")
     patients = query_db("SELECT id, patient_uid, first_name, last_name, village, abha_id FROM patients WHERE status != 'Inpatient' ORDER BY first_name")
@@ -1968,7 +1981,8 @@ def wards_index():
         facility_filter=facility_filter
     )
 
-@app.route("/wards/admit", methods=["POST"])
+@app.route("/wards/admit", methods=["POST"], endpoint="ward_admit")
+@app.route("/wards/admit/patient", methods=["POST"], endpoint="ward_admit_patient")
 @login_required
 def ward_admit():
     patient_id = request.form.get("patient_id")
@@ -2018,6 +2032,16 @@ def ward_discharge(adm_id):
     execute_db("UPDATE patients SET status = 'Discharged' WHERE id = ?", (adm["patient_id"],))
 
     flash(f"Patient discharged from Admission #{adm['admission_number']}.", "success")
+    return redirect(url_for("wards_index"))
+
+@app.route("/wards/bed/<int:bed_id>/toggle-maintenance", methods=["POST"])
+@login_required
+def toggle_bed_maintenance(bed_id):
+    bed = query_db("SELECT * FROM beds WHERE id = ?", (bed_id,), one=True)
+    if bed:
+        new_status = "Available" if bed["status"] == "Maintenance" else "Maintenance"
+        execute_db("UPDATE beds SET status = ? WHERE id = ?", (new_status, bed_id))
+        flash(f"Bed #{bed['bed_number']} status changed to {new_status}.", "info")
     return redirect(url_for("wards_index"))
 
 
@@ -2106,6 +2130,37 @@ def prescription_dispense(rx_id):
     flash(f"Prescription {rx['prescription_number']} dispensed successfully!", "success")
     return redirect(url_for("pharmacy_catalog"))
 
+@app.route("/pharmacy/medicine/new", methods=["POST"])
+@login_required
+def medicine_create():
+    brand_name = request.form.get("brand_name", "").strip()
+    generic_name = request.form.get("generic_name", "").strip()
+    category = request.form.get("category", "").strip()
+    form_type = request.form.get("form", "Tablet")
+    strength = request.form.get("strength", "").strip()
+    unit_price = float(request.form.get("unit_price", 0.0) or 0.0)
+    stock_quantity = int(request.form.get("stock_quantity", 0) or 0)
+    reorder_level = int(request.form.get("reorder_level", 20) or 20)
+    batch_number = request.form.get("batch_number", "").strip()
+    expiry_date = request.form.get("expiry_date", "").strip()
+    location_rack = request.form.get("location_rack", "").strip()
+    manufacturer = request.form.get("manufacturer", "").strip()
+
+    if not brand_name or not generic_name:
+        flash("Brand name and generic name are required.", "danger")
+        return redirect(url_for("pharmacy_catalog"))
+
+    import uuid
+    code = f"MED-{uuid.uuid4().hex[:6].upper()}"
+
+    execute_db(
+        """INSERT INTO medicines (code, brand_name, generic_name, category, form, strength, unit_price, stock_quantity, reorder_level, batch_number, expiry_date, location_rack, manufacturer, is_essential_life_saving, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'))""",
+        (code, brand_name, generic_name, category, form_type, strength, unit_price, stock_quantity, reorder_level, batch_number, expiry_date, location_rack, manufacturer)
+    )
+    flash(f"Medicine '{brand_name}' added to inventory.", "success")
+    return redirect(url_for("pharmacy_catalog"))
+
 
 # -----------------------------------------------------------------------------
 # 13. LABORATORY & DIAGNOSTICS
@@ -2153,6 +2208,39 @@ def laboratory_index():
         patients=patients,
         doctors=doctors
     )
+
+@app.route("/laboratory/new", methods=["POST"])
+@login_required
+def lab_order_create():
+    """Create a new diagnostic lab order from the modal form."""
+    patient_id = request.form.get("patient_id")
+    doctor_id = request.form.get("doctor_id")
+    clinical_notes = request.form.get("clinical_notes", "")
+    test_ids = request.form.getlist("test_ids[]")
+
+    if not patient_id or not doctor_id or not test_ids:
+        flash("Patient, doctor, and at least one test are required.", "danger")
+        return redirect(url_for("laboratory_index"))
+
+    import uuid
+    order_number = f"LAB-{uuid.uuid4().hex[:6].upper()}"
+    facility_id = g.user.get("facility_id") if g.user else None
+
+    execute_db(
+        """INSERT INTO lab_orders (order_number, patient_id, doctor_id, facility_id, status, clinical_notes, ordered_at)
+           VALUES (?, ?, ?, ?, 'Ordered', ?, datetime('now'))""",
+        (order_number, patient_id, doctor_id, facility_id, clinical_notes)
+    )
+    order_id = query_db("SELECT last_insert_rowid() as id", one=True)["id"]
+
+    for test_id in test_ids:
+        execute_db(
+            "INSERT INTO lab_order_items (lab_order_id, test_id, status) VALUES (?, ?, 'Pending')",
+            (order_id, test_id)
+        )
+
+    flash(f"Lab order {order_number} created successfully.", "success")
+    return redirect(url_for("laboratory_index"))
 
 @app.route("/laboratory/order/<int:order_id>/collect", methods=["POST"])
 @login_required
@@ -2232,7 +2320,7 @@ def lab_report_view(order_id):
 # 14. BILLING & PUBLIC HEALTH SCHEMES (PM-JAY CASHLESS)
 # -----------------------------------------------------------------------------
 
-@app.route("/billing")
+@app.route("/billing", methods=["GET"])
 @login_required
 def billing_index():
     invoices = query_db(
@@ -2243,7 +2331,74 @@ def billing_index():
            ORDER BY inv.created_at DESC"""
     )
     patients = query_db("SELECT id, patient_uid, first_name, last_name, village, abha_id, socioeconomic_category FROM patients ORDER BY first_name")
-    return render_template("billing/index.html", invoices=invoices, patients=patients)
+
+    # Compute billing KPI aggregates
+    totals = query_db(
+        "SELECT COALESCE(SUM(total_amount),0) as billed, COALESCE(SUM(amount_paid),0) as collected FROM invoices",
+        one=True
+    )
+    total_billed = totals["billed"] if totals else 0.0
+    total_collected = totals["collected"] if totals else 0.0
+    total_outstanding = total_billed - total_collected
+
+    return render_template(
+        "billing/index.html",
+        invoices=invoices,
+        patients=patients,
+        total_billed=total_billed,
+        total_collected=total_collected,
+        total_outstanding=total_outstanding
+    )
+
+@app.route("/billing/new", methods=["POST"])
+@login_required
+def billing_create_invoice():
+    """Create a new itemized invoice from the modal form."""
+    patient_id = request.form.get("patient_id")
+    payment_method = request.form.get("payment_method", "Cash")
+    tax_percent = float(request.form.get("tax_percent", 5.0))
+    discount_amount = float(request.form.get("discount_amount", 0.0))
+    amount_paid = float(request.form.get("amount_paid", 0.0))
+    notes = request.form.get("notes", "")
+
+    item_types = request.form.getlist("item_type[]")
+    descriptions = request.form.getlist("description[]")
+    quantities = request.form.getlist("quantity[]")
+    unit_prices = request.form.getlist("unit_price[]")
+
+    if not patient_id or not item_types:
+        flash("Patient and at least one billing line item are required.", "danger")
+        return redirect(url_for("billing_index"))
+
+    # Compute totals
+    subtotal = sum(float(q) * float(p) for q, p in zip(quantities, unit_prices) if q and p)
+    tax_amount = round(subtotal * tax_percent / 100, 2)
+    total_amount = round(subtotal + tax_amount - discount_amount, 2)
+    status = "Paid" if amount_paid >= total_amount else ("Partially Paid" if amount_paid > 0 else "Pending")
+
+    import uuid
+    invoice_number = f"INV-{uuid.uuid4().hex[:8].upper()}"
+    facility_id = g.user.get("facility_id") if g.user else None
+
+    execute_db(
+        """INSERT INTO invoices (invoice_number, patient_id, facility_id, subtotal, tax_percent, tax_amount,
+           discount_amount, total_amount, amount_paid, status, payment_method, notes, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
+        (invoice_number, patient_id, facility_id, subtotal, tax_percent, tax_amount,
+         discount_amount, total_amount, amount_paid, status, payment_method, notes)
+    )
+    invoice_id = query_db("SELECT last_insert_rowid() as id", one=True)["id"]
+
+    for i_type, desc, qty, price in zip(item_types, descriptions, quantities, unit_prices):
+        if desc and qty and price:
+            line_total = float(qty) * float(price)
+            execute_db(
+                "INSERT INTO invoice_items (invoice_id, item_type, description, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?, ?)",
+                (invoice_id, i_type, desc, float(qty), float(price), line_total)
+            )
+
+    flash(f"Invoice {invoice_number} generated successfully.", "success")
+    return redirect(url_for("invoice_view", invoice_id=invoice_id))
 
 @app.route("/billing/invoice/<int:invoice_id>")
 @login_required
@@ -2266,6 +2421,29 @@ def invoice_view(invoice_id):
     items = query_db("SELECT * FROM invoice_items WHERE invoice_id = ?", (invoice_id,))
     return render_template("billing/invoice.html", invoice=invoice, items=items)
 
+@app.route("/billing/invoice/<int:invoice_id>/pay", methods=["POST"])
+@login_required
+def billing_record_payment(invoice_id):
+    pay_amount = float(request.form.get("pay_amount", 0.0) or 0.0)
+    payment_method = request.form.get("payment_method", "Cash")
+
+    inv = query_db("SELECT * FROM invoices WHERE id = ?", (invoice_id,), one=True)
+    if not inv:
+        flash("Invoice not found.", "danger")
+        return redirect(url_for("billing_index"))
+
+    new_paid = inv["amount_paid"] + pay_amount
+    new_status = "Paid" if new_paid >= inv["total_amount"] else "Partially Paid"
+
+    execute_db(
+        """UPDATE invoices
+           SET amount_paid = ?, status = ?, payment_method = ?, paid_at = datetime('now')
+           WHERE id = ?""",
+        (new_paid, new_status, payment_method, invoice_id)
+    )
+    flash(f"Payment of ${pay_amount:.2f} recorded successfully for Invoice {inv['invoice_number']}.", "success")
+    return redirect(url_for("invoice_view", invoice_id=invoice_id))
+
 
 # -----------------------------------------------------------------------------
 # 15. AUDIT TRAIL & SYSTEM SETTINGS
@@ -2284,12 +2462,20 @@ def audit_logs_view():
     )
     return render_template("settings/audit_logs.html", logs=logs)
 
-@app.route("/settings")
+@app.route("/settings", methods=["GET", "POST"])
 @login_required
 @roles_accepted("admin")
 def settings_view():
+    if request.method == "POST":
+        for k, v in request.form.items():
+            set_setting(k, v.strip())
+        flash("Hospital settings updated successfully.", "success")
+        return redirect(url_for("settings_view"))
+
+    settings_rows = query_db("SELECT key, value FROM hospital_settings")
+    settings = {r["key"]: r["value"] for r in settings_rows} if settings_rows else {}
     facilities = query_db("SELECT * FROM facilities ORDER BY id ASC")
-    return render_template("settings/index.html", facilities=facilities)
+    return render_template("settings/index.html", facilities=facilities, settings=settings)
 
 @app.route("/staff")
 @login_required
@@ -2306,5 +2492,42 @@ def staff_index():
     facilities = query_db("SELECT id, name, tier_type FROM facilities ORDER BY id")
     return render_template("staff/index.html", staff=staff, departments=departments, facilities=facilities)
 
+@app.route("/staff/new", methods=["POST"])
+@login_required
+@roles_accepted("admin")
+def staff_create():
+    full_name = request.form.get("full_name", "").strip()
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "password123").strip()
+    role = request.form.get("role", "doctor")
+    department_id = request.form.get("department_id") or None
+    facility_id = request.form.get("facility_id") or session.get("facility_id") or 1
+    email = request.form.get("email", "").strip()
+    phone = request.form.get("phone", "").strip()
+    specialization = request.form.get("specialization", "").strip()
+    license_number = request.form.get("license_number", "").strip()
+    consultation_fee = float(request.form.get("consultation_fee", 0.0) or 0.0)
+
+    if not full_name or not username:
+        flash("Full name and username are required.", "danger")
+        return redirect(url_for("staff_index"))
+
+    existing = query_db("SELECT id FROM users WHERE username = ?", (username,), one=True)
+    if existing:
+        flash(f"Username '{username}' already exists.", "danger")
+        return redirect(url_for("staff_index"))
+
+    from werkzeug.security import generate_password_hash
+    pwd_hash = generate_password_hash(password)
+
+    execute_db(
+        """INSERT INTO users (username, password_hash, full_name, email, phone, role, facility_id, department_id, specialization, license_number, consultation_fee, is_active, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))""",
+        (username, pwd_hash, full_name, email, phone, role, facility_id, department_id, specialization, license_number, consultation_fee)
+    )
+    flash(f"Staff member '{full_name}' ({role}) registered successfully.", "success")
+    return redirect(url_for("staff_index"))
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
+

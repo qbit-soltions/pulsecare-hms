@@ -9,7 +9,7 @@
     <div class="card-custom">
       <div class="card-header-custom">
         <h6 class="fw-bold m-0"><i class="bi bi-person-lines-fill text-primary me-2"></i>Patient Demographic & Clinical Information</h6>
-        <a href="{{ url_for('patients_list') }}" class="btn btn-sm btn-outline-secondary">
+        <a href="{{ url_for('patients_index') }}" class="btn btn-sm btn-outline-secondary">
           <i class="bi bi-arrow-left me-1"></i> Back to Directory
         </a>
       </div>
@@ -108,7 +108,7 @@
           </div>
 
           <div class="d-flex justify-content-end gap-2 border-top pt-3">
-            <a href="{{ url_for('patients_list') }}" class="btn btn-sm btn-secondary px-4">Cancel</a>
+            <a href="{{ url_for('patients_index') }}" class="btn btn-sm btn-secondary px-4">Cancel</a>
             <button type="submit" class="btn btn-sm btn-primary px-4 fw-semibold">
               <i class="bi bi-check2-circle me-1"></i> Save Patient Record
             </button>

@@ -53,7 +53,7 @@
           </span>
 
           {% if lo.status == 'Ordered' and current_user and current_user.role in ['admin', 'lab_tech', 'nurse'] %}
-          <form method="POST" action="{{ url_for('lab_collect_sample', order_id=lo.id) }}">
+          <form method="POST" action="{{ url_for('lab_sample_collect', order_id=lo.id) }}">
             <button type="submit" class="btn btn-sm btn-outline-info">
               <i class="bi bi-droplet-half me-1"></i> Collect Sample
             </button>
@@ -113,7 +113,7 @@
             <div class="modal fade" id="resultModal_{{ item.id }}" tabindex="-1">
               <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">
-                  <form method="POST" action="{{ url_for('lab_save_result', item_id=item.id) }}">
+                  <form method="POST" action="{{ url_for('lab_result_entry', item_id=item.id) }}">
                     <div class="modal-header bg-light">
                       <div>
                         <h5 class="modal-title fw-bold fs-6">{{ item.test_name }} ({{ item.test_code }})</h5>

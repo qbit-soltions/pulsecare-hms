@@ -123,7 +123,7 @@
           </td>
           <td><span class="badge bg-light text-secondary border">{{ inv.payment_method or 'Pending' }}</span></td>
           <td class="text-end">
-            <a href="{{ url_for('billing_invoice_view', invoice_id=inv.id) }}" class="btn btn-sm btn-outline-primary py-1 px-3">
+            <a href="{{ url_for('invoice_view', invoice_id=inv.id) }}" class="btn btn-sm btn-outline-primary py-1 px-3">
               <i class="bi bi-receipt me-1"></i> View / Print Bill
             </a>
           </td>

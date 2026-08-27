@@ -13,7 +13,7 @@
 
     <!-- Filter Bar -->
     <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
-      <form method="GET" action="{{ url_for('appointments_list') }}" class="d-flex align-items-center gap-2 flex-wrap">
+      <form method="GET" action="{{ url_for('appointments_index') }}" class="d-flex align-items-center gap-2 flex-wrap">
         <input type="date" name="date" class="form-control form-control-sm" style="width: 150px;" value="{{ date_filter }}" onchange="this.form.submit()">
 
         <select name="doctor_id" class="form-select form-select-sm" style="width: 170px;" onchange="this.form.submit()">
@@ -40,11 +40,11 @@
         </select>
 
         {% if date_filter or doc_filter or dept_filter or status_filter %}
-        <a href="{{ url_for('appointments_list') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        <a href="{{ url_for('appointments_index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
         {% endif %}
       </form>
 
-      <a href="{{ url_for('opd_queue_screen') }}" target="_blank" class="btn btn-sm btn-outline-info">
+      <a href="{{ url_for('appointments_queue') }}" target="_blank" class="btn btn-sm btn-outline-info">
         <i class="bi bi-display me-1"></i> Live Waiting Board
       </a>
 
@@ -112,7 +112,7 @@
           </td>
           <td class="text-end">
             {% if current_user and current_user.role in ['admin', 'doctor'] %}
-            <a href="{{ url_for('consultation_create', appointment_id=a.id, patient_id=a.patient_id) }}" class="btn btn-sm btn-primary py-1 px-2" title="Start Consultation">
+            <a href="{{ url_for('patient_view', patient_id=a.patient_id) }}" class="btn btn-sm btn-primary py-1 px-2" title="Start Consultation">
               <i class="bi bi-clipboard2-pulse me-1"></i> Consult
             </a>
             {% endif %}
