@@ -31,7 +31,8 @@
 {% if current_user and current_user.role == 'patient' %}
 <div class="row g-4">
   <div class="col-lg-4">
-    <div class="card border-0 shadow-sm rounded-3 p-4 text-center bg-white">
+    <div class="card border-0 shadow-sm rounded-3 p-4 text-center bg-white"
+         data-voice-region="Patient Health Card. Name: {{ patient_data.first_name }} {{ patient_data.last_name }}. Patient ID: {{ patient_data.patient_uid }}. ABHA ID: {{ patient_data.abha_id or 'Not yet assigned' }}. Blood Group: {{ patient_data.blood_group or 'O positive' }}. Village: {{ patient_data.village }}. Phone: {{ patient_data.phone }}. Health Scheme: {{ patient_data.socioeconomic_category }}. High Risk Status: {{ patient_data.high_risk_category or 'Standard' }}.">
       <img src="{{ current_user.avatar_url or 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150' }}" alt="Profile" class="rounded-circle mb-3 border border-3 border-primary shadow-sm" style="width: 90px; height: 90px; object-fit: cover;">
       <h5 class="fw-bold mb-1">{{ patient_data.first_name }} {{ patient_data.last_name }}</h5>
       <div class="badge bg-primary px-3 py-1 rounded-pill mb-2">{{ patient_data.patient_uid }}</div>
@@ -40,6 +41,12 @@
         <i class="bi bi-qr-code me-1"></i>ABHA: {{ patient_data.abha_id }}
       </div>
       {% endif %}
+
+      <!-- 🔊 Patient Card Listen Button -->
+      <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-3 btn-speak-text"
+              data-speak="Your name is {{ patient_data.first_name }} {{ patient_data.last_name }}. Your Patient ID is {{ patient_data.patient_uid }}. Your ABHA health ID is {{ patient_data.abha_id or 'not yet assigned' }}. Blood group: {{ patient_data.blood_group or 'O positive' }}. Village: {{ patient_data.village }}. Health scheme: {{ patient_data.socioeconomic_category }}.">
+        <i class="bi bi-volume-up-fill me-1"></i> Listen to My Health Card
+      </button>
 
       <div class="text-start border-top pt-3 fs-7">
         <div class="d-flex justify-content-between py-1 border-bottom">
@@ -106,12 +113,17 @@
     <div class="row g-3">
       <div class="col-md-6">
         <div class="card border-0 shadow-sm rounded-3 h-100">
-          <div class="card-header bg-white py-3 border-bottom">
+          <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-bold"><i class="bi bi-capsule text-warning me-2"></i>My Prescriptions</h6>
+            <button type="button" class="btn btn-xs btn-outline-warning btn-speak-text"
+                    data-speak="Your active prescriptions. {% for rx in patient_prescriptions %}Prescription {{ rx.prescription_number }} prescribed by Doctor {{ rx.doctor_name }}, status {{ rx.status }}. {% else %}No active prescriptions.{% endfor %}">
+              <i class="bi bi-volume-up-fill me-1"></i> Listen
+            </button>
           </div>
           <div class="p-3 fs-7">
             {% for rx in patient_prescriptions %}
-            <div class="border rounded p-2 mb-2 bg-light">
+            <div class="border rounded p-2 mb-2 bg-light"
+                 data-voice-region="Prescription {{ rx.prescription_number }}. Prescribed by Doctor {{ rx.doctor_name }}. Status: {{ rx.status }}.">
               <div class="fw-bold text-primary">{{ rx.prescription_number }}</div>
               <div class="text-muted fs-8">Prescribed by Dr. {{ rx.doctor_name }} • {{ rx.created_at | format_date }}</div>
               <div class="badge bg-success mt-1">{{ rx.status }}</div>
@@ -125,12 +137,17 @@
 
       <div class="col-md-6">
         <div class="card border-0 shadow-sm rounded-3 h-100">
-          <div class="card-header bg-white py-3 border-bottom">
+          <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-bold"><i class="bi bi-arrow-left-right text-danger me-2"></i>My Referrals</h6>
+            <button type="button" class="btn btn-xs btn-outline-danger btn-speak-text"
+                    data-speak="Your referral transfers. {% for r in patient_referrals %}Referral {{ r.referral_uid }}, referred to {{ r.to_facility_name }}, status {{ r.status }}. {% else %}No referral transfers found.{% endfor %}">
+              <i class="bi bi-volume-up-fill me-1"></i> Listen
+            </button>
           </div>
           <div class="p-3 fs-7">
             {% for r in patient_referrals %}
-            <div class="border rounded p-2 mb-2 bg-light">
+            <div class="border rounded p-2 mb-2 bg-light"
+                 data-voice-region="Referral {{ r.referral_uid }}. Referred to: {{ r.to_facility_name }}. Status: {{ r.status }}.">
               <div class="fw-bold text-dark">{{ r.referral_uid }}</div>
               <div class="text-muted fs-8">Referred to: {{ r.to_facility_name }}</div>
               <div class="badge bg-warning text-dark mt-1">{{ r.status }}</div>
@@ -153,9 +170,18 @@
 
 <!-- PUBLIC HEALTH NETWORK KPI CARDS -->
 <div class="row g-3 mb-4">
+
+  <!-- 🔊 Single "Listen to Network Status" button covering all 4 KPIs -->
+  <div class="col-12">
+    <button type="button" class="btn btn-sm btn-outline-primary btn-speak-text"
+            data-speak="Network Status. Active Teleconsultations: {{ kpis.active_teleconsults }}. Pending Referrals: {{ kpis.pending_referrals }}. High Risk Patients under surveillance: {{ kpis.high_risk_patients }}. Bed Occupancy: {{ kpis.occupied_beds }} occupied out of {{ kpis.total_beds }} total beds.">
+      <i class="bi bi-volume-up-fill me-1"></i> Listen to Network Status
+    </button>
+  </div>
   
   <div class="col-6 col-lg-3">
-    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-primary">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-primary"
+         data-voice-region="Active Teleconsults: {{ kpis.active_teleconsults }}.">
       <div class="d-flex justify-content-between align-items-center">
         <div>
           <div class="text-muted fs-8 text-uppercase fw-semibold">Active Teleconsults</div>
@@ -170,7 +196,8 @@
   </div>
 
   <div class="col-6 col-lg-3">
-    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-warning">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-warning"
+         data-voice-region="Pending Referrals: {{ kpis.pending_referrals }}.">
       <div class="d-flex justify-content-between align-items-center">
         <div>
           <div class="text-muted fs-8 text-uppercase fw-semibold">Pending Referrals</div>
@@ -185,7 +212,8 @@
   </div>
 
   <div class="col-6 col-lg-3">
-    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-danger">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-danger"
+         data-voice-region="High Risk Patients under surveillance: {{ kpis.high_risk_patients }}.">
       <div class="d-flex justify-content-between align-items-center">
         <div>
           <div class="text-muted fs-8 text-uppercase fw-semibold">High-Risk Surveillance</div>
@@ -200,7 +228,8 @@
   </div>
 
   <div class="col-6 col-lg-3">
-    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-success">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-success"
+         data-voice-region="Bed Occupancy: {{ kpis.occupied_beds }} occupied out of {{ kpis.total_beds }} total beds.">
       <div class="d-flex justify-content-between align-items-center">
         <div>
           <div class="text-muted fs-8 text-uppercase fw-semibold">Network Bed Occupancy</div>
@@ -321,11 +350,18 @@
     <div class="card border-0 shadow-sm rounded-3 mb-4">
       <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-bold text-danger"><i class="bi bi-shield-fill-exclamation me-2"></i>High-Risk Surveillance Cohort</h6>
-        <a href="{{ url_for('high_risk_index') }}" class="btn btn-xs btn-outline-danger">Manage All</a>
+        <div class="d-flex gap-2 align-items-center">
+          <button type="button" class="btn btn-xs btn-outline-danger btn-speak-text"
+                  data-speak="High Risk Surveillance. {% for hr in high_risk_list %}Patient {{ hr.first_name }} {{ hr.last_name }} from {{ hr.village }}, category {{ hr.category }}, severity score {{ hr.severity_score }} out of 5. Risk factors: {{ hr.risk_factors }}. Follow-up due: {{ hr.next_followup_date | format_date }}. {% else %}No high risk patients currently registered.{% endfor %}">
+            <i class="bi bi-volume-up-fill me-1"></i> Listen
+          </button>
+          <a href="{{ url_for('high_risk_index') }}" class="btn btn-xs btn-outline-danger">Manage All</a>
+        </div>
       </div>
       <div class="p-3 fs-7">
         {% for hr in high_risk_list %}
-        <div class="border rounded p-2 mb-2 bg-light">
+        <div class="border rounded p-2 mb-2 bg-light"
+             data-voice-region="Patient {{ hr.first_name }} {{ hr.last_name }}, village {{ hr.village }}. Category: {{ hr.category }}. Severity score: {{ hr.severity_score }} out of 5. Risk factors: {{ hr.risk_factors }}. Follow-up due: {{ hr.next_followup_date | format_date }}.">
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <div class="fw-bold text-dark">{{ hr.first_name }} {{ hr.last_name }} ({{ hr.village }})</div>

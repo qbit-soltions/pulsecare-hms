@@ -53,9 +53,17 @@
         <div class="text-info fs-6 fw-semibold">OPD QUEUE & TOKEN DISPATCH DISPLAY (AUTO-REFRESHING)</div>
       </div>
     </div>
-    <div class="text-end">
-      <h3 class="fw-bold mb-0 text-white" id="clock-display"></h3>
-      <small class="text-white-50">{{ today_date | format_date("%A, %B %d, %Y") }}</small>
+    <div class="d-flex align-items-center gap-3">
+      <!-- 🔊 OPD Listen Button -->
+      <button type="button" class="btn btn-sm btn-outline-light btn-speak-text"
+              onclick="window.PulseCareVoice && window.PulseCareVoice.readPage()"
+              title="Speak Aloud OPD Queue">
+        <i class="bi bi-volume-up-fill me-1"></i> Speak Queue
+      </button>
+      <div class="text-end">
+        <h3 class="fw-bold mb-0 text-white" id="clock-display"></h3>
+        <small class="text-white-50">{{ today_date | format_date("%A, %B %d, %Y") }}</small>
+      </div>
     </div>
   </div>
 
@@ -70,7 +78,8 @@
 
         {% set in_consult = queue | selectattr("status", "equalto", "In Consultation") | list %}
         {% for a in in_consult %}
-        <div class="queue-card-tv in-consultation mb-3">
+        <div class="queue-card-tv in-consultation mb-3"
+             data-voice-region="Now calling Token number {{ a.token_number }}. Patient: {{ a.first_name }} {{ a.last_name }}. Doctor: {{ a.doctor_name }}, {{ a.department_name }}. Please proceed to the consultation chamber.">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="badge bg-warning text-dark fs-5 fw-bold px-3 py-1 rounded-pill">TOKEN #{{ a.token_number }}</span>
             <span class="badge bg-light text-dark fw-bold px-3 py-1 fs-6">CHAMBER ACTIVE</span>
@@ -101,7 +110,8 @@
           {% set waiting = queue | rejectattr("status", "equalto", "In Consultation") | list %}
           {% for a in waiting %}
           <div class="col-md-6">
-            <div class="queue-card-tv">
+            <div class="queue-card-tv"
+                 data-voice-region="Token number {{ a.token_number }} for {{ a.first_name }} {{ a.last_name }}, appointment with Doctor {{ a.doctor_name }}, {{ a.department_name }}, at {{ a.appointment_time }}. Status: {{ a.status }}.">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="badge bg-primary fs-5 px-3 py-1 rounded-pill">Token #{{ a.token_number }}</span>
                 <span class="badge bg-secondary">{{ a.status }}</span>
