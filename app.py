@@ -624,46 +624,112 @@ def login():
     )
     return render_template("auth/login.html", staff_directory=staff_directory)
 
-@app.route("/switch-role", methods=["POST"])
+@app.route("/profile", methods=["GET", "POST"])
 @login_required
-def switch_role():
-    """Secure role and workspace switcher with password verification."""
-    username = request.form.get("username", "").strip()
-    password = request.form.get("password", "").strip()
-    next_url = request.form.get("next_url") or url_for("dashboard")
+def user_profile():
+    """User profile management and security settings."""
+    user_id = session.get("user_id")
+    user = query_db("SELECT * FROM users WHERE id = ?", (user_id,), one=True)
+    if not user:
+        flash("User profile not found.", "danger")
+        return redirect(url_for("login"))
 
-    if not username or not password:
-        flash("Username and password are required to switch accounts.", "danger")
-        return redirect(request.referrer or url_for("dashboard"))
+    facility = query_db("SELECT * FROM facilities WHERE id = ?", (user["facility_id"],), one=True) if user["facility_id"] else None
+    department = query_db("SELECT * FROM departments WHERE id = ?", (user["department_id"],), one=True) if user["department_id"] else None
+    patient = query_db("SELECT * FROM patients WHERE user_id = ? OR phone = ? OR email = ?", (user_id, user["phone"], user["email"]), one=True) if user["role"] == "patient" else None
 
-    user = query_db(
-        """SELECT u.*, f.name as facility_name, f.tier_type as facility_tier
-           FROM users u LEFT JOIN facilities f ON u.facility_id = f.id
-           WHERE u.username = ? AND u.is_active = 1""",
-        (username,), one=True
+    if request.method == "POST":
+        action = request.form.get("action", "update_profile")
+        
+        if action == "update_profile":
+            full_name = request.form.get("full_name", "").strip()
+            email = request.form.get("email", "").strip()
+            phone = request.form.get("phone", "").strip()
+            avatar_url = request.form.get("avatar_url", "").strip()
+            specialization = request.form.get("specialization", "").strip()
+            qualification = request.form.get("qualification", "").strip()
+            license_number = request.form.get("license_number", "").strip()
+            try:
+                consultation_fee = float(request.form.get("consultation_fee") or 0.0)
+            except ValueError:
+                consultation_fee = 0.0
+
+            if not full_name:
+                flash("Full name cannot be empty.", "danger")
+                return redirect(url_for("user_profile"))
+
+            execute_db(
+                """UPDATE users SET full_name = ?, email = ?, phone = ?, avatar_url = ?,
+                                  specialization = ?, qualification = ?, license_number = ?, consultation_fee = ?
+                   WHERE id = ?""",
+                (full_name, email, phone, avatar_url, specialization, qualification, license_number, consultation_fee, user_id)
+            )
+
+            # Update patient table if patient
+            if user["role"] == "patient" and patient:
+                dob = request.form.get("dob") or patient["dob"]
+                gender = request.form.get("gender") or patient["gender"]
+                blood_group = request.form.get("blood_group") or patient["blood_group"]
+                village = request.form.get("village", "").strip()
+                panchayat = request.form.get("panchayat", "").strip()
+                address = request.form.get("address", "").strip()
+                emergency_name = request.form.get("emergency_contact_name", "").strip()
+                emergency_phone = request.form.get("emergency_contact_phone", "").strip()
+                emergency_rel = request.form.get("emergency_contact_relation", "").strip()
+                abha_id = request.form.get("abha_id", "").strip()
+                allergies = request.form.get("allergies", "").strip()
+                chronic_conditions = request.form.get("chronic_conditions", "").strip()
+
+                name_parts = full_name.split(" ", 1)
+                first_name = name_parts[0]
+                last_name = name_parts[1] if len(name_parts) > 1 else ""
+
+                execute_db(
+                    """UPDATE patients SET first_name = ?, last_name = ?, email = ?, phone = ?,
+                                          dob = ?, gender = ?, blood_group = ?, village = ?, panchayat = ?, address = ?,
+                                          emergency_contact_name = ?, emergency_contact_phone = ?, emergency_contact_relation = ?,
+                                          abha_id = ?, allergies = ?, chronic_conditions = ?
+                       WHERE id = ?""",
+                    (first_name, last_name, email, phone, dob, gender, blood_group, village, panchayat, address,
+                     emergency_name, emergency_phone, emergency_rel, abha_id, allergies, chronic_conditions, patient["id"])
+                )
+
+            session["full_name"] = full_name
+            log_audit(user_id, "Update Profile", "User", f"Profile details updated by {full_name}", request.remote_addr, user["facility_id"])
+            flash("Your profile information has been successfully updated!", "success")
+            return redirect(url_for("user_profile"))
+
+        elif action == "change_password":
+            current_password = request.form.get("current_password", "")
+            new_password = request.form.get("new_password", "")
+            confirm_password = request.form.get("confirm_password", "")
+
+            if not check_password_hash(user["password_hash"], current_password):
+                flash("Current password verification failed. Please enter your correct current password.", "danger")
+                return redirect(url_for("user_profile") + "#security")
+
+            if len(new_password) < 6:
+                flash("New password must be at least 6 characters long.", "warning")
+                return redirect(url_for("user_profile") + "#security")
+
+            if new_password != confirm_password:
+                flash("New password and confirmation password do not match.", "danger")
+                return redirect(url_for("user_profile") + "#security")
+
+            new_hash = generate_password_hash(new_password)
+            execute_db("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
+            log_audit(user_id, "Change Password", "Auth", "Account password updated successfully", request.remote_addr, user["facility_id"])
+            flash("Your password has been changed securely! Please use your new password next time you sign in.", "success")
+            return redirect(url_for("user_profile") + "#security")
+
+    return render_template(
+        "profile/index.html",
+        user=user,
+        facility=facility,
+        department=department,
+        patient=patient
     )
-    if user and check_password_hash(user["password_hash"], password):
-        session["user_id"] = user["id"]
-        session["username"] = user["username"]
-        session["user_role"] = user["role"]
-        session["full_name"] = user["full_name"]
-        session["facility_id"] = user["facility_id"]
-        session.permanent = True
 
-        facility_label = user.get("facility_name") or "District Health Directorate"
-        role_label = user["role"].replace("_", " ").title()
-        log_audit(user["id"], "Account Switch", "Auth", f"Authenticated portal switch to {username} ({user['role']})", request.remote_addr, user["facility_id"])
-        flash(f"Authenticated successfully! Switched portal to {user['full_name']} ({role_label}) — {facility_label}.", "success")
-        return redirect(next_url)
-    else:
-        flash(f"Authentication failed: Incorrect password for account '{username}'. Please try again.", "danger")
-        return redirect(request.referrer or url_for("dashboard"))
-
-@app.route("/switch-role/<role>", methods=["GET"])
-@login_required
-def switch_role_get(role):
-    flash("Please authenticate with your account password to switch operational portals.", "info")
-    return redirect(request.referrer or url_for("dashboard"))
 
 
 @app.route("/logout")

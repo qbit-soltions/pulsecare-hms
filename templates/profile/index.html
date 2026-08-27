@@ -1,0 +1,564 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile & Account Settings{% endblock %}
+{% block header_title %}Account Profile & Settings{% endblock %}
+{% block header_subtitle %}Manage your personal details, credentials, security, and facility preferences{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0" data-voice-region="Account Profile and Settings for {{ user.full_name }}. Role: {{ user.role }}. Facility: {{ facility.name if facility else 'District Health Network' }}.">
+
+  <!-- Top Breadcrumb -->
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb fs-8">
+      <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}" class="text-decoration-none">Dashboard</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Account Profile</li>
+    </ol>
+  </nav>
+
+  <!-- Profile Hero Header Banner -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 60%, #0f172a 100%);">
+    <div class="card-body p-4 text-white position-relative">
+      <div class="row align-items-center g-3">
+        <div class="col-auto">
+          <div class="position-relative">
+            <img src="{{ user.avatar_url or 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200' }}"
+                 alt="{{ user.full_name }}"
+                 id="hero-avatar-preview"
+                 class="rounded-circle border border-3 border-white shadow"
+                 width="90" height="90" style="object-fit: cover;">
+            <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-2 border-white rounded-circle" title="Account Active">
+              <span class="visually-hidden">Active</span>
+            </span>
+          </div>
+        </div>
+        <div class="col">
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+            <h3 class="fw-bold mb-0 text-white">{{ user.full_name }}</h3>
+            <span class="badge bg-white text-primary fw-bold fs-8 text-uppercase px-2 py-1 shadow-sm">
+              <i class="bi bi-person-badge me-1"></i>{{ user.role.replace('_', ' ') }}
+            </span>
+            {% if user.specialization %}
+            <span class="badge bg-info-subtle text-info border border-info-subtle fs-8 px-2 py-1">
+              {{ user.specialization }}
+            </span>
+            {% endif %}
+          </div>
+          <div class="d-flex align-items-center gap-3 text-white-50 fs-8 flex-wrap">
+            <span><i class="bi bi-person-fill text-white me-1"></i>Username: <strong class="text-white">@{{ user.username }}</strong></span>
+            <span><i class="bi bi-envelope text-white me-1"></i>{{ user.email or 'No email linked' }}</span>
+            <span><i class="bi bi-telephone text-white me-1"></i>{{ user.phone or 'No phone linked' }}</span>
+            <span><i class="bi bi-hospital text-white me-1"></i>{{ facility.name if facility else 'Central Directorate' }} ({{ facility.tier_type if facility else 'Tiered Network' }})</span>
+          </div>
+        </div>
+        <div class="col-lg-auto text-lg-end">
+          <div class="p-2 px-3 bg-white bg-opacity-10 rounded-3 border border-white border-opacity-15 text-center">
+            <div class="text-white-50 fs-9 text-uppercase fw-semibold">Member Since</div>
+            <div class="fw-bold text-white fs-7">{{ user.created_at | format_date("%B %Y") }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <div class="row g-4">
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm rounded-4 p-2 sticky-top" style="top: 80px; z-index: 10;">
+        <div class="nav flex-column nav-pills gap-1" id="profile-tabs" role="tablist">
+          <button class="nav-link active d-flex align-items-center gap-2 py-2 px-3 text-start rounded-3" id="tab-info-btn" data-bs-toggle="pill" data-bs-target="#tab-info" type="button" role="tab">
+            <i class="bi bi-person-gear fs-5 text-primary"></i>
+            <div>
+              <div class="fw-semibold fs-7">Personal & Professional Details</div>
+              <small class="text-muted fs-9">Name, Contact & Qualifications</small>
+            </div>
+          </button>
+
+          {% if user.role == 'patient' or patient %}
+          <button class="nav-link d-flex align-items-center gap-2 py-2 px-3 text-start rounded-3" id="tab-patient-btn" data-bs-toggle="pill" data-bs-target="#tab-patient" type="button" role="tab">
+            <i class="bi bi-heart-pulse fs-5 text-danger"></i>
+            <div>
+              <div class="fw-semibold fs-7">Health Identity & Demographics</div>
+              <small class="text-muted fs-9">ABHA ID, Village & Vitals</small>
+            </div>
+          </button>
+          {% endif %}
+
+          <button class="nav-link d-flex align-items-center gap-2 py-2 px-3 text-start rounded-3" id="tab-security-btn" data-bs-toggle="pill" data-bs-target="#tab-security" type="button" role="tab">
+            <i class="bi bi-shield-lock fs-5 text-warning"></i>
+            <div>
+              <div class="fw-semibold fs-7">Security & Password</div>
+              <small class="text-muted fs-9">Update account password</small>
+            </div>
+          </button>
+
+          <button class="nav-link d-flex align-items-center gap-2 py-2 px-3 text-start rounded-3" id="tab-facility-btn" data-bs-toggle="pill" data-bs-target="#tab-facility" type="button" role="tab">
+            <i class="bi bi-building fs-5 text-info"></i>
+            <div>
+              <div class="fw-semibold fs-7">Facility & Role Permissions</div>
+              <small class="text-muted fs-9">Institutional node & access</small>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Contents -->
+    <div class="col-lg-9">
+      <div class="tab-content" id="profile-tab-content">
+
+        <!-- ── TAB 1: PERSONAL & PROFESSIONAL DETAILS ── -->
+        <div class="tab-pane fade show active" id="tab-info" role="tabpanel">
+          <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-pencil-square text-primary fs-5"></i>
+                <h6 class="fw-bold m-0 text-dark">Edit Profile Information</h6>
+              </div>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">Profile Details</span>
+            </div>
+
+            <div class="card-body p-4">
+              <form method="POST" action="{{ url_for('user_profile') }}">
+                <input type="hidden" name="action" value="update_profile">
+
+                <div class="row g-3">
+                  <!-- Full Name -->
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Full Name <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-light"><i class="bi bi-person text-muted"></i></span>
+                      <input type="text" name="full_name" class="form-control" value="{{ user.full_name }}" required>
+                    </div>
+                  </div>
+
+                  <!-- Username (Readonly) -->
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">System Username</label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-light"><i class="bi bi-at text-muted"></i></span>
+                      <input type="text" class="form-control bg-light" value="{{ user.username }}" readonly disabled>
+                    </div>
+                    <small class="text-muted fs-9">Username is fixed for audit trail consistency.</small>
+                  </div>
+
+                  <!-- Email Address -->
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Email Address</label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-light"><i class="bi bi-envelope text-muted"></i></span>
+                      <input type="email" name="email" class="form-control" value="{{ user.email or '' }}" placeholder="doctor@pulsecare.gov.in">
+                    </div>
+                  </div>
+
+                  <!-- Phone Number -->
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Mobile / Phone Number</label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-light"><i class="bi bi-telephone text-muted"></i></span>
+                      <input type="tel" name="phone" class="form-control" value="{{ user.phone or '' }}" placeholder="+91 9876543210">
+                    </div>
+                  </div>
+
+                  <!-- Avatar Image URL & Selector -->
+                  <div class="col-12">
+                    <label class="form-label fw-semibold fs-7 text-dark">Profile Picture URL</label>
+                    <div class="input-group mb-2">
+                      <span class="input-group-text bg-light"><i class="bi bi-image text-muted"></i></span>
+                      <input type="url" name="avatar_url" id="avatar-input" class="form-control" value="{{ user.avatar_url or '' }}" placeholder="https://..." oninput="updateAvatarPreview(this.value)">
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <small class="text-muted fs-9 me-2">Quick Avatar Presets:</small>
+                      <button type="button" class="btn btn-xs btn-outline-secondary" onclick="setAvatar('https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200')">Doctor Male</button>
+                      <button type="button" class="btn btn-xs btn-outline-secondary" onclick="setAvatar('https://images.unsplash.com/photo-1594824813596-f571b0589a87?w=200')">Doctor Female</button>
+                      <button type="button" class="btn btn-xs btn-outline-secondary" onclick="setAvatar('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200')">ASHA / CHO</button>
+                      <button type="button" class="btn btn-xs btn-outline-secondary" onclick="setAvatar('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200')">Nurse</button>
+                      <button type="button" class="btn btn-xs btn-outline-secondary" onclick="setAvatar('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200')">Default Staff</button>
+                    </div>
+                  </div>
+
+                  <!-- ── CLINICAL CREDENTIALS (for medical & clinical staff) ── -->
+                  {% if user.role in ['doctor', 'medical_officer', 'asha_cho', 'nurse', 'pharmacist', 'lab_tech', 'admin'] %}
+                  <div class="col-12 mt-4">
+                    <div class="border-top pt-3 mb-2">
+                      <h6 class="fw-bold text-dark fs-7 mb-1"><i class="bi bi-award-fill text-primary me-2"></i>Institutional & Clinical Credentials</h6>
+                      <p class="text-muted fs-8 mb-0">These credentials appear on digitally signed teleconsultations, prescriptions, and referral slips.</p>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Clinical Specialization / Designation</label>
+                    <input type="text" name="specialization" class="form-control" value="{{ user.specialization or '' }}" placeholder="e.g. Cardiology, OBGYN, Primary Care">
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Medical Qualifications / Degrees</label>
+                    <input type="text" name="qualification" class="form-control" value="{{ user.qualification or '' }}" placeholder="e.g. MBBS, MD, MS, DNB, B.Sc Nursing">
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Medical Council Registration / License No.</label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-light"><i class="bi bi-card-checklist text-muted"></i></span>
+                      <input type="text" name="license_number" class="form-control" value="{{ user.license_number or '' }}" placeholder="e.g. MCI-2018-84729">
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Standard Teleconsultation Fee ({{ currency }})</label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-light">{{ currency }}</span>
+                      <input type="number" step="0.5" name="consultation_fee" class="form-control" value="{{ user.consultation_fee or 0.0 }}" placeholder="0.00">
+                    </div>
+                    <small class="text-muted fs-9">Set to 0.00 for free public health teleconsultation.</small>
+                  </div>
+                  {% endif %}
+
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm px-3">Cancel</a>
+                  <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold">
+                    <i class="bi bi-check-circle-fill me-1"></i>Save Profile Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── TAB 2: HEALTH IDENTITY & DEMOGRAPHICS (PATIENT ONLY) ── -->
+        {% if user.role == 'patient' or patient %}
+        <div class="tab-pane fade" id="tab-patient" role="tabpanel">
+          <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-person-vcard text-danger fs-5"></i>
+                <h6 class="fw-bold m-0 text-dark">Health Identity & Rural Demographics</h6>
+              </div>
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8">ABDM & EHR</span>
+            </div>
+
+            <div class="card-body p-4">
+              <form method="POST" action="{{ url_for('user_profile') }}">
+                <input type="hidden" name="action" value="update_profile">
+                <input type="hidden" name="full_name" value="{{ user.full_name }}">
+                <input type="hidden" name="email" value="{{ user.email or '' }}">
+                <input type="hidden" name="phone" value="{{ user.phone or '' }}">
+                <input type="hidden" name="avatar_url" value="{{ user.avatar_url or '' }}">
+
+                <div class="row g-3">
+                  <!-- ABHA ID -->
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Ayushman Bharat Health Account (ABHA ID)</label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-light text-primary"><i class="bi bi-shield-check"></i></span>
+                      <input type="text" name="abha_id" class="form-control fw-bold" value="{{ patient.abha_id if patient else '' }}" placeholder="91-XXXX-XXXX-XXXX">
+                    </div>
+                    <small class="text-muted fs-9">National 14-digit ABHA ID issued by NHA.</small>
+                  </div>
+
+                  <!-- Blood Group -->
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Blood Group</label>
+                    <select name="blood_group" class="form-select">
+                      <option value="">Select Blood Group</option>
+                      {% for bg in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] %}
+                      <option value="{{ bg }}" {% if patient and patient.blood_group == bg %}selected{% endif %}>{{ bg }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+
+                  <!-- Date of Birth -->
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Date of Birth</label>
+                    <input type="date" name="dob" class="form-control" value="{{ patient.dob if patient else '' }}">
+                  </div>
+
+                  <!-- Gender -->
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Gender</label>
+                    <select name="gender" class="form-select">
+                      <option value="Female" {% if patient and patient.gender == 'Female' %}selected{% endif %}>Female</option>
+                      <option value="Male" {% if patient and patient.gender == 'Male' %}selected{% endif %}>Male</option>
+                      <option value="Other" {% if patient and patient.gender == 'Other' %}selected{% endif %}>Other</option>
+                    </select>
+                  </div>
+
+                  <!-- Village & Panchayat -->
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Village / Hamlet</label>
+                    <input type="text" name="village" class="form-control" value="{{ patient.village if patient else '' }}" placeholder="e.g. Rampur Village">
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Gram Panchayat / Block</label>
+                    <input type="text" name="panchayat" class="form-control" value="{{ patient.panchayat if patient else '' }}" placeholder="e.g. Chandpur Panchayat">
+                  </div>
+
+                  <!-- Residential Address -->
+                  <div class="col-12">
+                    <label class="form-label fw-semibold fs-7 text-dark">Full Residential Address</label>
+                    <input type="text" name="address" class="form-control" value="{{ patient.address if patient else '' }}" placeholder="House / Lane / Landmark">
+                  </div>
+
+                  <!-- Emergency Contact Details -->
+                  <div class="col-12 mt-3">
+                    <div class="border-top pt-3 mb-2">
+                      <h6 class="fw-bold text-dark fs-7 mb-1"><i class="bi bi-telephone-outbound-fill text-danger me-2"></i>Emergency Contact (Primary Kin)</h6>
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold fs-7 text-dark">Contact Person Name</label>
+                    <input type="text" name="emergency_contact_name" class="form-control" value="{{ patient.emergency_contact_name if patient else '' }}" placeholder="e.g. Ramesh Devi">
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold fs-7 text-dark">Emergency Phone</label>
+                    <input type="tel" name="emergency_contact_phone" class="form-control" value="{{ patient.emergency_contact_phone if patient else '' }}" placeholder="+91 9876543210">
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold fs-7 text-dark">Relationship</label>
+                    <input type="text" name="emergency_contact_relation" class="form-control" value="{{ patient.emergency_contact_relation if patient else '' }}" placeholder="e.g. Spouse / Father / Daughter">
+                  </div>
+
+                  <!-- Allergies & Chronic Conditions -->
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Known Drug / Food Allergies</label>
+                    <textarea name="allergies" class="form-control" rows="2" placeholder="e.g. Penicillin, Sulfa drugs, Peanuts">{{ patient.allergies if patient else '' }}</textarea>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold fs-7 text-dark">Pre-existing Chronic Conditions (NCDs)</label>
+                    <textarea name="chronic_conditions" class="form-control" rows="2" placeholder="e.g. Type 2 Diabetes, Hypertension, Asthma">{{ patient.chronic_conditions if patient else '' }}</textarea>
+                  </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                  <button type="submit" class="btn btn-danger btn-sm px-4 fw-semibold">
+                    <i class="bi bi-check-circle-fill me-1"></i>Save Health Details
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- ── TAB 3: SECURITY & PASSWORD ── -->
+        <div class="tab-pane fade" id="tab-security" role="tabpanel">
+          <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-shield-lock-fill text-warning fs-5"></i>
+                <h6 class="fw-bold m-0 text-dark">Change Account Password</h6>
+              </div>
+              <span class="badge bg-warning-subtle text-dark border border-warning-subtle fs-8">Authentication Security</span>
+            </div>
+
+            <div class="card-body p-4">
+              <form method="POST" action="{{ url_for('user_profile') }}" id="password-change-form">
+                <input type="hidden" name="action" value="change_password">
+
+                <div class="row g-3" style="max-width: 580px;">
+                  <!-- Current Password -->
+                  <div class="col-12">
+                    <label class="form-label fw-semibold fs-7 text-dark">Current Password <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-light"><i class="bi bi-key text-muted"></i></span>
+                      <input type="password" name="current_password" id="current_password" class="form-control" required placeholder="Enter current password" autocomplete="current-password">
+                      <button type="button" class="input-group-text bg-light" onclick="togglePasswordVisibility('current_password', this)">
+                        <i class="bi bi-eye text-muted"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- New Password -->
+                  <div class="col-12">
+                    <label class="form-label fw-semibold fs-7 text-dark">New Password <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-light"><i class="bi bi-lock text-muted"></i></span>
+                      <input type="password" name="new_password" id="new_password" class="form-control" required placeholder="Minimum 6 characters" autocomplete="new-password" oninput="checkPasswordStrength(this.value)">
+                      <button type="button" class="input-group-text bg-light" onclick="togglePasswordVisibility('new_password', this)">
+                        <i class="bi bi-eye text-muted"></i>
+                      </button>
+                    </div>
+                    <!-- Strength meter -->
+                    <div class="progress mt-2" style="height: 4px;">
+                      <div class="progress-bar bg-danger" id="pw-strength-bar" role="progressbar" style="width: 0%;"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1 fs-9">
+                      <span class="text-muted" id="pw-strength-text">Password strength: None</span>
+                      <span class="text-muted">Min 6 characters</span>
+                    </div>
+                  </div>
+
+                  <!-- Confirm New Password -->
+                  <div class="col-12">
+                    <label class="form-label fw-semibold fs-7 text-dark">Confirm New Password <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-light"><i class="bi bi-lock-fill text-muted"></i></span>
+                      <input type="password" name="confirm_password" id="confirm_password" class="form-control" required placeholder="Re-enter new password" autocomplete="new-password">
+                      <button type="button" class="input-group-text bg-light" onclick="togglePasswordVisibility('confirm_password', this)">
+                        <i class="bi bi-eye text-muted"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="col-12 mt-4">
+                    <div class="p-3 bg-light rounded-3 border fs-8 text-muted">
+                      <i class="bi bi-info-circle text-primary me-2"></i>
+                      Passwords are cryptographically hashed using PBKDF2 with SHA-256 before storage in accordance with ISO 27001 & ABDM standards.
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-flex justify-content-start gap-2 mt-4 pt-3 border-top">
+                  <button type="submit" class="btn btn-warning btn-sm px-4 fw-bold">
+                    <i class="bi bi-shield-check me-1"></i>Update Password
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── TAB 4: FACILITY & ROLE PERMISSIONS ── -->
+        <div class="tab-pane fade" id="tab-facility" role="tabpanel">
+          <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-hospital text-info fs-5"></i>
+                <h6 class="fw-bold m-0 text-dark">Institutional Node & Role Permissions</h6>
+              </div>
+              <span class="badge bg-info-subtle text-info border border-info-subtle fs-8">Facility Node</span>
+            </div>
+
+            <div class="card-body p-4">
+              <div class="row g-4">
+                <div class="col-md-6">
+                  <div class="p-3 bg-light rounded-3 border h-100">
+                    <div class="text-muted fs-8 text-uppercase fw-bold mb-2"><i class="bi bi-geo-alt-fill text-danger me-1"></i>Assigned Healthcare Facility</div>
+                    <h5 class="fw-bold text-dark mb-1">{{ facility.name if facility else 'Central Public Health Directorate' }}</h5>
+                    <div class="badge bg-primary text-white mb-2">{{ facility.tier_type if facility else 'District Directorate' }}</div>
+                    <div class="fs-8 text-muted mb-1"><strong>Location:</strong> {{ facility.location if facility else 'District HQ, Medical College Enclave' }}</div>
+                    <div class="fs-8 text-muted"><strong>Total Bed Capacity:</strong> {{ facility.total_beds if facility else '250' }} Beds</div>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <div class="p-3 bg-light rounded-3 border h-100">
+                    <div class="text-muted fs-8 text-uppercase fw-bold mb-2"><i class="bi bi-diagram-3-fill text-primary me-1"></i>Clinical Department</div>
+                    <h5 class="fw-bold text-dark mb-1">{{ department.name if department else 'General Medicine & Administration' }}</h5>
+                    <div class="fs-8 text-muted mt-2"><strong>Role Access Key:</strong> <code class="text-primary">{{ user.role }}</code></div>
+                    <div class="fs-8 text-muted"><strong>Account Status:</strong> <span class="badge bg-success-subtle text-success border border-success-subtle">Active & Verified</span></div>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <div class="p-3 bg-white border rounded-3">
+                    <h6 class="fw-bold text-dark fs-7 mb-2"><i class="bi bi-key-fill text-warning me-2"></i>Active Role Capabilities (RBAC Matrix)</h6>
+                    <div class="d-flex flex-wrap gap-2 fs-8">
+                      {% if user.role in ['admin', 'doctor', 'medical_officer'] %}
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>Consultation & Prescriptions</span>
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>Order Diagnostic Tests</span>
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>Initiate Inter-Facility Referrals</span>
+                      {% endif %}
+                      {% if user.role in ['admin', 'asha_cho'] %}
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>ASHA Assisted Teleconsultation</span>
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>Point-of-Care Vitals & Triage</span>
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>High-Risk Patient Registry</span>
+                      {% endif %}
+                      {% if user.role in ['admin', 'nurse'] %}
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>Inpatient Bed Management</span>
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>Nursing Care Notes</span>
+                      {% endif %}
+                      {% if user.role in ['admin', 'pharmacist'] %}
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>Essential Medicines Dispensing</span>
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>Drug Supply Chain Reorders</span>
+                      {% endif %}
+                      {% if user.role in ['admin', 'lab_tech'] %}
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>Sample Collection & Barcoding</span>
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>Pathology Test Verification</span>
+                      {% endif %}
+                      {% if user.role == 'patient' %}
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>View Personal EHR Records</span>
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>Book Teleconsultation Sessions</span>
+                      <span class="badge bg-light text-dark border"><i class="bi bi-check-circle-fill text-success me-1"></i>Download Lab Reports</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function updateAvatarPreview(url) {
+    const preview = document.getElementById('hero-avatar-preview');
+    if (url && url.startsWith('http')) {
+      preview.src = url;
+    }
+  }
+
+  function setAvatar(url) {
+    document.getElementById('avatar-input').value = url;
+    updateAvatarPreview(url);
+  }
+
+  function togglePasswordVisibility(fieldId, btn) {
+    const input = document.getElementById(fieldId);
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.className = 'bi bi-eye-slash text-primary';
+    } else {
+      input.type = 'password';
+      icon.className = 'bi bi-eye text-muted';
+    }
+  }
+
+  function checkPasswordStrength(pw) {
+    const bar = document.getElementById('pw-strength-bar');
+    const text = document.getElementById('pw-strength-text');
+    let strength = 0;
+    if (pw.length >= 6) strength += 25;
+    if (pw.length >= 10) strength += 25;
+    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) strength += 25;
+    if (/[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw)) strength += 25;
+
+    bar.style.width = strength + '%';
+    if (strength <= 25) {
+      bar.className = 'progress-bar bg-danger';
+      text.innerText = 'Password strength: Weak';
+    } else if (strength <= 50) {
+      bar.className = 'progress-bar bg-warning';
+      text.innerText = 'Password strength: Medium';
+    } else if (strength <= 75) {
+      bar.className = 'progress-bar bg-info';
+      text.innerText = 'Password strength: Good';
+    } else {
+      bar.className = 'progress-bar bg-success';
+      text.innerText = 'Password strength: Strong';
+    }
+  }
+
+  // Handle direct hash navigation to tabs
+  document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.hash === '#security') {
+      const secTab = document.getElementById('tab-security-btn');
+      if (secTab) {
+        bootstrap.Tab.getOrCreateInstance(secTab).show();
+      }
+    }
+  });
+</script>
+{% endblock %}
