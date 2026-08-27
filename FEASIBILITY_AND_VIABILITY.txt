@@ -1,0 +1,32 @@
+FEASIBILITY:
+
+1. Technical Feasibility:
+- Low-Bandwidth Optimization: Built with lightweight technologies (Python, Flask, Vanilla JS) operating smoothly on 2G/3G rural networks.
+- Low Hardware Footprint: Runs on budget laptops, tablets, and basic smartphones without requiring specialized servers.
+- Dual-Engine Voice Accessibility: Hybrid audio setup (Server TTS streaming + Web Speech API) working across modern and legacy devices.
+- Standard-Based Interoperability: Integrated with Ayushman Bharat Digital Mission (ABDM) sandbox APIs and HL7/FHIR R4 data export standards.
+
+2. Operational Feasibility:
+- Natural Workflow Alignment: Directly maps to the 4-tier public health hierarchy (ASHA/Sub-Centre -> PHC -> CHC -> District Hospital).
+- Minimal Learning Curve: Simple role-specific interfaces designed for frontline workers (ASHA/CHO) and non-technical healthcare staff.
+- Closed-Loop Referral System: Tracks patient transit and reception status between primary and tertiary centres to eliminate dropouts.
+- Automated Supply & Bed Management: Built-in inventory alerts for essential drugs and real-time visual ward bed allocation.
+
+
+VIABILITY:
+
+1. Economic & Financial Viability:
+- Zero Software Licensing Costs: 100% open-source software stack (Python, Flask, SQLite, Bootstrap) eliminating recurring license fees.
+- Patient Out-of-Pocket Savings: Eliminates travel and lodging expenses for rural villagers via local teleconsultations.
+- Government Scheme Integration: Supports PM-JAY cashless billing and automated subsidy tracking for public health accounting.
+- Low Operating Overhead: Inexpensive to host and maintain for district health departments, public health NGOs, or state missions.
+
+2. Social & Public Health Viability:
+- Elimination of Literacy Barriers: Context-aware voice reading and Tap-to-Speak mode enable illiterate and elderly patients to understand their care.
+- Vernacular Language Inclusivity: Native regional language support across 7 Indian languages (English, Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati).
+- Proactive Preventative Care: High-Risk Pregnancy (HRP) and Chronic Disease (NCD) surveillance cohorts ensure timely home follow-up visits.
+
+3. Regulatory, Security & Scalability Viability:
+- National Compliance: Adheres to ABDM (NDHM) guidelines for ABHA health ID generation and Aadhaar OTP verification.
+- Data Security & Traceability: Strict Role-Based Access Control (RBAC) and immutable audit logs ensure patient confidentiality.
+- Modular Scalability: Architecture seamlessly scales from a single block/PHC pilot to district-wide and state-wide public health deployments.
