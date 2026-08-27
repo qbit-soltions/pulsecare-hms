@@ -1,18 +1,11 @@
 /**
- * PulseCare Speak Aloud & Voice Accessibility Engine v3.0
+ * PulseCare Speak Aloud & Voice Accessibility Engine v3.1
  * Purpose-built for illiterate, elderly, and rural patients in India.
  *
- * Key Fix: readFullPage() now reads ONLY regions marked with [data-voice-region]
- * so it never picks up the navbar, logo, or sidebar — only clinical content.
- *
- * How to mark a region for voice reading:
- *   <div data-voice-region="Patient Summary">...</div>
- *   <div data-voice-region="My Prescriptions">...</div>
- *
- * How to add a point-and-speak button:
- *   <button class="btn-speak-text" data-speak="Medicine: Paracetamol, 500mg, twice daily">
- *     <i class="bi bi-volume-up-fill"></i> Listen
- *   </button>
+ * Fix for Dual-Audio / Double Playback:
+ * 1. Single fallback guard prevents audio.onerror and audio.play().catch() from firing twice.
+ * 2. readFullPage uses data-voice-region attribute ONLY (does NOT concatenate innerText).
+ * 3. Dedicated handler ignores elements with explicit readPage calls.
  */
 
 (function () {
@@ -72,6 +65,7 @@
     const statusText = document.getElementById("voice-status-text");
     const waveEl = document.getElementById("voice-wave-anim");
     const topSpeakerBtn = document.getElementById("topbar-speak-btn");
+    const opdBtn = document.getElementById("opd-speak-btn");
     const langLabel = document.getElementById("voice-lang-name");
     const playText = document.getElementById("voice-play-text");
     const tapText = document.getElementById("voice-tap-text");
@@ -91,6 +85,11 @@
         topSpeakerBtn.classList.remove("btn-outline-primary","btn-warning");
         topSpeakerBtn.innerHTML = `<i class="bi bi-stop-circle-fill"></i> <span class="d-none d-lg-inline">${lang.stop}</span>`;
       }
+      if (opdBtn) {
+        opdBtn.classList.add("btn-danger","pulse-animation");
+        opdBtn.classList.remove("btn-outline-light");
+        opdBtn.innerHTML = `<i class="bi bi-stop-circle-fill me-1"></i> ${lang.stop}`;
+      }
     } else if (isPaused) {
       if (playBtn) playBtn.classList.remove("d-none");
       if (pauseBtn) pauseBtn.classList.add("d-none");
@@ -101,6 +100,11 @@
         topSpeakerBtn.classList.remove("btn-danger","pulse-animation");
         topSpeakerBtn.classList.add("btn-warning");
         topSpeakerBtn.innerHTML = `<i class="bi bi-play-circle-fill"></i> <span class="d-none d-lg-inline">${lang.resume}</span>`;
+      }
+      if (opdBtn) {
+        opdBtn.classList.remove("btn-danger","pulse-animation");
+        opdBtn.classList.add("btn-warning");
+        opdBtn.innerHTML = `<i class="bi bi-play-circle-fill me-1"></i> ${lang.resume}`;
       }
     } else {
       if (playBtn) playBtn.classList.remove("d-none");
@@ -113,13 +117,24 @@
         topSpeakerBtn.classList.add("btn-outline-primary");
         topSpeakerBtn.innerHTML = `<i class="bi bi-volume-up-fill"></i> <span class="d-none d-lg-inline">${lang.label}</span>`;
       }
+      if (opdBtn) {
+        opdBtn.classList.remove("btn-danger","btn-warning","pulse-animation");
+        opdBtn.classList.add("btn-outline-light");
+        opdBtn.innerHTML = `<i class="bi bi-volume-up-fill me-1"></i> Speak Queue`;
+      }
       clearHighlight();
     }
   }
 
   function stopSpeaking() {
-    if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; currentAudio = null; }
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
+    }
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
     speechQueue = [];
     isSpeaking = false;
     isPaused = false;
@@ -138,29 +153,69 @@
     audio.playbackRate = speechRate;
     currentAudio = audio;
 
-    audio.onplay = function() { isSpeaking = true; isPaused = false; highlightElement(targetEl); updateWidgetUI(); };
-    audio.onended = function() { isSpeaking = false; isPaused = false; currentAudio = null; clearHighlight(); updateWidgetUI(); if (onEndCallback) onEndCallback(); };
-    audio.onerror = function() {
-      // Fallback to Web Speech API
+    let fallbackHandled = false;
+    function triggerFallback() {
+      if (fallbackHandled) return;
+      fallbackHandled = true;
+      if (currentAudio === audio) currentAudio = null;
+
       if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(cleanText);
         utter.lang = langConfig.bcp47;
         utter.rate = speechRate;
-        utter.onstart = function() { isSpeaking = true; isPaused = false; highlightElement(targetEl); updateWidgetUI(); };
-        utter.onend = function() { isSpeaking = false; isPaused = false; clearHighlight(); updateWidgetUI(); if (onEndCallback) onEndCallback(); };
-        utter.onerror = function() { isSpeaking = false; isPaused = false; clearHighlight(); updateWidgetUI(); };
+        utter.onstart = function() {
+          isSpeaking = true;
+          isPaused = false;
+          highlightElement(targetEl);
+          updateWidgetUI();
+        };
+        utter.onend = function() {
+          isSpeaking = false;
+          isPaused = false;
+          clearHighlight();
+          updateWidgetUI();
+          if (onEndCallback) onEndCallback();
+        };
+        utter.onerror = function() {
+          isSpeaking = false;
+          isPaused = false;
+          clearHighlight();
+          updateWidgetUI();
+          if (onEndCallback) onEndCallback();
+        };
         window.speechSynthesis.speak(utter);
       } else {
-        isSpeaking = false; isPaused = false; clearHighlight(); updateWidgetUI();
+        isSpeaking = false;
+        isPaused = false;
+        clearHighlight();
+        updateWidgetUI();
+        if (onEndCallback) onEndCallback();
       }
+    }
+
+    audio.onplay = function() {
+      isSpeaking = true;
+      isPaused = false;
+      highlightElement(targetEl);
+      updateWidgetUI();
     };
+
+    audio.onended = function() {
+      isSpeaking = false;
+      isPaused = false;
+      currentAudio = null;
+      clearHighlight();
+      updateWidgetUI();
+      if (onEndCallback) onEndCallback();
+    };
+
+    audio.onerror = function() {
+      triggerFallback();
+    };
+
     audio.play().catch(function() {
-      if (window.speechSynthesis) {
-        const utter = new SpeechSynthesisUtterance(cleanText);
-        utter.lang = langConfig.bcp47;
-        utter.rate = speechRate;
-        window.speechSynthesis.speak(utter);
-      }
+      triggerFallback();
     });
   }
 
@@ -168,22 +223,34 @@
     if (!items || !items.length) return;
     speechQueue = [...items];
     function playNext() {
-      if (!speechQueue.length) { isSpeaking = false; clearHighlight(); updateWidgetUI(); return; }
+      if (!speechQueue.length) {
+        isSpeaking = false;
+        clearHighlight();
+        updateWidgetUI();
+        return;
+      }
       const item = speechQueue.shift();
       const text = typeof item === "string" ? item : (item.text || "");
       const el = typeof item === "object" ? (item.el || null) : null;
-      if (!text || !text.trim()) { playNext(); return; }
-      speak(text, el, function() { setTimeout(playNext, 350); });
+      if (!text || !text.trim()) {
+        playNext();
+        return;
+      }
+      speak(text, el, function() {
+        setTimeout(playNext, 400);
+      });
     }
     playNext();
   }
 
   /**
-   * CORE FIX: readFullPage now reads ONLY [data-voice-region] sections.
-   * Falls back to page title + subtitle if no regions are marked.
+   * Reads only [data-voice-region] sections without duplicating innerText.
    */
   function readFullPage() {
-    if (isSpeaking) { stopSpeaking(); return; }
+    if (isSpeaking) {
+      stopSpeaking();
+      return;
+    }
 
     const items = [];
 
@@ -192,9 +259,13 @@
     if (regions.length > 0) {
       regions.forEach(function(region) {
         const label = region.getAttribute("data-voice-region");
-        const text = region.innerText ? region.innerText.trim().replace(/[\n\r\t]+/g, " ").replace(/\s{2,}/g, " ") : "";
-        if (text && text.length > 3) {
-          items.push({ el: region, text: (label ? label + ". " : "") + text + ". " });
+        if (label && label.trim().length > 0) {
+          items.push({ el: region, text: label.trim() });
+        } else {
+          const text = region.innerText ? region.innerText.trim().replace(/[\n\r\t]+/g, " ").replace(/\s{2,}/g, " ") : "";
+          if (text && text.length > 3) {
+            items.push({ el: region, text: text });
+          }
         }
       });
     }
@@ -208,16 +279,36 @@
     }
 
     if (!items.length) {
-      const lang = VOICE_LANGS[getLangKey()] || VOICE_LANGS.en;
       items.push({ el: document.body, text: "Welcome to PulseCare Public Health Network." });
     }
 
     speakSequence(items);
   }
 
-  function pauseSpeaking() { if (currentAudio && isSpeaking && !isPaused) { currentAudio.pause(); isPaused = true; updateWidgetUI(); } }
-  function resumeSpeaking() { if (currentAudio && isPaused) { currentAudio.play(); isPaused = false; updateWidgetUI(); } else if (!isSpeaking) { readFullPage(); } }
-  function setSpeechRate(rate) { speechRate = parseFloat(rate) || 0.95; const lbl = document.getElementById("voice-speed-val"); if (lbl) lbl.innerText = speechRate + "x"; if (currentAudio) currentAudio.playbackRate = speechRate; }
+  function pauseSpeaking() {
+    if (currentAudio && isSpeaking && !isPaused) {
+      currentAudio.pause();
+      isPaused = true;
+      updateWidgetUI();
+    }
+  }
+
+  function resumeSpeaking() {
+    if (currentAudio && isPaused) {
+      currentAudio.play();
+      isPaused = false;
+      updateWidgetUI();
+    } else if (!isSpeaking) {
+      readFullPage();
+    }
+  }
+
+  function setSpeechRate(rate) {
+    speechRate = parseFloat(rate) || 0.95;
+    const lbl = document.getElementById("voice-speed-val");
+    if (lbl) lbl.innerText = speechRate + "x";
+    if (currentAudio) currentAudio.playbackRate = speechRate;
+  }
 
   function toggleTapToSpeak() {
     tapToSpeakActive = !tapToSpeakActive;
@@ -225,11 +316,19 @@
     const lang = VOICE_LANGS[getLangKey()] || VOICE_LANGS.en;
     if (tapToSpeakActive) {
       document.body.classList.add("tap-to-speak-active");
-      if (tapBtn) { tapBtn.classList.add("btn-primary"); tapBtn.classList.remove("btn-outline-secondary"); tapBtn.innerHTML = `<i class="bi bi-hand-index-thumb-fill text-warning me-1"></i> ${lang.tapMode}`; }
+      if (tapBtn) {
+        tapBtn.classList.add("btn-primary");
+        tapBtn.classList.remove("btn-outline-secondary");
+        tapBtn.innerHTML = `<i class="bi bi-hand-index-thumb-fill text-warning me-1"></i> ${lang.tapMode}`;
+      }
       speak("Tap to Speak mode is active. Tap any card or text to hear it aloud.");
     } else {
       document.body.classList.remove("tap-to-speak-active");
-      if (tapBtn) { tapBtn.classList.remove("btn-primary"); tapBtn.classList.add("btn-outline-secondary"); tapBtn.innerHTML = `<i class="bi bi-hand-index-thumb me-1"></i> ${lang.tapModeOff}`; }
+      if (tapBtn) {
+        tapBtn.classList.remove("btn-primary");
+        tapBtn.classList.add("btn-outline-secondary");
+        tapBtn.innerHTML = `<i class="bi bi-hand-index-thumb me-1"></i> ${lang.tapModeOff}`;
+      }
       stopSpeaking();
     }
     updateWidgetUI();
@@ -243,9 +342,9 @@
   }
 
   function handleDocumentTap(e) {
-    if (e.target.closest("#voice-assist-widget") || e.target.closest("#topbar-speak-btn")) return;
+    if (e.target.closest("#voice-assist-widget") || e.target.closest("#topbar-speak-btn") || e.target.closest("#opd-speak-btn")) return;
 
-    // Dedicated speak button
+    // Dedicated speak button (that is not a whole page reader)
     const speakBtn = e.target.closest(".btn-speak-text, [data-speak]");
     if (speakBtn) {
       e.preventDefault();
