@@ -54,6 +54,30 @@
       </div>
     </div>
     <div class="d-flex align-items-center gap-3">
+      <!-- 🌐 Language Selector -->
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-light dropdown-toggle d-flex align-items-center gap-1 py-1 px-3 fs-7 rounded-pill shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-translate text-info me-1"></i>
+          <span id="queue-lang-label">
+            {% for code, name in available_languages %}
+              {% if code == selected_lang %}{{ name }}{% endif %}
+            {% endfor %}
+          </span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-lg fs-7">
+          {% for code, name in available_languages %}
+          <li>
+            <a class="dropdown-item lang-select-item {% if code == selected_lang %}active fw-bold{% endif %}" 
+               href="{{ url_for('set_language', lang_code=code) }}"
+               data-lang="{{ code }}"
+               onclick="if(window.changePulseCareLanguage){ changePulseCareLanguage('{{ code }}', event); }">
+              {{ name }}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+
       <!-- 🔊 OPD Listen Button -->
       <button type="button" id="opd-speak-btn" class="btn btn-sm btn-outline-light"
               onclick="window.PulseCareVoice && window.PulseCareVoice.readPage()"
@@ -142,6 +166,7 @@
     updateClock();
     setInterval(updateClock, 1000);
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/static/js/translator.js"></script>
   <script src="/static/js/voice_assist.js"></script>
 </body>

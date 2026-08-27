@@ -20,31 +20,31 @@
 </head>
 <body class="bg-light">
 
-  <!-- 1. PERSISTENT DEMO ROLE SWITCHER BAR (only shown when authenticated) -->
+  <!-- 1. PERSISTENT ROLE & PORTAL SWITCHER (only shown when authenticated) -->
   {% if current_user %}
-  <div class="demo-role-bar py-1 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2 text-white no-print" style="background:#0f172a; border-bottom:1px solid rgba(255,255,255,0.1);">
+  <div class="portal-switcher-bar py-1 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2 text-white no-print" style="background:#0f172a; border-bottom:1px solid rgba(255,255,255,0.12);">
     <div class="d-flex align-items-center gap-2 flex-shrink-0">
-      <span class="badge bg-warning text-dark fw-bold px-2 py-1 fs-9"><i class="bi bi-person-badge-fill me-1"></i>DEMO</span>
-      <span class="fs-8 d-none d-lg-inline text-white-50">Switch stakeholder perspective:</span>
+      <span class="badge bg-primary text-white fw-semibold px-2 py-1 fs-9 shadow-sm"><i class="bi bi-shield-lock-fill me-1"></i>PORTAL SWITCHER</span>
+      <span class="fs-8 d-none d-lg-inline text-white-50">Switch clinical workspace:</span>
     </div>
     <div class="d-flex align-items-center gap-1 flex-wrap">
       {% set persona_list = [
-        ('asha_cho',       'bi-heart-pulse-fill', 'ASHA',       'text-success'),
-        ('medical_officer','bi-hospital',          'PHC Doctor', 'text-info'),
-        ('doctor',         'bi-clipboard2-pulse',  'Specialist', 'text-danger'),
-        ('admin',          'bi-shield-lock',       'Admin/CMO',  'text-primary'),
-        ('nurse',          'bi-bandaid',           'Nurse',      'text-success'),
-        ('receptionist',   'bi-calendar-check',    'Reception',  'text-info'),
-        ('pharmacist',     'bi-capsule',           'Pharmacy',   'text-warning'),
-        ('lab_tech',       'bi-moisture',          'Lab',        'text-purple'),
-        ('patient',        'bi-person-heart',      'Patient',    'text-secondary')
+        ('asha.sunita',    'Sunita Devi',        'ASHA Frontline Worker',   'bi-heart-pulse-fill', 'ASHA',       '#10b981', 'text-success'),
+        ('dr.rajesh',      'Dr. Rajesh Verma',   'PHC Medical Officer',     'bi-hospital',         'PHC Doctor', '#0891b2', 'text-info'),
+        ('dr.sarah',       'Dr. Sarah Jenkins',  'Cardiologist Specialist', 'bi-clipboard2-pulse', 'Specialist', '#e11d48', 'text-danger'),
+        ('admin',          'Dr. Arthur Vance',   'Chief Medical Officer',   'bi-shield-lock-fill', 'Admin/CMO',  '#0284c7', 'text-primary'),
+        ('nurse.clara',    'Clara Oswald',       'Senior Ward Nurse',       'bi-bandaid',          'Nurse',      '#059669', 'text-success'),
+        ('pharm.robert',   'Robert Taylor',      'Chief Pharmacist',        'bi-capsule',          'Pharmacy',   '#d97706', 'text-warning'),
+        ('lab.lisa',       'Lisa Ray',           'Lab Pathologist',         'bi-moisture',         'Lab',        '#8b5cf6', 'text-purple'),
+        ('priya.patient',  'Priya Sharma',       'Patient Portal',          'bi-person-heart',     'Patient',    '#db2777', 'text-secondary')
       ] %}
-      {% for role_key, icon, label, color in persona_list %}
-      <a href="{{ url_for('switch_role', role=role_key) }}"
-         class="btn btn-xs text-decoration-none {% if current_user.role == role_key %}bg-warning text-dark fw-bold{% else %}btn-outline-light{% endif %}"
-         title="Switch to {{ label }} persona">
-        <i class="bi {{ icon }} me-1 {{ '' if current_user.role == role_key else color }}"></i>{{ label }}
-      </a>
+      {% for u_name, f_name, r_title, icon, short_label, bg_col, color in persona_list %}
+      <button type="button"
+              onclick="openSwitchModal('{{ u_name }}', '{{ f_name }}', '{{ r_title }}', '{{ icon }}', '{{ bg_col }}')"
+              class="btn btn-xs {% if current_user.username == u_name %}bg-primary text-white fw-bold shadow-sm border-0{% else %}btn-outline-light{% endif %}"
+              title="Switch to {{ f_name }} ({{ r_title }})">
+        <i class="bi {{ icon }} me-1 {{ '' if current_user.username == u_name else color }}"></i>{{ short_label }}
+      </button>
       {% endfor %}
     </div>
   </div>
@@ -358,6 +358,66 @@
     </div>
   </div>
 
+  <!-- MODAL: AUTHENTICATE PORTAL SWITCH -->
+  <div class="modal fade" id="switchAccountModal" tabindex="-1" aria-labelledby="switchAccountModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+      <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <form method="POST" action="{{ url_for('switch_role') }}" id="switch-account-form">
+          <input type="hidden" name="username" id="switch-modal-username">
+          <input type="hidden" name="next_url" value="{{ request.path }}">
+          
+          <div class="modal-header bg-dark text-white border-0 py-3 px-4">
+            <div class="d-flex align-items-center gap-2">
+              <div class="p-2 bg-primary bg-opacity-25 rounded-circle text-info">
+                <i class="bi bi-shield-lock-fill fs-5"></i>
+              </div>
+              <div>
+                <h6 class="modal-title fw-bold m-0 text-white" id="switchAccountModalLabel">Authenticate Portal Switch</h6>
+                <small class="text-white-50" style="font-size: 0.72rem;">Security Verification Required</small>
+              </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <div class="modal-body p-4 fs-7 bg-light">
+            <!-- Selected Account Summary Card with Animation -->
+            <div class="p-3 bg-white border rounded-3 shadow-sm mb-3 d-flex align-items-center gap-3">
+              <div id="switch-modal-icon-box" class="rounded-3 d-flex align-items-center justify-content-center text-white fs-4" style="width: 48px; height: 48px; background: #0284c7; flex-shrink:0;">
+                <i id="switch-modal-icon" class="bi bi-person-fill"></i>
+              </div>
+              <div class="flex-grow-1">
+                <div class="fw-bold fs-6 text-dark" id="switch-modal-fullname">User Full Name</div>
+                <div class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 mb-1" id="switch-modal-role">Role</div>
+                <div class="text-muted" style="font-size: 0.7rem;" id="switch-modal-userlabel">username</div>
+              </div>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label fw-semibold text-dark fs-7">Enter Account Password <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-lock-fill text-muted"></i></span>
+                <input type="password" name="password" id="switch-modal-password" class="form-control" required placeholder="Enter password" autocomplete="current-password">
+                <button type="button" class="input-group-text bg-white" onclick="toggleSwitchModalPassword()" title="Show/Hide">
+                  <i class="bi bi-eye text-muted" id="switch-pw-eye"></i>
+                </button>
+              </div>
+              <div class="form-text text-muted mt-1" style="font-size: 0.72rem;">
+                <i class="bi bi-info-circle me-1"></i>Please verify your password to switch to this clinical workspace.
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer bg-white border-top py-2 px-4 d-flex justify-content-between">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sm btn-primary fw-semibold px-4" id="btn-switch-submit">
+              <i class="bi bi-box-arrow-in-right me-1"></i> Authenticate & Switch
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Hidden Google Translate Element Container -->
   <div id="google_translate_element" style="display:none;"></div>
   <script type="text/javascript">
@@ -381,5 +441,38 @@
   <script src="/static/js/voice_assist.js"></script>
   <!-- Custom JS -->
   <script src="/static/js/main.js"></script>
+  <script>
+    function openSwitchModal(username, fullName, roleLabel, iconClass, bgColor) {
+      document.getElementById('switch-modal-username').value = username;
+      document.getElementById('switch-modal-fullname').innerText = fullName;
+      document.getElementById('switch-modal-role').innerText = roleLabel;
+      document.getElementById('switch-modal-userlabel').innerText = 'Username: ' + username;
+      document.getElementById('switch-modal-icon').className = 'bi ' + iconClass;
+      document.getElementById('switch-modal-icon-box').style.background = bgColor || '#0284c7';
+      
+      const pwInput = document.getElementById('switch-modal-password');
+      pwInput.value = '';
+      
+      const modalEl = document.getElementById('switchAccountModal');
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+      
+      setTimeout(function() {
+        pwInput.focus();
+      }, 400);
+    }
+
+    function toggleSwitchModalPassword() {
+      const input = document.getElementById('switch-modal-password');
+      const eye = document.getElementById('switch-pw-eye');
+      if (input.type === 'password') {
+        input.type = 'text';
+        eye.className = 'bi bi-eye-slash text-primary';
+      } else {
+        input.type = 'password';
+        eye.className = 'bi bi-eye text-muted';
+      }
+    }
+  </script>
 </body>
 </html>

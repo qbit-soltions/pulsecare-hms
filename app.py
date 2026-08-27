@@ -614,49 +614,57 @@ def login():
         else:
             flash("Invalid username or password. Please check your credentials.", "danger")
 
-    # Fetch demo personas
-    demo_users = query_db(
+    # Fetch verified staff directory
+    staff_directory = query_db(
         """SELECT u.id, u.username, u.full_name, u.role, u.specialization, u.avatar_url,
                   f.name as facility_name, f.tier_type as facility_tier
            FROM users u
            LEFT JOIN facilities f ON u.facility_id = f.id
            ORDER BY u.id ASC"""
     )
-    return render_template("auth/login.html", demo_users=demo_users)
+    return render_template("auth/login.html", staff_directory=staff_directory)
 
-@app.route("/switch-role/<role>")
-def switch_role(role):
-    """1-Click demo role switcher for all personas."""
-    role_user_map = {
-        "admin": "admin",
-        "doctor": "dr.sarah",
-        "asha_cho": "asha.sunita",
-        "medical_officer": "dr.rajesh",
-        "nurse": "nurse.clara",
-        "receptionist": "reception.emma",
-        "pharmacist": "pharm.robert",
-        "lab_tech": "lab.lisa",
-        "patient": "patient.meena"
-    }
-    username = role_user_map.get(role, "admin")
+@app.route("/switch-role", methods=["POST"])
+@login_required
+def switch_role():
+    """Secure role and workspace switcher with password verification."""
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "").strip()
+    next_url = request.form.get("next_url") or url_for("dashboard")
+
+    if not username or not password:
+        flash("Username and password are required to switch accounts.", "danger")
+        return redirect(request.referrer or url_for("dashboard"))
+
     user = query_db(
         """SELECT u.*, f.name as facility_name, f.tier_type as facility_tier
            FROM users u LEFT JOIN facilities f ON u.facility_id = f.id
-           WHERE u.username = ?""",
+           WHERE u.username = ? AND u.is_active = 1""",
         (username,), one=True
     )
-    if user:
+    if user and check_password_hash(user["password_hash"], password):
         session["user_id"] = user["id"]
         session["username"] = user["username"]
         session["user_role"] = user["role"]
         session["full_name"] = user["full_name"]
         session["facility_id"] = user["facility_id"]
-        facility_label = user.get("facility_name") or "Central Headquarters"
+        session.permanent = True
+
+        facility_label = user.get("facility_name") or "District Health Directorate"
         role_label = user["role"].replace("_", " ").title()
-        flash(f"Demo persona switched → {user['full_name']} ({role_label}) — {facility_label}.", "info")
+        log_audit(user["id"], "Account Switch", "Auth", f"Authenticated portal switch to {username} ({user['role']})", request.remote_addr, user["facility_id"])
+        flash(f"Authenticated successfully! Switched portal to {user['full_name']} ({role_label}) — {facility_label}.", "success")
+        return redirect(next_url)
     else:
-        flash("Demo persona not found. Please reseed the database with: python seed_data.py", "warning")
-    return redirect(url_for("dashboard"))
+        flash(f"Authentication failed: Incorrect password for account '{username}'. Please try again.", "danger")
+        return redirect(request.referrer or url_for("dashboard"))
+
+@app.route("/switch-role/<role>", methods=["GET"])
+@login_required
+def switch_role_get(role):
+    flash("Please authenticate with your account password to switch operational portals.", "info")
+    return redirect(request.referrer or url_for("dashboard"))
+
 
 @app.route("/logout")
 def logout():
