@@ -1,36 +1,45 @@
 {% extends "base.html" %}
 
-{% block title %}Doctors & Hospital Staff{% endblock %}
-{% block header_title %}Doctors & Healthcare Staff Directory{% endblock %}
+{% block title %}Doctors & Healthcare Staff Directory{% endblock %}
+{% block header_title %}Staff & Healthcare Profiles Directory{% endblock %}
+{% block header_subtitle %}Manage verified clinical personnel, frontline ASHA workers, administrative users, and patient accounts{% endblock %}
 
 {% block content %}
-<div class="card-custom">
-  <div class="card-header-custom flex-wrap gap-3">
+<div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+  <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
     <div class="d-flex align-items-center gap-2">
-      <i class="bi bi-person-badge-fill text-primary fs-5"></i>
-      <h6 class="fw-bold m-0">Medical Staff Directory ({{ staff|length }})</h6>
+      <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-3">
+        <i class="bi bi-people-fill fs-5"></i>
+      </div>
+      <div>
+        <h6 class="fw-bold m-0 text-dark">Healthcare Network Directory ({{ staff|length }})</h6>
+        <small class="text-muted fs-8">Multi-tiered institutional workforce</small>
+      </div>
     </div>
 
-    <!-- Role Filter & Add Staff -->
+    <!-- Role Filter & Add Staff Button -->
     <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
       <form method="GET" action="{{ url_for('staff_index') }}" class="d-flex align-items-center gap-2">
-        <select name="role" class="form-select form-select-sm" style="width: 150px;" onchange="this.form.submit()">
-          <option value="">All Roles</option>
-          <option value="doctor" {% if role_filter == 'doctor' %}selected{% endif %}>Doctors</option>
-          <option value="nurse" {% if role_filter == 'nurse' %}selected{% endif %}>Nurses</option>
-          <option value="pharmacist" {% if role_filter == 'pharmacist' %}selected{% endif %}>Pharmacists</option>
-          <option value="lab_tech" {% if role_filter == 'lab_tech' %}selected{% endif %}>Lab Techs</option>
-          <option value="receptionist" {% if role_filter == 'receptionist' %}selected{% endif %}>Receptionists</option>
-          <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Administrators</option>
+        <select name="role" class="form-select form-select-sm" style="width: 170px;" onchange="this.form.submit()">
+          <option value="">All Stakeholder Roles</option>
+          <option value="doctor" {% if request.args.get('role') == 'doctor' %}selected{% endif %}>Specialist Doctors</option>
+          <option value="medical_officer" {% if request.args.get('role') == 'medical_officer' %}selected{% endif %}>PHC Medical Officers</option>
+          <option value="asha_cho" {% if request.args.get('role') == 'asha_cho' %}selected{% endif %}>ASHA / CHO Workers</option>
+          <option value="nurse" {% if request.args.get('role') == 'nurse' %}selected{% endif %}>Inpatient Nurses</option>
+          <option value="pharmacist" {% if request.args.get('role') == 'pharmacist' %}selected{% endif %}>Pharmacists</option>
+          <option value="lab_tech" {% if request.args.get('role') == 'lab_tech' %}selected{% endif %}>Lab Technicians</option>
+          <option value="receptionist" {% if request.args.get('role') == 'receptionist' %}selected{% endif %}>Receptionists</option>
+          <option value="admin" {% if request.args.get('role') == 'admin' %}selected{% endif %}>Administrators</option>
+          <option value="patient" {% if request.args.get('role') == 'patient' %}selected{% endif %}>Registered Patients</option>
         </select>
-        {% if role_filter %}
+        {% if request.args.get('role') %}
         <a href="{{ url_for('staff_index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
         {% endif %}
       </form>
 
       {% if current_user and current_user.role == 'admin' %}
       <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addStaffModal">
-        <i class="bi bi-plus-lg me-1"></i> Add Staff Member
+        <i class="bi bi-person-plus-fill me-1"></i> Create New Profile
       </button>
       {% endif %}
     </div>
@@ -40,12 +49,13 @@
     <table class="table table-hover align-middle mb-0 fs-7">
       <thead class="table-light">
         <tr>
-          <th>Staff Member</th>
-          <th>Role & Department</th>
-          <th>Specialization / License</th>
-          <th>Contact</th>
+          <th>Profile & User Details</th>
+          <th>Stakeholder Role</th>
+          <th>Assigned Facility & Tier</th>
+          <th>Specialization / License / ABHA</th>
+          <th>Contact Info</th>
           <th>Consultation Fee</th>
-          <th>Status</th>
+          <th>Account Status</th>
         </tr>
       </thead>
       <tbody>
@@ -53,7 +63,7 @@
         <tr>
           <td>
             <div class="d-flex align-items-center gap-2">
-              <img src="{{ s.avatar_url or 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80' }}" class="rounded-circle" style="width: 38px; height: 38px; object-fit: cover;">
+              <img src="{{ s.avatar_url or 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80' }}" class="rounded-circle border" style="width: 38px; height: 38px; object-fit: cover;">
               <div>
                 <div class="fw-bold text-dark">{{ s.full_name }}</div>
                 <div class="text-muted fs-8">@{{ s.username }}</div>
@@ -61,111 +71,232 @@
             </div>
           </td>
           <td>
-            <span class="badge {% if s.role == 'doctor' %}bg-danger{% elif s.role == 'nurse' %}bg-success{% elif s.role == 'pharmacist' %}bg-warning text-dark{% elif s.role == 'lab_tech' %}bg-purple text-white{% elif s.role == 'admin' %}bg-primary{% else %}bg-info text-dark{% endif %} text-uppercase" style="{% if s.role == 'lab_tech' %}background: #8b5cf6;{% endif %}">
-              {{ s.role }}
+            <span class="badge {% if s.role in ['doctor', 'medical_officer'] %}bg-primary{% elif s.role == 'asha_cho' %}bg-success{% elif s.role == 'nurse' %}bg-teal text-white{% elif s.role == 'pharmacist' %}bg-warning text-dark{% elif s.role == 'lab_tech' %}bg-purple text-white{% elif s.role == 'admin' %}bg-dark text-white{% elif s.role == 'patient' %}bg-danger text-white{% else %}bg-secondary text-white{% endif %} text-uppercase px-2 py-1 fs-9" style="{% if s.role == 'nurse' %}background:#059669;{% elif s.role == 'lab_tech' %}background:#8b5cf6;{% elif s.role == 'patient' %}background:#db2777;{% endif %}">
+              {{ s.role.replace('_', ' ') }}
             </span>
-            <div class="text-muted fs-8 mt-1">{{ s.department_name or 'Central Operations' }}</div>
+            <div class="text-muted fs-8 mt-1">{{ s.department_name or 'General Administration' }}</div>
           </td>
           <td>
-            <div class="fw-semibold text-dark">{{ s.specialization or s.qualification or 'Staff Executive' }}</div>
-            <div class="text-muted fs-8">{{ s.license_number or 'Hospital Certified' }}</div>
+            <div class="fw-semibold text-dark">{{ s.facility_name or 'Central Health Directorate' }}</div>
+            <small class="badge bg-light text-muted border fs-9">{{ s.facility_tier or 'District Hub' }}</small>
+          </td>
+          <td>
+            <div class="fw-semibold text-dark">{{ s.specialization or s.qualification or 'Standard Registration' }}</div>
+            <div class="text-muted fs-8">{{ s.license_number or 'Verified Account' }}</div>
           </td>
           <td>
             <div><i class="bi bi-telephone me-1 text-muted"></i>{{ s.phone or '—' }}</div>
-            <small class="text-muted">{{ s.email }}</small>
+            <small class="text-muted">{{ s.email or '—' }}</small>
           </td>
           <td>
             {% if s.consultation_fee > 0 %}
               <span class="fw-bold text-primary">${{ "%.2f"|format(s.consultation_fee) }}</span>
             {% else %}
-              <span class="text-muted">—</span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Free Public</span>
             {% endif %}
           </td>
-          <td><span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">Active</span></td>
+          <td>
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+              <i class="bi bi-check-circle-fill me-1"></i>Active
+            </span>
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="text-center py-4 text-muted">No staff members found for the selected criteria.</td></tr>
+        <tr><td colspan="7" class="text-center py-5 text-muted">No healthcare profiles found for the selected filter.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 
-<!-- MODAL: ADD STAFF -->
-<div class="modal fade" id="addStaffModal" tabindex="-1">
+<!-- ════════════════════════════════════════════════════════════════════════════
+     MODAL: CREATE PROFILE FOR ANY ROLE (ADMIN PORTAL)
+     ════════════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <form method="POST" action="{{ url_for('staff_create') }}">
-        <div class="modal-header bg-light">
-          <h5 class="modal-title fw-bold fs-6"><i class="bi bi-person-plus text-primary me-2"></i>Register New Staff Member</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+      <form method="POST" action="{{ url_for('staff_create') }}" id="create-profile-form">
+        
+        <div class="modal-header bg-dark text-white py-3 px-4">
+          <div class="d-flex align-items-center gap-2">
+            <div class="p-2 bg-primary bg-opacity-25 rounded-circle text-info">
+              <i class="bi bi-person-plus-fill fs-5"></i>
+            </div>
+            <div>
+              <h6 class="modal-title fw-bold m-0 text-white" id="addStaffModalLabel">Create New Healthcare Profile</h6>
+              <small class="text-white-50 fs-9">Provision accounts for Doctors, Frontline ASHA, Nurses, Admins, or Patients</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body fs-7">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
-              <input type="text" name="full_name" class="form-control form-control-sm" required placeholder="Dr. John Watson">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
-              <input type="text" name="username" class="form-control form-control-sm" required placeholder="dr.watson">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label fw-semibold">Password</label>
-              <input type="password" name="password" class="form-control form-control-sm" value="password123">
-            </div>
 
+        <div class="modal-body p-4 fs-7 bg-light">
+          <div class="row g-3">
+            
+            <!-- Role Selector -->
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
-              <select name="role" class="form-select form-select-sm" required>
-                <option value="doctor">Doctor</option>
-                <option value="nurse">Nurse</option>
-                <option value="pharmacist">Pharmacist</option>
-                <option value="lab_tech">Lab Technician</option>
-                <option value="receptionist">Receptionist / Front Desk</option>
-                <option value="admin">Administrator</option>
+              <label class="form-label fw-bold text-dark">Stakeholder Role <span class="text-danger">*</span></label>
+              <select name="role" id="new-user-role" class="form-select border-primary" required onchange="toggleRoleFormSections(this.value)">
+                <option value="doctor">Medical Officer & Specialist Doctor</option>
+                <option value="medical_officer">Primary Health Centre (PHC) Medical Officer</option>
+                <option value="asha_cho">ASHA & Community Health Officer (CHO)</option>
+                <option value="nurse">Inpatient Ward Nurse</option>
+                <option value="pharmacist">Central Pharmacy & Supply Manager</option>
+                <option value="lab_tech">Diagnostic Pathology Lab Technician</option>
+                <option value="receptionist">OPD Reception & Token Desk</option>
+                <option value="admin">Chief Medical Officer / Administrator</option>
+                <option value="patient">Citizen / Rural Patient Account</option>
               </select>
             </div>
+
+            <!-- Assigned Facility -->
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Department</label>
-              <select name="department_id" class="form-select form-select-sm">
-                <option value="">-- Choose Department --</option>
-                {% for d in departments %}
-                <option value="{{ d.id }}">{{ d.name }}</option>
+              <label class="form-label fw-bold text-dark">Assigned Healthcare Facility <span class="text-danger">*</span></label>
+              <select name="facility_id" class="form-select" required>
+                {% for f in facilities %}
+                <option value="{{ f.id }}">{{ f.name }} ({{ f.tier_type }})</option>
                 {% endfor %}
               </select>
             </div>
 
+            <!-- Full Name -->
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Email Address</label>
-              <input type="email" name="email" class="form-control form-control-sm" placeholder="staff@pulsecare.org">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Phone Number</label>
-              <input type="tel" name="phone" class="form-control form-control-sm" placeholder="+1-555-0188">
+              <label class="form-label fw-semibold text-dark">Full Name <span class="text-danger">*</span></label>
+              <input type="text" name="full_name" class="form-control" required placeholder="e.g. Dr. Ramesh Gupta">
             </div>
 
+            <!-- Username -->
+            <div class="col-md-3">
+              <label class="form-label fw-semibold text-dark">System Username <span class="text-danger">*</span></label>
+              <input type="text" name="username" class="form-control" required placeholder="e.g. dr.ramesh">
+            </div>
+
+            <!-- Password -->
+            <div class="col-md-3">
+              <label class="form-label fw-semibold text-dark">Security Password <span class="text-danger">*</span></label>
+              <input type="password" name="password" class="form-control" value="password123" required>
+            </div>
+
+            <!-- Email & Phone -->
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Specialization</label>
-              <input type="text" name="specialization" class="form-control form-control-sm" placeholder="e.g. Interventional Cardiology">
+              <label class="form-label fw-semibold text-dark">Email Address</label>
+              <input type="email" name="email" class="form-control" placeholder="user@pulsecare.gov.in">
             </div>
-            <div class="col-md-3">
-              <label class="form-label fw-semibold">License Number</label>
-              <input type="text" name="license_number" class="form-control form-control-sm" placeholder="MED-LIC-998">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold text-dark">Mobile / Phone Number</label>
+              <input type="tel" name="phone" class="form-control" placeholder="+91 9876543210">
             </div>
-            <div class="col-md-3">
-              <label class="form-label fw-semibold">Consultation Fee ($)</label>
-              <input type="number" step="0.01" name="consultation_fee" class="form-control form-control-sm" value="0.0">
+
+            <!-- ── CLINICAL STAFF FIELDS SECTION ── -->
+            <div id="section-clinical" class="col-12">
+              <div class="p-3 bg-white border rounded-3 mt-2">
+                <h6 class="fw-bold text-dark fs-7 mb-2"><i class="bi bi-award-fill text-primary me-2"></i>Clinical & Institutional Details</h6>
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <label class="form-label fs-8 text-muted mb-1">Department</label>
+                    <select name="department_id" class="form-select form-select-sm">
+                      <option value="">-- Choose Department --</option>
+                      {% for d in departments %}
+                      <option value="{{ d.id }}">{{ d.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fs-8 text-muted mb-1">Specialization / Clinical Focus</label>
+                    <input type="text" name="specialization" class="form-control form-control-sm" placeholder="e.g. General Medicine, OBGYN, Cardiology">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fs-8 text-muted mb-1">Medical Council License / Reg Number</label>
+                    <input type="text" name="license_number" class="form-control form-control-sm" placeholder="e.g. MCI-2022-8472">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fs-8 text-muted mb-1">Teleconsultation Fee ($ / ₹)</label>
+                    <input type="number" step="0.5" name="consultation_fee" class="form-control form-control-sm" value="0.0">
+                  </div>
+                </div>
+              </div>
             </div>
+
+            <!-- ── PATIENT DEMOGRAPHIC SECTION ── -->
+            <div id="section-patient" class="col-12 d-none">
+              <div class="p-3 bg-white border rounded-3 mt-2 border-danger-subtle">
+                <h6 class="fw-bold text-danger fs-7 mb-2"><i class="bi bi-heart-pulse-fill me-2"></i>Patient Demographic & ABDM Details</h6>
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <label class="form-label fs-8 text-muted mb-1">National ABHA ID (14-Digit)</label>
+                    <input type="text" name="abha_id" class="form-control form-control-sm" placeholder="91-XXXX-XXXX-XXXX">
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label fs-8 text-muted mb-1">Date of Birth</label>
+                    <input type="date" name="dob" class="form-control form-control-sm" value="1995-01-01">
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label fs-8 text-muted mb-1">Gender</label>
+                    <select name="gender" class="form-select form-select-sm">
+                      <option value="Female">Female</option>
+                      <option value="Male">Male</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fs-8 text-muted mb-1">Blood Group</label>
+                    <select name="blood_group" class="form-select form-select-sm">
+                      <option value="O+">O+</option>
+                      <option value="A+">A+</option>
+                      <option value="B+">B+</option>
+                      <option value="AB+">AB+</option>
+                      <option value="O-">O-</option>
+                      <option value="A-">A-</option>
+                      <option value="B-">B-</option>
+                      <option value="AB-">AB-</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fs-8 text-muted mb-1">Village / Hamlet</label>
+                    <input type="text" name="village" class="form-control form-control-sm" placeholder="e.g. Rampur Village">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fs-8 text-muted mb-1">Gram Panchayat</label>
+                    <input type="text" name="panchayat" class="form-control form-control-sm" placeholder="e.g. Rampur Block">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fs-8 text-muted mb-1">Emergency Contact Person</label>
+                    <input type="text" name="emergency_contact_name" class="form-control form-control-sm" placeholder="Kin / Guardian Name">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fs-8 text-muted mb-1">Emergency Contact Phone</label>
+                    <input type="tel" name="emergency_contact_phone" class="form-control form-control-sm" placeholder="+91 9876543210">
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
-        <div class="modal-footer bg-light py-2">
-          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-sm btn-primary">Create Staff Account</button>
+
+        <div class="modal-footer bg-white border-top py-2 px-4 d-flex justify-content-between">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary fw-semibold px-4">
+            <i class="bi bi-person-check-fill me-1"></i> Provision Account
+          </button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
+<script>
+  function toggleRoleFormSections(role) {
+    const clinicalSec = document.getElementById('section-clinical');
+    const patientSec = document.getElementById('section-patient');
+    if (role === 'patient') {
+      clinicalSec.classList.add('d-none');
+      patientSec.classList.remove('d-none');
+    } else {
+      clinicalSec.classList.remove('d-none');
+      patientSec.classList.add('d-none');
+    }
+  }
+</script>
 
 {% endblock %}

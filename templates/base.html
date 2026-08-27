@@ -373,6 +373,75 @@
     </div>
   </div>
 
+  <!-- Floating Role Switcher Slide Tab (Right Edge) -->
+  {% if current_user %}
+  <button type="button" class="role-switch-slide-tab no-print" data-bs-toggle="offcanvas" data-bs-target="#roleSwitchDrawer" aria-controls="roleSwitchDrawer" title="Switch Stakeholder Role Portal">
+    <i class="bi bi-arrow-left-right"></i>
+    <span class="d-none d-sm-inline">Switch Role</span>
+  </button>
+
+  <!-- Offcanvas Role Switcher Drawer (Right) -->
+  <div class="offcanvas offcanvas-end shadow-lg border-0 no-print" tabindex="-1" id="roleSwitchDrawer" aria-labelledby="roleSwitchDrawerLabel" style="width: 380px;">
+    <div class="offcanvas-header bg-dark text-white py-3 px-4">
+      <div class="d-flex align-items-center gap-2">
+        <div class="p-2 bg-primary bg-opacity-25 rounded-circle text-info">
+          <i class="bi bi-person-badge-fill fs-5"></i>
+        </div>
+        <div>
+          <h6 class="offcanvas-title fw-bold m-0 text-white" id="roleSwitchDrawerLabel">Switch Role Portal</h6>
+          <small class="text-white-50" style="font-size: 0.72rem;">Select a role to open its dedicated sign-in page</small>
+        </div>
+      </div>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+
+    <div class="offcanvas-body p-3 bg-light">
+      <!-- Active User Card -->
+      <div class="p-3 bg-white border rounded-3 shadow-sm mb-3">
+        <div class="text-muted text-uppercase fw-bold mb-1" style="font-size: 0.68rem;">Currently Signed In:</div>
+        <div class="d-flex align-items-center gap-2">
+          <img src="{{ current_user.avatar_url or 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100' }}" class="rounded-circle border" width="36" height="36" style="object-fit: cover;">
+          <div class="text-truncate">
+            <div class="fw-bold text-dark fs-7 text-truncate">{{ current_user.full_name }}</div>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle text-uppercase" style="font-size: 0.68rem;">{{ current_user.role.replace('_', ' ') }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-muted fw-bold text-uppercase mb-2 px-1" style="font-size: 0.72rem;">
+        <i class="bi bi-grid-fill text-primary me-1"></i>Select Target Role Portal
+      </div>
+
+      <!-- Drawer Role Items -->
+      <div class="d-flex flex-column gap-2">
+        {% set drawer_roles = [
+          ('doctor',       'Medical Officer & Specialist',   'Clinical Diagnosis & OPD',  'bi-clipboard2-pulse-fill', '#0284c7'),
+          ('asha_cho',     'ASHA & Frontline CHO',           'Telemedicine & Triage',     'bi-heart-pulse-fill',      '#10b981'),
+          ('nurse',        'Inpatient Ward Nurse',           'Beds & Nursing Notes',      'bi-bandaid-fill',          '#059669'),
+          ('pharmacist',   'Central Pharmacy Depot',         'Drugs & Inventory',         'bi-capsule',               '#d97706'),
+          ('lab_tech',     'Diagnostic Pathology Lab',       'Samples & Lab Results',     'bi-moisture',              '#8b5cf6'),
+          ('receptionist', 'OPD Reception & Tokens',         'Walk-in & Queue Dispatch',  'bi-calendar-check-fill',   '#0891b2'),
+          ('admin',        'Chief Medical Officer / Admin',  'Directorate & Governance',  'bi-shield-lock-fill',      '#0f172a'),
+          ('patient',      'Citizen & Patient Portal',       'ABHA EHR & Appointments',   'bi-person-heart',          '#db2777')
+        ] %}
+
+        {% for r_key, r_title, r_sub, r_icon, r_color in drawer_roles %}
+        <a href="{{ url_for('login', role=r_key, switch='1') }}" class="card border text-decoration-none role-drawer-item p-2 px-3 rounded-3 shadow-sm d-flex flex-row align-items-center gap-3">
+          <div class="rounded-3 d-flex align-items-center justify-content-center text-white" style="width: 38px; height: 38px; background: {{ r_color }}; flex-shrink: 0;">
+            <i class="bi {{ r_icon }} fs-6"></i>
+          </div>
+          <div class="flex-grow-1">
+            <div class="fw-bold fs-7 text-dark lh-sm">{{ r_title }}</div>
+            <div class="text-muted" style="font-size: 0.7rem;">{{ r_sub }}</div>
+          </div>
+          <i class="bi bi-arrow-right-circle text-primary fs-6"></i>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Hidden Google Translate Element Container -->
   <div id="google_translate_element" style="display:none;"></div>
   <script type="text/javascript">

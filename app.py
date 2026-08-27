@@ -588,16 +588,114 @@ def roles_accepted(*allowed_roles):
         return decorated_function
     return decorator
 
+ROLE_CONFIGS = {
+    "doctor": {
+        "key": "doctor",
+        "title": "Medical Officer & Specialist Doctor",
+        "badge": "Clinical & OPD Diagnosis",
+        "icon": "bi-clipboard2-pulse-fill",
+        "color": "#0284c7",
+        "bg_gradient": "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+        "username_label": "Doctor ID / Email / Username",
+        "username_placeholder": "e.g. dr.sarah, dr.rajesh",
+        "desc": "Manage clinical consultations, issue digital prescriptions, order diagnostics, and accept inter-facility referrals."
+    },
+    "asha_cho": {
+        "key": "asha_cho",
+        "title": "ASHA & Community Health Officer (CHO)",
+        "badge": "Frontline Rural Healthcare",
+        "icon": "bi-heart-pulse-fill",
+        "color": "#10b981",
+        "bg_gradient": "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+        "username_label": "ASHA Mobile Number / Worker ID",
+        "username_placeholder": "e.g. asha.sunita, 9876543210",
+        "desc": "Conduct assisted telemedicine sessions, capture point-of-care vitals, and maintain high-risk pregnancy registries."
+    },
+    "nurse": {
+        "key": "nurse",
+        "title": "Inpatient Ward & Clinical Nurse",
+        "badge": "Nursing & Bed Allocation",
+        "icon": "bi-bandaid-fill",
+        "color": "#059669",
+        "bg_gradient": "linear-gradient(135deg, #047857 0%, #059669 100%)",
+        "username_label": "Nurse ID / Username",
+        "username_placeholder": "e.g. nurse.clara",
+        "desc": "Manage inpatient bed matrix, record nursing progress notes, and coordinate multi-facility admissions."
+    },
+    "pharmacist": {
+        "key": "pharmacist",
+        "title": "Central Pharmacy & Drug Supply",
+        "badge": "Essential Medicine Depot",
+        "icon": "bi-capsule",
+        "color": "#d97706",
+        "bg_gradient": "linear-gradient(135deg, #b45309 0%, #d97706 100%)",
+        "username_label": "Pharmacist ID / Username",
+        "username_placeholder": "e.g. pharm.robert",
+        "desc": "Dispense electronic prescriptions, maintain stock balances, and raise cross-facility medicine indents."
+    },
+    "lab_tech": {
+        "key": "lab_tech",
+        "title": "Diagnostic Pathology & Laboratory",
+        "badge": "Clinical Diagnostics",
+        "icon": "bi-moisture",
+        "color": "#8b5cf6",
+        "bg_gradient": "linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)",
+        "username_label": "Technician ID / Username",
+        "username_placeholder": "e.g. lab.lisa",
+        "desc": "Collect biological specimens, enter lab investigation findings, and generate digitally verified reports."
+    },
+    "receptionist": {
+        "key": "receptionist",
+        "title": "OPD Registration & Token Desk",
+        "badge": "Outpatient Desk & Tokens",
+        "icon": "bi-calendar-check-fill",
+        "color": "#0891b2",
+        "bg_gradient": "linear-gradient(135deg, #0e7490 0%, #0891b2 100%)",
+        "username_label": "Reception Desk Username",
+        "username_placeholder": "e.g. reception.emma",
+        "desc": "Register walk-in outpatients, issue OPD queue tokens, and schedule consultation appointments."
+    },
+    "admin": {
+        "key": "admin",
+        "title": "Chief Medical Officer & Administrator",
+        "badge": "Health System Directorate",
+        "icon": "bi-shield-lock-fill",
+        "color": "#0f172a",
+        "bg_gradient": "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+        "username_label": "Directorate Username / Email",
+        "username_placeholder": "e.g. admin",
+        "desc": "Oversee facility operations, provision healthcare staff profiles, review audit logs, and monitor analytics."
+    },
+    "patient": {
+        "key": "patient",
+        "title": "Citizen & Patient Health Portal",
+        "badge": "ABHA Linked Health Records",
+        "icon": "bi-person-heart",
+        "color": "#db2777",
+        "bg_gradient": "linear-gradient(135deg, #be185d 0%, #db2777 100%)",
+        "username_label": "ABHA ID / Mobile Number",
+        "username_placeholder": "e.g. patient.meena, 91-XXXX-XXXX-XXXX",
+        "desc": "View your electronic health records, check diagnostic reports, and book telemedicine follow-ups."
+    }
+}
+
+@app.route("/portal-select")
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if "user_id" in session:
+    if request.args.get("switch") == "1":
+        session.clear()
+
+    if "user_id" in session and request.method == "GET" and not request.args.get("switch"):
         return redirect(url_for("dashboard"))
+
+    selected_role_key = request.args.get("role") or request.form.get("role") or ""
+    selected_role = ROLE_CONFIGS.get(selected_role_key)
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        user = query_db("SELECT * FROM users WHERE username = ? AND is_active = 1", (username,), one=True)
+        user = query_db("SELECT * FROM users WHERE (username = ? OR phone = ? OR email = ?) AND is_active = 1", (username, username, username), one=True)
         if user and check_password_hash(user["password_hash"], password):
             session["user_id"] = user["id"]
             session["username"] = user["username"]
@@ -607,22 +705,19 @@ def login():
             session.permanent = True
 
             log_audit(user["id"], "User Login", "Auth", f"Successful login for {username} ({user['role']})", request.remote_addr, user["facility_id"])
-            flash(f"Welcome back, {user['full_name']}! Signed in as {user['role'].upper()}.", "success")
+            flash(f"Welcome back, {user['full_name']}! Signed in as {user['role'].replace('_', ' ').upper()}.", "success")
             
             next_url = request.args.get("next")
             return redirect(next_url or url_for("dashboard"))
         else:
-            flash("Invalid username or password. Please check your credentials.", "danger")
+            flash("Invalid username or password. Please check your credentials and try again.", "danger")
 
-    # Fetch verified staff directory
-    staff_directory = query_db(
-        """SELECT u.id, u.username, u.full_name, u.role, u.specialization, u.avatar_url,
-                  f.name as facility_name, f.tier_type as facility_tier
-           FROM users u
-           LEFT JOIN facilities f ON u.facility_id = f.id
-           ORDER BY u.id ASC"""
+    return render_template(
+        "auth/login.html",
+        role_configs=ROLE_CONFIGS,
+        selected_role=selected_role,
+        selected_role_key=selected_role_key
     )
-    return render_template("auth/login.html", staff_directory=staff_directory)
 
 @app.route("/profile", methods=["GET", "POST"])
 @login_required
@@ -2580,7 +2675,10 @@ def staff_create():
     phone = request.form.get("phone", "").strip()
     specialization = request.form.get("specialization", "").strip()
     license_number = request.form.get("license_number", "").strip()
-    consultation_fee = float(request.form.get("consultation_fee", 0.0) or 0.0)
+    try:
+        consultation_fee = float(request.form.get("consultation_fee", 0.0) or 0.0)
+    except ValueError:
+        consultation_fee = 0.0
 
     if not full_name or not username:
         flash("Full name and username are required.", "danger")
@@ -2588,18 +2686,58 @@ def staff_create():
 
     existing = query_db("SELECT id FROM users WHERE username = ?", (username,), one=True)
     if existing:
-        flash(f"Username '{username}' already exists.", "danger")
+        flash(f"Username '{username}' already exists. Please choose a different username.", "danger")
         return redirect(url_for("staff_index"))
 
-    from werkzeug.security import generate_password_hash
     pwd_hash = generate_password_hash(password)
 
-    execute_db(
-        """INSERT INTO users (username, password_hash, full_name, email, phone, role, facility_id, department_id, specialization, license_number, consultation_fee, is_active, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))""",
-        (username, pwd_hash, full_name, email, phone, role, facility_id, department_id, specialization, license_number, consultation_fee)
+    # Pick role default avatar if none provided
+    avatar_map = {
+        "doctor": "https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200",
+        "medical_officer": "https://images.unsplash.com/photo-1594824813596-f571b0589a87?w=200",
+        "asha_cho": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200",
+        "nurse": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+        "pharmacist": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
+        "lab_tech": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200",
+        "receptionist": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200",
+        "admin": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200",
+        "patient": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200"
+    }
+    avatar_url = avatar_map.get(role, "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200")
+
+    user_id = execute_db(
+        """INSERT INTO users (username, password_hash, full_name, email, phone, role, facility_id, department_id, specialization, license_number, consultation_fee, avatar_url, is_active, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))""",
+        (username, pwd_hash, full_name, email or None, phone or None, role, facility_id, department_id, specialization or None, license_number or None, consultation_fee, avatar_url)
     )
-    flash(f"Staff member '{full_name}' ({role}) registered successfully.", "success")
+
+    if role == "patient":
+        name_parts = full_name.split(" ", 1)
+        first_name = name_parts[0]
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+        patient_uid = f"PC-{str(user_id).zfill(5)}"
+        abha_id = request.form.get("abha_id", "").strip() or f"91-{user_id:04d}-5678-9012"
+        dob = request.form.get("dob") or "1995-01-01"
+        gender = request.form.get("gender") or "Female"
+        blood_group = request.form.get("blood_group") or "O+"
+        village = request.form.get("village", "").strip() or "Rampur Village"
+        panchayat = request.form.get("panchayat", "").strip() or "Rampur Block"
+        emerg_name = request.form.get("emergency_contact_name", "").strip()
+        emerg_phone = request.form.get("emergency_contact_phone", "").strip()
+
+        execute_db(
+            """INSERT INTO patients (user_id, patient_uid, first_name, last_name, phone, email,
+                                     dob, gender, blood_group, village, panchayat, abha_id,
+                                     emergency_contact_name, emergency_contact_phone,
+                                     facility_id, status, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Outpatient', datetime('now'))""",
+            (user_id, patient_uid, first_name, last_name, phone or None, email or None,
+             dob, gender, blood_group, village, panchayat, abha_id,
+             emerg_name or None, emerg_phone or None, facility_id)
+        )
+
+    log_audit(session.get("user_id"), "Create User Profile", "Admin", f"Created {role} account for {full_name} (@{username})", request.remote_addr, facility_id)
+    flash(f"Healthcare profile for '{full_name}' ({role.replace('_', ' ').title()}) provisioned successfully.", "success")
     return redirect(url_for("staff_index"))
 
 if __name__ == "__main__":

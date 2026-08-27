@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign In — PulseCare Public Health Network</title>
+  <title>{% if selected_role %}{{ selected_role.title }} Sign In{% else %}Select Role Portal{% endif %} — PulseCare</title>
   <link rel="icon" type="image/png" href="/static/img/pulsecare-logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/css/styles.css">
   <style>
     :root { --primary: #0284c7; --primary-dark: #0369a1; }
     * { font-family: 'Inter', sans-serif; }
@@ -19,52 +20,33 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: 24px 16px;
     }
-    .auth-card {
-      max-width: 960px;
+    .auth-container {
+      max-width: {% if selected_role %}960px{% else %}1140px{% endif %};
       width: 100%;
-      background: #fff;
+      background: #ffffff;
       border-radius: 24px;
       overflow: hidden;
       box-shadow: 0 32px 64px -12px rgba(0,0,0,0.5);
     }
     .brand-panel {
-      background: linear-gradient(160deg, #0369a1 0%, #0f172a 100%);
+      background: {% if selected_role %}{{ selected_role.bg_gradient }}{% else %}linear-gradient(160deg, #0369a1 0%, #0f172a 100%){% endif %};
       padding: 3rem 2.5rem;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       min-height: 100%;
     }
-    .feature-item { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 1.5rem; }
-    .feature-icon {
-      width: 40px; height: 40px;
-      border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem; flex-shrink: 0;
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
     }
     .form-control:focus {
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(2,132,199,0.18);
     }
-    .btn-primary-custom {
-      background: var(--primary); color: #fff; border: none;
-      padding: 13px; font-weight: 600; border-radius: 12px;
-      transition: all 0.2s;
-    }
-    .btn-primary-custom:hover {
-      background: var(--primary-dark);
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(2,132,199,0.35);
-    }
-    .password-wrapper { position: relative; }
-    .password-toggle-btn {
-      cursor: pointer;
-      color: #64748b;
-      transition: color 0.15s;
-    }
-    .password-toggle-btn:hover { color: var(--primary); }
     .fs-7 { font-size: 0.875rem; }
     .fs-8 { font-size: 0.75rem; }
     .fs-9 { font-size: 0.68rem; }
@@ -72,70 +54,138 @@
 </head>
 <body>
 
-<div class="auth-card" data-voice-region="Sign in to PulseCare National Public Health Network. Enter username or mobile number and password.">
-  <div class="row g-0">
-
-    <!-- ── LEFT PANEL: BRAND & VALUE PROPOSITION ── -->
-    <div class="col-lg-5 d-none d-lg-block">
-      <div class="brand-panel h-100">
-        <div>
-          <!-- Logo -->
-          <div class="d-flex align-items-center gap-3 mb-4">
-            <div class="p-2 bg-white rounded-3 shadow-sm">
-              <i class="bi bi-hospital text-primary fs-3"></i>
-            </div>
-            <div>
-              <div class="fw-bold text-white fs-4 lh-1">PulseCare</div>
-              <div class="text-white-50 fs-8 text-uppercase fw-semibold tracking-wider">Public Health Network</div>
-            </div>
-          </div>
-
-          <h5 class="text-white fw-bold mb-2">Integrated Rural Telemedicine & EHR Platform</h5>
-          <p class="text-white-50 fs-7 mb-4">Connecting Sub-Centres, PHCs, CHCs & District Hospitals into a unified continuum of care.</p>
-
-          <div class="feature-item">
-            <div class="feature-icon bg-white bg-opacity-10 text-info"><i class="bi bi-camera-video-fill"></i></div>
-            <div>
-              <div class="fw-semibold text-white fs-7">Assisted Teleconsultation</div>
-              <div class="text-white-50 fs-8">ASHA-to-Specialist HD video with real-time POC vitals</div>
-            </div>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon bg-white bg-opacity-10 text-warning"><i class="bi bi-arrow-left-right"></i></div>
-            <div>
-              <div class="fw-semibold text-white fs-7">Closed-Loop Referrals</div>
-              <div class="text-white-50 fs-8">108 ambulance dispatch and post-discharge counter-referral</div>
-            </div>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon bg-white bg-opacity-10 text-success"><i class="bi bi-shield-check"></i></div>
-            <div>
-              <div class="fw-semibold text-white fs-7">ABHA & FHIR Compliance</div>
-              <div class="text-white-50 fs-8">14-digit ABHA ID integration with interoperable health records</div>
-            </div>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon bg-white bg-opacity-10 text-light"><i class="bi bi-globe"></i></div>
-            <div>
-              <div class="fw-semibold text-white fs-7">Multilingual Voice Assist</div>
-              <div class="text-white-50 fs-8">7 regional languages with localized text-to-speech audio</div>
-            </div>
-          </div>
+<div class="auth-container">
+  
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       VIEW A: ROLE & PORTAL SELECTOR (BEFORE LOGIN)
+       ══════════════════════════════════════════════════════════════════════════ -->
+  {% if not selected_role %}
+  <div class="p-4 p-md-5" data-voice-region="Select your role to sign into PulseCare National Public Health Network. Roles include Doctor, ASHA Frontline, Nurse, Pharmacist, Lab, Receptionist, Admin, and Patient.">
+    <!-- Top Header Bar with Language & Speak Aloud -->
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 pb-4 mb-4 border-bottom">
+      <div class="d-flex align-items-center gap-3">
+        <div class="p-2 bg-primary text-white rounded-3 shadow-sm d-flex align-items-center justify-content-center">
+          <i class="bi bi-hospital fs-3"></i>
         </div>
+        <div>
+          <div class="fw-bold text-dark fs-4 lh-1">PulseCare</div>
+          <div class="text-primary fs-8 text-uppercase fw-semibold tracking-wider">Public Health Network</div>
+        </div>
+      </div>
 
-        <div class="border-top border-white border-opacity-10 pt-3">
-          <div class="d-flex align-items-center gap-2">
-            <i class="bi bi-patch-check-fill text-info fs-5"></i>
-            <div>
-              <div class="fw-semibold text-white fs-8">IPHS · NABH · ABDM Compliant</div>
-              <div class="text-white-50" style="font-size:0.68rem;">Role-Based Access Control · 256-bit Encryption</div>
-            </div>
-          </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 py-1 px-3 fs-8 rounded-pill" id="topbar-speak-btn" onclick="window.PulseCareVoice ? window.PulseCareVoice.readPage() : null;" title="Speak Aloud">
+          <i class="bi bi-volume-up-fill"></i>
+          <span>Speak Aloud</span>
+        </button>
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1 py-1 px-3 fs-8 rounded-pill" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-translate text-primary"></i>
+            <span>
+              {% for code, name in available_languages %}
+                {% if code == selected_lang %}{{ name }}{% endif %}
+              {% endfor %}
+            </span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm fs-7">
+            {% for code, name in available_languages %}
+            <li>
+              <a class="dropdown-item lang-select-item {% if code == selected_lang %}active fw-bold{% endif %}" 
+                 href="{{ url_for('set_language', lang_code=code) }}"
+                 data-lang="{{ code }}"
+                 onclick="if(window.changePulseCareLanguage){ changePulseCareLanguage('{{ code }}', event); }">
+                {{ name }}
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
         </div>
       </div>
     </div>
 
-    <!-- ── RIGHT PANEL: ENTERPRISE LOGIN FORM ── -->
+    <div class="text-center mb-4 pb-2">
+      <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 fs-8 rounded-pill mb-2">
+        <i class="bi bi-shield-check me-1"></i>Role-Based Institutional Access
+      </span>
+      <h2 class="fw-bold text-dark mb-1">Select Your Stakeholder Role Portal</h2>
+      <p class="text-muted fs-7 mx-auto" style="max-width: 600px;">
+        Choose your operational healthcare role below to access the dedicated login workspace tailored to your clinical capabilities.
+      </p>
+    </div>
+
+    <!-- Role Selection Grid (8 Roles) -->
+    <div class="role-grid mb-4">
+      {% for r_key, cfg in role_configs.items() %}
+      <a href="{{ url_for('login', role=r_key) }}" class="role-select-card p-3 d-flex flex-column justify-content-between h-100 shadow-sm" data-speak="Select {{ cfg.title }}">
+        <div>
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="rounded-3 d-flex align-items-center justify-content-center text-white p-3 shadow-sm" style="width: 44px; height: 44px; background: {{ cfg.color }};">
+              <i class="bi {{ cfg.icon }} fs-5"></i>
+            </div>
+            <span class="badge bg-light text-dark border fs-9">{{ cfg.badge }}</span>
+          </div>
+          <h6 class="fw-bold text-dark mb-1">{{ cfg.title }}</h6>
+          <p class="text-muted fs-8 mb-3" style="line-height: 1.35;">{{ cfg.desc }}</p>
+        </div>
+        <div class="pt-2 border-top d-flex align-items-center justify-content-between text-primary fs-8 fw-semibold">
+          <span>Sign In to Portal</span>
+          <i class="bi bi-arrow-right"></i>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+
+    <div class="text-center pt-3 border-top">
+      <p class="text-muted fs-7 mb-1">
+        New patient or citizen?
+        <a href="{{ url_for('register') }}" class="text-primary fw-semibold text-decoration-none">
+          <i class="bi bi-person-plus me-1"></i>Create your National ABHA account
+        </a>
+      </p>
+      <small class="text-muted fs-9">PulseCare National Public Health Network • Official Telemedicine & EHR System</small>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       VIEW B: DEDICATED ROLE-SPECIFIC LOGIN SCREEN (AFTER SELECTING ROLE)
+       ══════════════════════════════════════════════════════════════════════════ -->
+  {% else %}
+  <div class="row g-0" data-voice-region="Sign in to {{ selected_role.title }}. Enter {{ selected_role.username_label }} and password.">
+    
+    <!-- Left Role Branding Panel -->
+    <div class="col-lg-5 d-none d-lg-block">
+      <div class="brand-panel h-100 text-white">
+        <div>
+          <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="p-2 bg-white rounded-3 shadow-sm">
+              <i class="bi {{ selected_role.icon }} fs-3" style="color: {{ selected_role.color }};"></i>
+            </div>
+            <div>
+              <div class="fw-bold text-white fs-4 lh-1">PulseCare</div>
+              <div class="text-white-50 fs-8 text-uppercase fw-semibold tracking-wider">{{ selected_role.badge }}</div>
+            </div>
+          </div>
+
+          <span class="badge bg-white text-dark fw-bold px-2 py-1 fs-8 text-uppercase mb-2">Dedicated Workspace</span>
+          <h4 class="fw-bold mb-2 text-white">{{ selected_role.title }}</h4>
+          <p class="text-white-50 fs-7 mb-4">{{ selected_role.desc }}</p>
+
+          <div class="p-3 bg-white bg-opacity-10 rounded-3 border border-white border-opacity-15 mb-3">
+            <div class="fw-semibold text-white fs-8 mb-1"><i class="bi bi-shield-lock-fill me-1"></i>Encrypted Authentication</div>
+            <div class="text-white-50 fs-9">Role-based session with ABHA, NABH, and IPHS audit compliance.</div>
+          </div>
+        </div>
+
+        <div class="border-top border-white border-opacity-10 pt-3">
+          <a href="{{ url_for('login') }}" class="btn btn-sm btn-outline-light d-inline-flex align-items-center gap-1 rounded-pill">
+            <i class="bi bi-arrow-left"></i>
+            <span>Switch Role Portal</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Login Form Panel -->
     <div class="col-lg-7 p-4 p-md-5 d-flex flex-column justify-content-between">
       <div>
 
@@ -152,18 +202,17 @@
           {% endif %}
         {% endwith %}
 
-        <!-- Language & Voice Accessibility Header -->
-        <div class="d-flex align-items-center justify-content-between mb-4">
-          <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-1 px-2 fs-8">
-              <i class="bi bi-shield-lock-fill me-1"></i>Secure Clinical Portal
-            </span>
-          </div>
+        <!-- Navigation bar with Back to Role Selector & Language -->
+        <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+          <a href="{{ url_for('login') }}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 rounded-pill fs-8">
+            <i class="bi bi-arrow-left"></i>
+            <span>All Roles</span>
+          </a>
 
           <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 py-1 px-2 fs-8 rounded-pill" id="topbar-speak-btn" onclick="window.PulseCareVoice ? window.PulseCareVoice.readPage() : null;" title="Speak Aloud (आवाज से सुनें)">
+            <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 py-1 px-2 fs-8 rounded-pill" id="topbar-speak-btn" onclick="window.PulseCareVoice ? window.PulseCareVoice.readPage() : null;" title="Speak Aloud">
               <i class="bi bi-volume-up-fill"></i>
-              <span>Speak Aloud</span>
+              <span>Speak</span>
             </button>
             <div class="dropdown">
               <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1 py-1 px-2 fs-8 rounded-pill" type="button" data-bs-toggle="dropdown">
@@ -191,55 +240,55 @@
         </div>
 
         <div class="mb-4">
-          <h3 class="fw-bold text-dark mb-1">Sign in to your account</h3>
-          <p class="text-muted fs-7 mb-0">Enter your institutional username, mobile number, or ABHA ID to access your dashboard.</p>
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge text-white px-2 py-1 fs-9 text-uppercase" style="background: {{ selected_role.color }};">
+              {{ selected_role.title }}
+            </span>
+          </div>
+          <h3 class="fw-bold text-dark mb-1">Sign in to your portal</h3>
+          <p class="text-muted fs-7 mb-0">Enter your {{ selected_role.username_label }} and security password.</p>
         </div>
 
-        <!-- ── LOGIN FORM ── -->
+        <!-- ── DEDICATED LOGIN FORM ── -->
         <form method="POST" action="{{ url_for('login') }}" id="login-form" novalidate>
+          <input type="hidden" name="role" value="{{ selected_role_key }}">
+
           <div class="mb-3">
-            <label class="form-label fw-semibold fs-7 text-dark">Username / Mobile Number / ABHA ID</label>
+            <label class="form-label fw-semibold fs-7 text-dark">{{ selected_role.username_label }} <span class="text-danger">*</span></label>
             <div class="input-group">
-              <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-person"></i></span>
-              <input type="text" name="username" id="username-input" class="form-control border-start-0 ps-0"
-                     placeholder="e.g. dr.sarah, asha.sunita, or 10-digit mobile" required autocomplete="username" autofocus>
+              <span class="input-group-text bg-light text-muted"><i class="bi bi-person"></i></span>
+              <input type="text" name="username" id="username-input" class="form-control"
+                     placeholder="{{ selected_role.username_placeholder }}" required autocomplete="username" autofocus>
             </div>
           </div>
 
           <div class="mb-3">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <label class="form-label fw-semibold fs-7 text-dark mb-0">Password</label>
-            </div>
-            <div class="input-group password-wrapper">
-              <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-lock"></i></span>
-              <input type="password" name="password" id="password-input" class="form-control border-start-0 ps-0 border-end-0"
-                     placeholder="Enter your account password" required autocomplete="current-password">
-              <button type="button" class="input-group-text bg-light border-start-0 password-toggle-btn" onclick="togglePassword()" title="Show/Hide Password">
-                <i class="bi bi-eye" id="pw-toggle-icon"></i>
+            <label class="form-label fw-semibold fs-7 text-dark">Password <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text bg-light text-muted"><i class="bi bi-lock"></i></span>
+              <input type="password" name="password" id="password-input" class="form-control"
+                     placeholder="Enter your password" required autocomplete="current-password">
+              <button type="button" class="input-group-text bg-light" onclick="togglePassword()" title="Show/Hide">
+                <i class="bi bi-eye text-muted" id="pw-toggle-icon"></i>
               </button>
             </div>
           </div>
 
-          <button type="submit" class="btn btn-primary-custom w-100 mt-2" id="signin-btn">
-            <i class="bi bi-box-arrow-in-right me-2"></i>Sign In to Workspace
+          <button type="submit" class="btn text-white w-100 py-2 mt-2 fw-semibold rounded-3 shadow-sm" id="signin-btn" style="background: {{ selected_role.color }};">
+            <i class="bi bi-box-arrow-in-right me-2"></i>Sign In as {{ selected_role.title }}
           </button>
         </form>
 
       </div>
 
-      <!-- Register link & Footer notice -->
       <div class="pt-4 border-top mt-4 text-center">
-        <p class="text-muted fs-7 mb-1">
-          New patient or citizen?
-          <a href="{{ url_for('register') }}" class="text-primary fw-semibold text-decoration-none">
-            <i class="bi bi-person-plus me-1"></i>Register for patient portal
-          </a>
-        </p>
-        <small class="text-muted fs-9">PulseCare National Public Health Network • Official Telemedicine System</small>
+        <p class="text-muted fs-8 mb-0">PulseCare National Public Health Network • Role-Based Healthcare System</p>
       </div>
 
     </div>
   </div>
+  {% endif %}
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -248,10 +297,10 @@
 <!-- Voice Accessibility & Speak Aloud JS -->
 <script src="/static/js/voice_assist.js"></script>
 <script>
-  // Password visibility toggle
   function togglePassword() {
     const input = document.getElementById('password-input');
     const icon = document.getElementById('pw-toggle-icon');
+    if (!input) return;
     if (input.type === 'password') {
       input.type = 'text';
       icon.className = 'bi bi-eye-slash text-primary';
@@ -261,12 +310,16 @@
     }
   }
 
-  // Prevent double-submit on sign-in
-  document.getElementById('login-form').addEventListener('submit', function(e) {
-    const btn = document.getElementById('signin-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Authenticating...';
-  });
+  const form = document.getElementById('login-form');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      const btn = document.getElementById('signin-btn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Authenticating...';
+      }
+    });
+  }
 </script>
 </body>
 </html>
