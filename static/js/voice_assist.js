@@ -64,7 +64,6 @@
     const stopBtn = document.getElementById("voice-btn-stop");
     const statusText = document.getElementById("voice-status-text");
     const waveEl = document.getElementById("voice-wave-anim");
-    const topSpeakerBtn = document.getElementById("topbar-speak-btn");
     const opdBtn = document.getElementById("opd-speak-btn");
     const langLabel = document.getElementById("voice-lang-name");
     const playText = document.getElementById("voice-play-text");
@@ -80,11 +79,6 @@
       if (stopBtn) stopBtn.classList.remove("d-none");
       if (waveEl) waveEl.classList.remove("d-none");
       if (statusText) statusText.innerText = lang.reading;
-      if (topSpeakerBtn) {
-        topSpeakerBtn.classList.add("btn-danger","pulse-animation");
-        topSpeakerBtn.classList.remove("btn-outline-primary","btn-warning");
-        topSpeakerBtn.innerHTML = `<i class="bi bi-stop-circle-fill"></i> <span class="d-none d-lg-inline">${lang.stop}</span>`;
-      }
       if (opdBtn) {
         opdBtn.classList.add("btn-danger","pulse-animation");
         opdBtn.classList.remove("btn-outline-light");
@@ -96,11 +90,6 @@
       if (stopBtn) stopBtn.classList.remove("d-none");
       if (waveEl) waveEl.classList.add("d-none");
       if (statusText) statusText.innerText = lang.pause;
-      if (topSpeakerBtn) {
-        topSpeakerBtn.classList.remove("btn-danger","pulse-animation");
-        topSpeakerBtn.classList.add("btn-warning");
-        topSpeakerBtn.innerHTML = `<i class="bi bi-play-circle-fill"></i> <span class="d-none d-lg-inline">${lang.resume}</span>`;
-      }
       if (opdBtn) {
         opdBtn.classList.remove("btn-danger","pulse-animation");
         opdBtn.classList.add("btn-warning");
@@ -112,11 +101,6 @@
       if (stopBtn) stopBtn.classList.add("d-none");
       if (waveEl) waveEl.classList.add("d-none");
       if (statusText) statusText.innerText = tapToSpeakActive ? lang.tapMode : lang.label;
-      if (topSpeakerBtn) {
-        topSpeakerBtn.classList.remove("btn-danger","btn-warning","pulse-animation");
-        topSpeakerBtn.classList.add("btn-outline-primary");
-        topSpeakerBtn.innerHTML = `<i class="bi bi-volume-up-fill"></i> <span class="d-none d-lg-inline">${lang.label}</span>`;
-      }
       if (opdBtn) {
         opdBtn.classList.remove("btn-danger","btn-warning","pulse-animation");
         opdBtn.classList.add("btn-outline-light");
@@ -357,37 +341,90 @@
     updateWidgetUI();
   }
 
+  function extractTextFromElement(target) {
+    if (!target) return "";
+    
+    // Check for explicit data attributes
+    const explicit = target.getAttribute("data-speak") || target.getAttribute("data-voice-region") || target.getAttribute("aria-label");
+    if (explicit && explicit.trim()) return explicit.trim();
+
+    // If input / textarea
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+      let labelText = "";
+      if (target.id) {
+        const lbl = document.querySelector(`label[for="${target.id}"]`);
+        if (lbl) labelText = lbl.innerText.trim();
+      }
+      if (!labelText) {
+        const parentLabel = target.closest("label");
+        if (parentLabel) labelText = parentLabel.innerText.trim();
+      }
+      const placeholder = target.placeholder ? `Placeholder: ${target.placeholder}` : "";
+      const val = target.value ? `Entered: ${target.value}` : "";
+      return [labelText, placeholder, val].filter(Boolean).join(". ");
+    }
+
+    // If select dropdown
+    if (target.tagName === "SELECT") {
+      const selectedOption = target.options && target.options[target.selectedIndex] ? target.options[target.selectedIndex].text : "";
+      let labelText = "";
+      if (target.id) {
+        const lbl = document.querySelector(`label[for="${target.id}"]`);
+        if (lbl) labelText = lbl.innerText.trim();
+      }
+      return `${labelText ? labelText + ": " : ""}${selectedOption || target.name || "Dropdown option"}`;
+    }
+
+    // If image
+    if (target.tagName === "IMG") {
+      return target.alt || target.title || "Image";
+    }
+
+    // For cards, table rows, headings, paragraphs, buttons, links, etc.
+    let text = target.innerText ? target.innerText.trim().replace(/[\n\r\t]+/g, " ").replace(/\s{2,}/g, " ") : "";
+    
+    if (!text || text.length < 2) {
+      const container = target.closest("a, button, .card, p, h1, h2, h3, h4, h5, h6, li, tr, td, th, label, .badge, .alert");
+      if (container && container.innerText) {
+        text = container.innerText.trim().replace(/[\n\r\t]+/g, " ").replace(/\s{2,}/g, " ");
+      }
+    }
+
+    return text || target.getAttribute("title") || "";
+  }
+
   function handleDocumentTap(e) {
     if (isGlobalVoiceDisabled()) return;
-    if (e.target.closest("#voice-assist-widget") || e.target.closest("#topbar-speak-btn") || e.target.closest("#opd-speak-btn")) return;
 
-    // Dedicated speak button (ONLY elements explicitly designated with .btn-speak-text)
+    // Ignore clicks inside the voice widget or OPD TV speak button
+    if (e.target.closest("#voice-assist-widget") || e.target.closest("#opd-speak-btn")) {
+      return;
+    }
+
+    // 1. Dedicated speak button (elements explicitly designated with .btn-speak-text)
     const speakBtn = e.target.closest(".btn-speak-text");
     if (speakBtn) {
       e.preventDefault();
       e.stopPropagation();
-      const text = speakBtn.getAttribute("data-speak") || speakBtn.innerText;
+      const text = speakBtn.getAttribute("data-speak") || extractTextFromElement(speakBtn);
       speak(text, speakBtn.closest("[data-voice-region], .card, tr, .alert, div") || speakBtn);
       return;
     }
 
-    if (!tapToSpeakActive) return;
+    // 2. If Tap to Speak is OFF, do NOT intercept anything (normal clicks, links, and forms work 100% normally)
+    if (!tapToSpeakActive) {
+      return;
+    }
 
-    // Only in active Tap-To-Speak mode:
-    const target = e.target.closest(".persona-card, .badge, .alert, label, input, h1, h2, h3, h4, h5, h6, p, li, .queue-card-tv");
-    if (target) {
-      let textToSpeak = "";
-      if (target.tagName === "INPUT") {
-        const lbl = document.querySelector(`label[for="${target.id}"]`);
-        textToSpeak = (lbl ? lbl.innerText : "") + " " + (target.placeholder || "") + " " + (target.value || "");
-      } else if (target.classList.contains("persona-card")) {
-        const name = target.querySelector(".persona-name")?.innerText || "";
-        const role = target.querySelector(".persona-role")?.innerText || "";
-        textToSpeak = `${name}, ${role}`;
-      } else {
-        textToSpeak = target.innerText ? target.innerText.trim().replace(/[\n\r]+/g, " ") : (target.getAttribute("title") || "");
-      }
-      if (textToSpeak) speak(textToSpeak, target);
+    // 3. When Tap to Speak is ON: read aloud wherever the cursor is clicked!
+    e.preventDefault();
+    e.stopPropagation();
+
+    const clickedEl = e.target.closest("a, button, input, select, textarea, .card, .persona-card, tr, td, th, .badge, .alert, label, h1, h2, h3, h4, h5, h6, p, li, dt, dd, .queue-card-tv, span, div") || e.target;
+    
+    const textToSpeak = extractTextFromElement(clickedEl);
+    if (textToSpeak && textToSpeak.trim().length > 0) {
+      speak(textToSpeak, clickedEl);
     }
   }
 
