@@ -2150,7 +2150,6 @@ def appointments_queue():
 
 @app.route("/wards")
 @login_required
-@roles_accepted("admin", "doctor", "medical_officer", "nurse", "receptionist")
 def wards_index():
     facility_filter = request.args.get("facility_id", "").strip()
 
@@ -2164,7 +2163,9 @@ def wards_index():
 
     for w in wards:
         beds = query_db(
-            """SELECT b.*, adm.id as admission_id, adm.admission_number, adm.admitted_at, p.first_name, p.last_name, p.patient_uid, p.village, p.abha_id, p.blood_group, u.full_name as doctor_name
+            """SELECT b.*, adm.id as admission_id, adm.patient_id, adm.admission_number, adm.admitted_at,
+                      p.first_name, p.last_name, p.patient_uid, p.village, p.abha_id, p.blood_group,
+                      u.full_name as doctor_name
                FROM beds b
                LEFT JOIN admissions adm ON b.current_admission_id = adm.id
                LEFT JOIN patients p ON adm.patient_id = p.id

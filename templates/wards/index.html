@@ -68,24 +68,26 @@
 
         {% if bed.status == 'Occupied' %}
           <div class="bed-patient-name" title="{{ bed.first_name }} {{ bed.last_name }}">
-            <i class="bi bi-person-fill text-danger me-1"></i>{{ bed.first_name }} {{ bed.last_name }}
+            <i class="bi bi-person-fill text-danger me-1"></i>{{ bed.first_name or 'Patient' }} {{ bed.last_name or '' }}
           </div>
           <div class="bed-meta mb-1">
-            <span>{{ bed.patient_uid }} • {{ bed.blood_group }}</span>
+            <span>{{ bed.patient_uid or 'N/A' }} • {{ bed.blood_group or 'N/A' }}</span>
           </div>
           <div class="bed-meta text-muted mb-2 text-truncate" title="Dr. {{ bed.doctor_name }}">
-            <i class="bi bi-person-badge me-1"></i>Dr. {{ bed.doctor_name }}
+            <i class="bi bi-person-badge me-1"></i>Dr. {{ bed.doctor_name or 'Attending' }}
           </div>
 
           <div class="d-flex gap-1 border-top pt-2 mt-2">
+            {% if bed.patient_id %}
             <a href="{{ url_for('patient_view', patient_id=bed.patient_id) }}" class="btn btn-xs btn-outline-primary w-50 py-1" style="font-size: 0.72rem;">
               <i class="bi bi-folder2-open"></i> EHR
             </a>
+            {% endif %}
             {% if current_user and current_user.role in ['admin', 'doctor', 'nurse'] %}
-            <button class="btn btn-xs btn-outline-danger w-50 py-1" style="font-size: 0.72rem;"
+            <button class="btn btn-xs btn-outline-danger {% if bed.patient_id %}w-50{% else %}w-100{% endif %} py-1" style="font-size: 0.72rem;"
                     data-bs-toggle="modal" data-bs-target="#dischargePatientModal"
-                    data-admission-id="{{ bed.admission_id }}"
-                    data-patient-name="{{ bed.first_name }} {{ bed.last_name }}"
+                    data-admission-id="{{ bed.admission_id or bed.current_admission_id }}"
+                    data-patient-name="{{ bed.first_name or 'Patient' }} {{ bed.last_name or '' }}"
                     data-bed-number="{{ bed.bed_number }}">
               <i class="bi bi-box-arrow-right"></i> Discharge
             </button>
