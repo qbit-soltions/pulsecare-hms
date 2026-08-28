@@ -2164,7 +2164,7 @@ def wards_index():
 
     for w in wards:
         beds = query_db(
-            """SELECT b.*, adm.admission_number, adm.admitted_at, p.first_name, p.last_name, p.patient_uid, p.village, p.abha_id, u.full_name as doctor_name
+            """SELECT b.*, adm.id as admission_id, adm.admission_number, adm.admitted_at, p.first_name, p.last_name, p.patient_uid, p.village, p.abha_id, p.blood_group, u.full_name as doctor_name
                FROM beds b
                LEFT JOIN admissions adm ON b.current_admission_id = adm.id
                LEFT JOIN patients p ON adm.patient_id = p.id
@@ -2180,7 +2180,16 @@ def wards_index():
 
     facilities = query_db("SELECT id, name, tier_type FROM facilities ORDER BY id ASC")
     patients = query_db("SELECT id, patient_uid, first_name, last_name, village, abha_id FROM patients WHERE status != 'Inpatient' ORDER BY first_name")
-    doctors = query_db("SELECT id, full_name FROM users WHERE role IN ('doctor', 'medical_officer') ORDER BY full_name")
+    doctors = query_db("SELECT id, full_name, specialization FROM users WHERE role IN ('doctor', 'medical_officer') ORDER BY full_name")
+
+    available_beds = query_db(
+        """SELECT b.id, b.bed_number, w.name as ward_name, w.floor, f.name as facility_name
+           FROM beds b
+           JOIN wards w ON b.ward_id = w.id
+           JOIN facilities f ON w.facility_id = f.id
+           WHERE b.status = 'Available'
+           ORDER BY f.id, w.name, b.bed_number ASC"""
+    )
 
     return render_template(
         "wards/index.html",
@@ -2188,6 +2197,7 @@ def wards_index():
         facilities=facilities,
         patients=patients,
         doctors=doctors,
+        available_beds=available_beds,
         facility_filter=facility_filter
     )
 

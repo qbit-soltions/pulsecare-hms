@@ -152,7 +152,9 @@
             <select name="bed_id" id="modal-admit-bed-select" class="form-select form-select-sm" required>
               <option value="">-- Choose Bed --</option>
               {% for b in available_beds %}
-              <option value="{{ b.id }}">{{ b.bed_number }} - {{ b.ward_name }}</option>
+              <option value="{{ b.id }}">{{ b.bed_number }} • {{ b.ward_name }} ({{ b.floor }} - {{ b.facility_name }})</option>
+              {% else %}
+              <option value="" disabled>No vacant beds currently available</option>
               {% endfor %}
             </select>
           </div>
@@ -218,5 +220,43 @@
     </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const admitModal = document.getElementById("admitPatientModal");
+    if (admitModal) {
+      admitModal.addEventListener("show.bs.modal", function(event) {
+        const button = event.relatedTarget;
+        const bedSelect = document.getElementById("modal-admit-bed-select");
+        if (button && bedSelect) {
+          const bedId = button.getAttribute("data-bed-id");
+          if (bedId) {
+            bedSelect.value = bedId;
+          }
+        }
+      });
+    }
+
+    const dischargeModal = document.getElementById("dischargePatientModal");
+    if (dischargeModal) {
+      dischargeModal.addEventListener("show.bs.modal", function(event) {
+        const button = event.relatedTarget;
+        if (button) {
+          const admId = button.getAttribute("data-admission-id");
+          const patientName = button.getAttribute("data-patient-name");
+          const bedNumber = button.getAttribute("data-bed-number");
+          const form = dischargeModal.querySelector("form");
+          if (form && admId) {
+            form.action = "/wards/discharge/" + admId;
+          }
+          const patientLabel = document.getElementById("discharge-patient-name");
+          if (patientLabel && patientName) {
+            patientLabel.innerText = patientName + " (Bed: " + (bedNumber || "N/A") + ")";
+          }
+        }
+      });
+    }
+  });
+</script>
 
 {% endblock %}

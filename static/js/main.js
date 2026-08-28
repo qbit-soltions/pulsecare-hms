@@ -167,10 +167,10 @@ document.addEventListener("DOMContentLoaded", function () {
   if (admitModal) {
     admitModal.addEventListener("show.bs.modal", function (event) {
       const button = event.relatedTarget;
-      if (button) {
+      const bedSelect = admitModal.querySelector("#modal-admit-bed-select");
+      if (button && bedSelect) {
         const bedId = button.getAttribute("data-bed-id");
-        const bedSelect = admitModal.querySelector("#modal-admit-bed-select");
-        if (bedSelect && bedId) {
+        if (bedId) {
           bedSelect.value = bedId;
         }
       }
@@ -191,6 +191,13 @@ document.addEventListener("DOMContentLoaded", function () {
         if (form && admId) {
           form.action = `/wards/discharge/${admId}`;
         }
+        const patientLabel = dischargeModal.querySelector("#discharge-patient-name");
+        if (patientLabel && patientName) {
+          patientLabel.innerText = `${patientName} (Bed: ${bedNumber || 'N/A'})`;
+        }
+      }
+    });
+  }
   // -------------------------------------------------------------------
   // 5. Teleconsultation Room & Call Timer
   // -------------------------------------------------------------------
