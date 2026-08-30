@@ -695,7 +695,14 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        user = query_db("SELECT * FROM users WHERE (username = ? OR phone = ? OR email = ?) AND is_active = 1", (username, username, username), one=True)
+        user = query_db(
+            """SELECT u.* FROM users u 
+               LEFT JOIN patients p ON (p.user_id = u.id OR p.phone = u.phone OR p.email = u.email)
+               WHERE (u.username = ? OR u.phone = ? OR u.email = ? OR p.abha_id = ? OR p.patient_uid = ?) 
+               AND u.is_active = 1""", 
+            (username, username, username, username, username), 
+            one=True
+        )
         if user and check_password_hash(user["password_hash"], password):
             session["user_id"] = user["id"]
             session["username"] = user["username"]
