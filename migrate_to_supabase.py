@@ -53,6 +53,50 @@ def clean_pg_url(url):
     return url
 
 
+def connect_pg_resilient(db_url):
+    """Connect to PostgreSQL with multi-IP DNS resolution fallback for Supabase poolers."""
+    from urllib.parse import urlparse, unquote
+    import socket
+    
+    p = urlparse(db_url)
+    hostname = p.hostname
+    port = p.port or 5432
+    user = unquote(p.username or "postgres")
+    password = unquote(p.password or "")
+    dbname = p.path.lstrip("/") or "postgres"
+
+    candidate_hosts = [hostname]
+    try:
+        addr_info = socket.getaddrinfo(hostname, port, socket.AF_INET, socket.SOCK_STREAM)
+        for item in addr_info:
+            ip = item[4][0]
+            if ip not in candidate_hosts:
+                candidate_hosts.append(ip)
+    except Exception:
+        pass
+
+    last_err = None
+    for h in candidate_hosts:
+        try:
+            conn = psycopg2.connect(
+                host=h,
+                port=port,
+                dbname=dbname,
+                user=user,
+                password=password,
+                sslmode="require",
+                connect_timeout=6
+            )
+            return conn
+        except Exception as exc:
+            last_err = exc
+            continue
+
+    if last_err:
+        raise last_err
+    raise RuntimeError("Unable to connect to PostgreSQL database.")
+
+
 def run_migration():
     print("=" * 70)
     print("PulseCare HMS -> Supabase PostgreSQL Migration Tool")
@@ -80,7 +124,7 @@ def run_migration():
 
     print(f"[2/4] Connecting to Target Supabase PostgreSQL...")
     try:
-        pg_conn = psycopg2.connect(db_url)
+        pg_conn = connect_pg_resilient(db_url)
         pg_cur = pg_conn.cursor()
         print("      Connected to Supabase PostgreSQL successfully!")
     except Exception as exc:

@@ -90,6 +90,62 @@ def _clean_pg_url(url):
     return url
 
 
+def _connect_postgres_resilient(db_url):
+    """Connect to PostgreSQL with multi-IP DNS resolution fallback for Supabase poolers."""
+    from urllib.parse import urlparse, unquote
+    import socket
+    
+    p = urlparse(db_url)
+    hostname = p.hostname
+    port = p.port or 5432
+    user = unquote(p.username or "postgres")
+    password = unquote(p.password or "")
+    dbname = p.path.lstrip("/") or "postgres"
+
+    # Build candidate host list: hostname first, then resolved IPv4s
+    candidate_hosts = [hostname]
+    try:
+        addr_info = socket.getaddrinfo(hostname, port, socket.AF_INET, socket.SOCK_STREAM)
+        for item in addr_info:
+            ip = item[4][0]
+            if ip not in candidate_hosts:
+                candidate_hosts.append(ip)
+    except Exception:
+        pass
+
+    last_err = None
+    for h in candidate_hosts:
+        try:
+            if _HAS_PSYCOPG2:
+                conn = psycopg2.connect(
+                    host=h,
+                    port=port,
+                    dbname=dbname,
+                    user=user,
+                    password=password,
+                    sslmode="require",
+                    connect_timeout=5
+                )
+                return conn
+            elif _HAS_PG8000:
+                conn = pg8000.connect(
+                    host=h,
+                    port=port,
+                    database=dbname,
+                    user=user,
+                    password=password,
+                    ssl_context=True
+                )
+                return conn
+        except Exception as exc:
+            last_err = exc
+            continue
+
+    if last_err:
+        raise last_err
+    raise RuntimeError("Unable to connect to PostgreSQL database.")
+
+
 def get_db_connection():
     """
     Returns an active database connection:
@@ -98,24 +154,7 @@ def get_db_connection():
     """
     if is_postgres():
         db_url = _clean_pg_url(DATABASE_URL)
-        if _HAS_PSYCOPG2:
-            conn = psycopg2.connect(db_url)
-            return conn
-        elif _HAS_PG8000:
-            # Parse connection parameters for pg8000 fallback
-            from urllib.parse import urlparse
-            p = urlparse(db_url)
-            conn = pg8000.connect(
-                user=p.username,
-                password=p.password,
-                host=p.hostname,
-                port=p.port or 5432,
-                database=p.path.lstrip("/"),
-                ssl_context=True
-            )
-            return conn
-        else:
-            raise RuntimeError("PostgreSQL URL is configured but neither psycopg2 nor pg8000 is installed.")
+        return _connect_postgres_resilient(db_url)
 
     # SQLite fallback
     db_file = get_db_path()
