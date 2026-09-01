@@ -554,15 +554,30 @@ def _rule_based_voice_fallback(message, lang, ctx):
         else:
             return "Diagnostic lab tests include CBC, Lipid Profile, Blood Sugar, and Renal Panels. Opening Laboratory portal.", "navigate", "/laboratory"
 
+    # 7. Symptoms Guidance (Fever, Headache, Cough, BP)
+    if any(w in msg_lower for w in ["fever", "bukhar", "taap", "headache", "sardard", "pain", "dard", "cough", "khansi", "cold", "जुकाम", "बुखार", "दर्द", "காய்ச்சல்", "தலைவலி", "జ్వరం"]):
+        if any(w in msg_lower for w in ["chest", "chhati", "breath", "saans", "சீனை வலி", "శ్వాస"]):
+            if lang == "hi":
+                return "सीने में दर्द या सांस लेने में कठिनाई आपातकालीन हो सकती है। कृपया तुरंत 108 एम्बुलेंस पर कॉल करें या आपातकालीन वार्ड में जाएं।", "call_108", "tel:108"
+            else:
+                return "Chest pain or difficulty breathing may be a critical emergency. Please immediately call 108 ambulance or visit the nearest emergency department.", "call_108", "tel:108"
+        if lang == "hi":
+            return "हल्के बुखार या दर्द के लिए पर्याप्त पानी पिएं और आराम करें। यदि तापमान 101°F से अधिक है या 2 दिनों से अधिक रहता है, तो कृपया डॉक्टर से जांच कराएं।", "navigate", "/appointments"
+        elif lang == "ta":
+            return "காய்ச்சல் அல்லது தலைவலிக்கு போதுமான நீர் அருந்தி ஓய்வெடுக்கவும். தொடர்ந்து இருந்தால் மருத்துவரை அணுகவும்.", "navigate", "/appointments"
+        else:
+            return "For fever or body ache, stay well-hydrated and rest. If symptoms persist for more than 2 days, please schedule an appointment with our medical officer.", "navigate", "/appointments"
+
     # Default general guidance
     if lang == "hi":
-        return f"नमस्ते! मैं पल्सकेयर स्वास्थ्य सहायक हूँ। आप मुझसे डॉक्टर, उपलब्ध बेड ({ctx['available_beds']} खाली), दवाइयों, लैब टेस्ट या 108 एम्बुलेंस के बारे में पूछ सकते हैं।", None, None
+        return f"नमस्ते! मैं पल्सकेयर मित्र स्वास्थ्य सहायक हूँ। आप मुझसे ऑन-ड्यूटी डॉक्टर, उपलब्ध बेड ({ctx['available_beds']} खाली), दवाइयों, लैब टेस्ट या 108 एम्बुलेंस के बारे में पूछ सकते हैं।", None, None
     elif lang == "ta":
-        return f"வணக்கம்! நான் பல்ஸ்கேர் சுகாதார உதவியாளர். மருத்துவர்கள், படுக்கை இருப்பு ({ctx['available_beds']} காலியாக உள்ளது), மருந்துகள் அல்லது 108 அவசர உதவி பற்றி கேளுங்கள்.", None, None
+        return f"வணக்கம்! நான் பல்ஸ்கேர் மித்ரா. மருத்துவர்கள், படுக்கை இருப்பு ({ctx['available_beds']} காலியாக உள்ளது), மருந்துகள் அல்லது 108 அவசர உதவி பற்றி கேளுங்கள்.", None, None
     elif lang == "te":
-        return f"నమస్కారం! నేను పల్స్‌కేర్ వాయిస్ అసిస్టెంట్. వైద్యులు, ఖాళీ పడకలు ({ctx['available_beds']} ఖాళీగా ఉన్నాయి), మందులు లేదా 108 అంబులెన్స్ గురించి అడగండి.", None, None
+        return f"నమస్కారం! నేను పల్స్‌కేర్ మిత్ర. వైద్యులు, ఖాళీ పడకలు ({ctx['available_beds']} ఖాళీగా ఉన్నాయి), మందులు లేదా 108 అంబులెన్స్ గురించి అడగండి.", None, None
     else:
-        return f"Hello! I am PulseCare Voice Assistant. You can ask me about available doctors, bed status ({ctx['available_beds']} beds free), pharmacy medicines, lab reports, or emergency 108 services.", None, None
+        return f"Hello! I am PulseCare Mitra, your healthcare voice AI. You can ask me about available doctors, bed status ({ctx['available_beds']} beds free), pharmacy medicines, lab reports, or emergency 108 services.", None, None
+
 
 
 @app.route("/api/ai-voice/chat", methods=["POST"])
