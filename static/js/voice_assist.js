@@ -428,6 +428,343 @@
     }
   }
 
+  // =========================================================================
+  // REAL-TIME AI VOICE ASSISTANT (100% FREE SPEECH RECOGNITION + AI ENGINE)
+  // =========================================================================
+
+  let recognition = null;
+  let isListening = false;
+  let speechRecognitionSupported = ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+  const AI_QUICK_CHIPS = {
+    hi: [
+      { text: "खाली बेड की स्थिति क्या है?", label: "🛏️ उपलब्ध बेड" },
+      { text: "ऑन-ड्यूटी डॉक्टर कौन हैं?", label: "👨‍⚕️ डॉक्टर सूची" },
+      { text: "108 एम्बुलेंस सहायता", label: "🚑 इमरजेंसी 108" },
+      { text: "फार्मेसी में दवाइयाँ", label: "💊 फार्मेसी" },
+      { text: "नया ABHA कार्ड बनाएं", label: "🆔 ABHA कार्ड" }
+    ],
+    ta: [
+      { text: "படுக்கை இருப்பு விவரம்?", label: "🛏️ காலியான படுக்கைகள்" },
+      { text: "பணியில் உள்ள மருத்துவர்கள் யார்?", label: "👨‍⚕️ மருத்துவர்கள்" },
+      { text: "108 அவசர ஆம்புலன்ஸ்", label: "🚑 அவசர உதவி 108" },
+      { text: "மருந்தக இருப்பு", label: "💊 மருந்துகள்" },
+      { text: "புதிய ABHA அட்டை", label: "🆔 ABHA அட்டை" }
+    ],
+    te: [
+      { text: "ఖాళీ పడకల వివరాలు ఏమిటి?", label: "🛏️ అందుబాటులో ఉన్న పడకలు" },
+      { text: "డ్యూటీలో ఉన్న వైద్యులు ఎవరు?", label: "👨‍⚕️ వైద్యుల జాబితా" },
+      { text: "108 అత్యవసర అంబులెన్స్", label: "🚑 అత్యవసరం 108" },
+      { text: "ఫార్మసీ మందులు", label: "💊 మందుల నిల్వ" }
+    ],
+    en: [
+      { text: "What is the hospital bed occupancy?", label: "🛏️ Available Beds" },
+      { text: "Who are the on-duty doctors today?", label: "👨‍⚕️ Doctors On-Duty" },
+      { text: "Call 108 Emergency Ambulance", label: "🚑 Emergency 108" },
+      { text: "Check pharmacy medicine catalog", label: "💊 Pharmacy Stock" },
+      { text: "Register for National ABHA Card", label: "🆔 ABHA Registration" },
+      { text: "View my Lab Reports", label: "🔬 Lab Reports" }
+    ]
+  };
+
+  function initSpeechRecognition() {
+    if (!speechRecognitionSupported) return null;
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SpeechRec();
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    return rec;
+  }
+
+  function startAIVoiceListening() {
+    stopSpeaking();
+    const langKey = getLangKey();
+    const langConfig = VOICE_LANGS[langKey] || VOICE_LANGS.en;
+
+    const micStatus = document.getElementById("ai-voice-status");
+    const micOrb = document.getElementById("ai-voice-mic-orb");
+    const userTranscript = document.getElementById("ai-voice-user-transcript");
+    const waveEl = document.getElementById("ai-voice-wave");
+
+    if (!speechRecognitionSupported) {
+      if (micStatus) micStatus.innerText = "Voice input is not supported in this browser. Please type your query below.";
+      return;
+    }
+
+    try {
+      if (recognition) {
+        recognition.abort();
+      }
+      recognition = initSpeechRecognition();
+      if (!recognition) return;
+
+      recognition.lang = langConfig.bcp47 || "en-IN";
+
+      recognition.onstart = function() {
+        isListening = true;
+        if (micOrb) micOrb.classList.add("active");
+        if (waveEl) waveEl.classList.remove("d-none");
+        if (micStatus) micStatus.innerHTML = `<span class="text-primary fw-bold"><i class="bi bi-mic-fill me-1"></i>Listening in ${langConfig.name}...</span> (Speak now)`;
+        if (userTranscript) userTranscript.innerText = "...";
+      };
+
+      recognition.onresult = function(event) {
+        let interimTranscript = "";
+        let finalTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        const text = finalTranscript || interimTranscript;
+        if (userTranscript && text) {
+          userTranscript.innerText = `"${text}"`;
+        }
+
+        if (finalTranscript && finalTranscript.trim()) {
+          sendAIVoiceQuery(finalTranscript.trim());
+        }
+      };
+
+      recognition.onerror = function(event) {
+        isListening = false;
+        if (micOrb) micOrb.classList.remove("active");
+        if (waveEl) waveEl.classList.add("d-none");
+        if (micStatus) {
+          if (event.error === "no-speech") {
+            micStatus.innerText = "No speech detected. Tap microphone to speak again.";
+          } else {
+            micStatus.innerText = `Voice notice: ${event.error}. Please try again or type below.`;
+          }
+        }
+      };
+
+      recognition.onend = function() {
+        isListening = false;
+        if (micOrb) micOrb.classList.remove("active");
+        if (waveEl) waveEl.classList.add("d-none");
+      };
+
+      recognition.start();
+    } catch (e) {
+      console.warn("Speech recognition start error:", e);
+      if (micStatus) micStatus.innerText = "Tap microphone button to start listening.";
+    }
+  }
+
+  function stopAIVoiceListening() {
+    if (recognition && isListening) {
+      recognition.stop();
+    }
+    isListening = false;
+    const micOrb = document.getElementById("ai-voice-mic-orb");
+    const waveEl = document.getElementById("ai-voice-wave");
+    if (micOrb) micOrb.classList.remove("active");
+    if (waveEl) waveEl.classList.add("d-none");
+  }
+
+  async function sendAIVoiceQuery(queryText) {
+    if (!queryText || !queryText.trim()) return;
+    stopAIVoiceListening();
+
+    const langKey = getLangKey();
+    const micStatus = document.getElementById("ai-voice-status");
+    const aiResponseCard = document.getElementById("ai-voice-response-card");
+    const aiResponseText = document.getElementById("ai-voice-response-text");
+    const userTranscript = document.getElementById("ai-voice-user-transcript");
+    const aiActionBtn = document.getElementById("ai-voice-action-btn");
+
+    if (userTranscript) userTranscript.innerText = `"${queryText}"`;
+    if (micStatus) micStatus.innerHTML = `<span class="spinner-border spinner-border-sm text-primary me-2"></span>PulseCare Mitra is thinking...`;
+    if (aiResponseCard) aiResponseCard.classList.remove("d-none");
+    if (aiResponseText) aiResponseText.innerHTML = `<span class="text-muted fst-italic">Fetching real-time healthcare response...</span>`;
+    if (aiActionBtn) aiActionBtn.classList.add("d-none");
+
+    try {
+      const res = await fetch("/api/ai-voice/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: queryText,
+          language: langKey,
+          current_url: window.location.pathname
+        })
+      });
+
+      const data = await res.json();
+      if (data && data.success) {
+        const reply = data.reply || "Thank you. How else can I assist you?";
+        if (aiResponseText) aiResponseText.innerText = reply;
+        if (micStatus) micStatus.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>Answered in ${VOICE_LANGS[langKey] ? VOICE_LANGS[langKey].name : 'English'}</span>`;
+
+        // Speak response aloud via TTS!
+        speak(reply, aiResponseCard, function() {
+          if (data.action === "navigate" && data.target_url && data.target_url !== window.location.pathname) {
+            setTimeout(function() {
+              window.location.href = data.target_url;
+            }, 1200);
+          }
+        });
+
+        // Show action button if navigation or call is available
+        if (data.target_url && aiActionBtn) {
+          aiActionBtn.classList.remove("d-none");
+          if (data.action === "call_108") {
+            aiActionBtn.innerHTML = `<i class="bi bi-telephone-fill me-1"></i> Call 108 Helpline`;
+            aiActionBtn.onclick = function() { window.location.href = "tel:108"; };
+          } else {
+            aiActionBtn.innerHTML = `<i class="bi bi-arrow-right-circle-fill me-1"></i> Open Page (${data.target_url})`;
+            aiActionBtn.onclick = function() { window.location.href = data.target_url; };
+          }
+        }
+      } else {
+        if (aiResponseText) aiResponseText.innerText = "I could not process your query right now. Please try again.";
+        if (micStatus) micStatus.innerText = "Please try asking again.";
+      }
+    } catch (err) {
+      console.error("AI Voice Query error:", err);
+      if (aiResponseText) aiResponseText.innerText = "Network connection issue. Please check your connection and try again.";
+      if (micStatus) micStatus.innerText = "Tap microphone to try again.";
+    }
+  }
+
+  function openAIVoiceModal(initialQuery) {
+    const modalEl = document.getElementById("aiVoiceModal");
+    if (!modalEl) {
+      injectAIVoiceModal();
+    }
+    
+    const targetModal = document.getElementById("aiVoiceModal");
+    if (targetModal && typeof bootstrap !== "undefined") {
+      const bsModal = bootstrap.Modal.getOrCreateInstance(targetModal);
+      bsModal.show();
+    }
+
+    // Refresh quick chips for active language
+    renderAIQuickChips();
+
+    if (initialQuery) {
+      sendAIVoiceQuery(initialQuery);
+    } else {
+      setTimeout(function() {
+        startAIVoiceListening();
+      }, 400);
+    }
+  }
+
+  function renderAIQuickChips() {
+    const chipContainer = document.getElementById("ai-voice-chips");
+    if (!chipContainer) return;
+    const langKey = getLangKey();
+    const chips = AI_QUICK_CHIPS[langKey] || AI_QUICK_CHIPS.en;
+
+    chipContainer.innerHTML = chips.map(c => `
+      <button type="button" class="ai-chip-btn" onclick="window.PulseCareVoice.askAI('${c.text.replace(/'/g, "\\'")}')">
+        ${c.label}
+      </button>
+    `).join("");
+  }
+
+  function injectAIVoiceModal() {
+    if (document.getElementById("aiVoiceModal")) return;
+    const langKey = getLangKey();
+    const langConfig = VOICE_LANGS[langKey] || VOICE_LANGS.en;
+
+    const modalDiv = document.createElement("div");
+    modalDiv.innerHTML = `
+      <div class="modal fade no-print" id="aiVoiceModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+            
+            <!-- Modal Header -->
+            <div class="modal-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-2">
+                <div class="p-1 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                  <i class="bi bi-robot fs-6"></i>
+                </div>
+                <div>
+                  <h6 class="modal-title fw-bold text-dark fs-7 mb-0">PulseCare Mitra — Real-Time Voice AI</h6>
+                  <small class="text-muted fs-9">100% Free Multilingual Healthcare Assistant</small>
+                </div>
+              </div>
+              <button type="button" class="btn-close fs-8" data-bs-dismiss="modal" onclick="window.PulseCareVoice.stop()"></button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body p-4 text-center">
+              
+              <!-- Listening Glowing Orb -->
+              <div class="mb-3">
+                <div class="ai-voice-listening-ring" id="ai-voice-mic-orb" onclick="window.PulseCareVoice.toggleListening()" style="cursor: pointer;" title="Tap to Listen/Stop">
+                  <div class="ai-voice-orb-btn">
+                    <i class="bi bi-mic-fill fs-3"></i>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Animated Waveform -->
+              <div class="ai-waveform-bars mb-2 d-none" id="ai-voice-wave">
+                <span></span><span></span><span></span><span></span><span></span><span></span>
+              </div>
+
+              <!-- Status Text -->
+              <div class="fs-8 mb-2" id="ai-voice-status">
+                <span class="text-primary fw-semibold"><i class="bi bi-soundwave me-1"></i>Tap microphone to start speaking</span>
+              </div>
+
+              <!-- User Speech Transcript -->
+              <div class="p-2 px-3 bg-light rounded-3 text-muted fs-8 mb-3 border min-vh-25" style="min-height: 44px; word-break: break-word;" id="ai-voice-user-transcript">
+                "Speak in Hindi, Tamil, Telugu, English or ask for beds, doctors, emergency..."
+              </div>
+
+              <!-- AI Response Card -->
+              <div class="p-3 bg-primary-subtle border border-primary-subtle rounded-4 text-start mb-3 d-none shadow-sm" id="ai-voice-response-card">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <span class="badge bg-primary text-white fs-9"><i class="bi bi-stars me-1"></i>PulseCare Mitra</span>
+                  <button type="button" class="btn btn-sm btn-link p-0 text-primary fs-8 text-decoration-none" onclick="window.PulseCareVoice.replayResponse()" title="Replay Voice">
+                    <i class="bi bi-volume-up-fill me-1"></i>Listen Again
+                  </button>
+                </div>
+                <div class="fs-7 text-dark fw-medium lh-base" id="ai-voice-response-text">
+                  Fetching response...
+                </div>
+                <button type="button" class="btn btn-sm btn-primary rounded-pill mt-2 px-3 fs-8 d-none" id="ai-voice-action-btn"></button>
+              </div>
+
+              <!-- Quick Suggestion Chips -->
+              <div class="text-start mb-2">
+                <div class="text-muted fw-bold fs-9 text-uppercase mb-1"><i class="bi bi-lightning-fill text-warning me-1"></i>Quick Inquiries:</div>
+                <div class="d-flex flex-wrap gap-1" id="ai-voice-chips"></div>
+              </div>
+
+              <!-- Manual Text Input Option -->
+              <div class="mt-3 pt-2 border-top">
+                <form onsubmit="event.preventDefault(); const inp = document.getElementById('ai-voice-text-input'); if(inp && inp.value){ window.PulseCareVoice.askAI(inp.value); inp.value=''; }" class="d-flex gap-2">
+                  <input type="text" class="form-control form-control-sm rounded-pill fs-8" id="ai-voice-text-input" placeholder="Or type your question here...">
+                  <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 fs-8"><i class="bi bi-send-fill"></i></button>
+                </form>
+              </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer bg-light py-2 px-3 border-0 d-flex align-items-center justify-content-between fs-9 text-muted">
+              <div><i class="bi bi-shield-check text-success me-1"></i>Private & Local Voice AI</div>
+              <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-0 fs-8" data-bs-dismiss="modal">Close</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalDiv);
+  }
+
   function injectVoiceWidget() {
     if (document.getElementById("voice-assist-widget")) return;
     const lang = VOICE_LANGS[getLangKey()] || VOICE_LANGS.en;
@@ -435,9 +772,6 @@
     const widget = document.createElement("div");
     widget.id = "voice-assist-widget";
     widget.className = "voice-assist-container no-print";
-    
-    // If disabled globally, hide widget unless we want to show a small toggle
-    // We will show a muted pill if disabled
     
     widget.innerHTML = `
       <div id="voice-mini-pill" class="voice-pill shadow-lg d-flex align-items-center gap-2" onclick="window.PulseCareVoice.toggleExpand(event)">
@@ -455,24 +789,33 @@
           <i class="bi bi-chevron-up fs-7" id="voice-expand-icon"></i>
         </button>
       </div>
+
       <div id="voice-expanded-panel" class="voice-panel shadow-lg rounded-4 p-3 bg-white border d-none">
         <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
           <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-1 px-2"><i class="bi bi-soundwave me-1"></i>Voice Assist</span>
+            <span class="badge bg-primary text-white py-1 px-2"><i class="bi bi-stars me-1"></i>Voice Hub</span>
             <span class="fs-8 fw-bold text-dark" id="voice-panel-lang">${lang.name}</span>
           </div>
           <button type="button" class="btn-close fs-9" onclick="window.PulseCareVoice.toggleExpand(event)"></button>
         </div>
-        <p class="fs-8 text-muted mb-3">Listen to page content in your language. Tap any item to hear it.</p>
         
+        <!-- Primary AI Voice Assistant Button -->
+        <div class="mb-3">
+          <button type="button" class="btn btn-gradient-primary w-100 py-2 fw-bold text-white shadow-sm d-flex align-items-center justify-content-center gap-2 rounded-3" 
+                  style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); font-size: 0.85rem;"
+                  onclick="window.PulseCareVoice.openAIModal()">
+            <i class="bi bi-robot fs-5"></i> <span>Ask PulseCare AI (Voice)</span>
+          </button>
+        </div>
+
         <div class="form-check form-switch mb-3 p-2 bg-light rounded-3 d-flex align-items-center justify-content-between border">
-          <label class="form-check-label fw-bold fs-7 text-dark m-0 ps-1" for="globalVoiceToggle"><i class="bi bi-person-fill-up me-1 text-primary"></i> Enable Voice Assist</label>
+          <label class="form-check-label fw-bold fs-7 text-dark m-0 ps-1" for="globalVoiceToggle"><i class="bi bi-volume-up-fill me-1 text-primary"></i> Page Screen Reader</label>
           <input class="form-check-input m-0" type="checkbox" role="switch" id="globalVoiceToggle" ${!isDisabled ? 'checked' : ''} onchange="window.PulseCareVoice.toggleGlobalVoice()">
         </div>
 
         <div id="voice-controls-section" class="${isDisabled ? 'opacity-50 pe-none' : ''}">
           <div class="d-grid gap-2 mb-3">
-            <button type="button" class="btn btn-primary btn-sm fw-bold d-flex align-items-center justify-content-center gap-2" id="voice-btn-play" onclick="window.PulseCareVoice.readPage()">
+            <button type="button" class="btn btn-outline-primary btn-sm fw-bold d-flex align-items-center justify-content-center gap-2" id="voice-btn-play" onclick="window.PulseCareVoice.readPage()">
               <i class="bi bi-play-fill fs-6"></i> <span id="voice-play-text">${lang.label}</span>
             </button>
             <button type="button" class="btn btn-warning btn-sm fw-bold d-flex align-items-center justify-content-center gap-2 d-none" id="voice-btn-pause" onclick="window.PulseCareVoice.pause()">
@@ -499,6 +842,7 @@
       </div>
     `;
     document.body.appendChild(widget);
+    injectAIVoiceModal();
   }
 
   // Override updateWidgetUI to handle Global Disabled state
@@ -552,6 +896,21 @@
     onLanguageChanged: handleLanguageChanged,
     toggleGlobalVoice: toggleGlobalVoice,
     isGlobalVoiceDisabled: isGlobalVoiceDisabled,
+    openAIModal: openAIVoiceModal,
+    askAI: sendAIVoiceQuery,
+    toggleListening: function() {
+      if (isListening) {
+        stopAIVoiceListening();
+      } else {
+        startAIVoiceListening();
+      }
+    },
+    replayResponse: function() {
+      const respEl = document.getElementById("ai-voice-response-text");
+      if (respEl && respEl.innerText) {
+        speak(respEl.innerText);
+      }
+    },
     toggleExpand: function(e) {
       if (e) e.stopPropagation();
       const panel = document.getElementById("voice-expanded-panel");
@@ -571,3 +930,4 @@
   });
 
 })();
+

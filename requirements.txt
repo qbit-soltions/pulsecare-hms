@@ -7,4 +7,4 @@ psycopg2-binary>=2.9.9
 pg8000>=1.31.0
 supabase>=2.30.0
 python-dotenv>=1.0.0
-
+google-genai>=2.20.0
