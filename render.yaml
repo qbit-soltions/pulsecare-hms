@@ -1,9 +1,19 @@
 services:
   - type: web
     name: pulsecare-hms
-    env: python
-    buildCommand: pip install -r requirements.txt && python seed_data.py
-    startCommand: gunicorn app:app
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 2 --timeout 120
     envVars:
       - key: SECRET_KEY
         generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FLASK_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.11.9
