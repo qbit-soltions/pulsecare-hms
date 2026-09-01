@@ -378,7 +378,7 @@
           <i class="bi bi-info-circle-fill me-1"></i> If you have trouble accessing your account or forgot your password, please contact your facility IT administrator or the district health directorate.
         </div>
 
-        <div class="d-flex flex-column gap-2">
+        <div class="d-flex flex-column gap-2 mb-3">
           <div class="p-3 bg-light rounded-3 border">
             <div class="fw-bold text-dark fs-7 mb-1"><i class="bi bi-hospital me-2 text-primary"></i>Healthcare Staff & Clinical Personnel</div>
             <div class="text-muted fs-8">Contact your District Health IT Division or Chief Medical Officer (CMO) to reset credentials or adjust role permissions.</div>
@@ -388,6 +388,22 @@
             <div class="fw-bold text-dark fs-7 mb-1"><i class="bi bi-person-vcard me-2 text-success"></i>Citizens & ABHA Cardholders</div>
             <div class="text-muted fs-8">Citizens can sign in directly using their registered mobile number or 14-digit ABHA ID. For ABHA OTP issues, call the National Health Authority toll-free helpline at <strong>14477</strong>.</div>
           </div>
+        </div>
+
+        <!-- Quick Demo / Testing Accounts -->
+        <div class="border rounded-3 p-3 bg-white">
+          <div class="fw-bold text-dark fs-7 mb-2"><i class="bi bi-key-fill text-warning me-1"></i>Sample Testing Credentials (Click to Auto-Fill):</div>
+          <div class="d-flex flex-wrap gap-1">
+            <button type="button" class="btn btn-outline-primary btn-sm fs-9 rounded-pill" onclick="quickFill('admin', 'password123')">🛡️ Admin</button>
+            <button type="button" class="btn btn-outline-primary btn-sm fs-9 rounded-pill" onclick="quickFill('dr.rajesh', 'password123')">👨‍⚕️ Doctor (Dr. Rajesh)</button>
+            <button type="button" class="btn btn-outline-primary btn-sm fs-9 rounded-pill" onclick="quickFill('dr.sarah', 'password123')">👩‍⚕️ Specialist (Dr. Sarah)</button>
+            <button type="button" class="btn btn-outline-primary btn-sm fs-9 rounded-pill" onclick="quickFill('asha.sunita', 'password123')">🌾 ASHA (Sunita)</button>
+            <button type="button" class="btn btn-outline-primary btn-sm fs-9 rounded-pill" onclick="quickFill('nurse.clara', 'password123')">👩‍⚕️ Nurse (Clara)</button>
+            <button type="button" class="btn btn-outline-primary btn-sm fs-9 rounded-pill" onclick="quickFill('pharm.robert', 'password123')">💊 Pharmacist</button>
+            <button type="button" class="btn btn-outline-primary btn-sm fs-9 rounded-pill" onclick="quickFill('lab.lisa', 'password123')">🔬 Lab Tech</button>
+            <button type="button" class="btn btn-outline-primary btn-sm fs-9 rounded-pill" onclick="quickFill('patient.meena', 'password123')">👤 Patient (Meena)</button>
+          </div>
+          <div class="form-text fs-9 text-muted mt-2">All test accounts use password: <code>password123</code></div>
         </div>
       </div>
       <div class="modal-footer bg-light border-0 py-2">
@@ -422,6 +438,18 @@
 
 
 <script>
+  function quickFill(uname, pwd) {
+    const uInput = document.getElementById('username-input');
+    const pInput = document.getElementById('password-input');
+    if (uInput) uInput.value = uname;
+    if (pInput) pInput.value = pwd;
+    const modalEl = document.getElementById('supportHelpModal');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+    }
+  }
+
   function togglePassword() {
     const input = document.getElementById('password-input');
     const icon = document.getElementById('pw-toggle-icon');

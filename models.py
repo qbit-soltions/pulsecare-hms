@@ -149,12 +149,15 @@ def _connect_postgres_resilient(db_url):
 def get_db_connection():
     """
     Returns an active database connection:
-    - PostgreSQL connection to Supabase if DATABASE_URL is configured.
-    - Local SQLite connection if DATABASE_URL is not set.
+    - PostgreSQL connection to Supabase if DATABASE_URL is configured and reachable.
+    - Local SQLite connection if DATABASE_URL is not set or remote connection fails.
     """
     if is_postgres():
-        db_url = _clean_pg_url(DATABASE_URL)
-        return _connect_postgres_resilient(db_url)
+        try:
+            db_url = _clean_pg_url(DATABASE_URL)
+            return _connect_postgres_resilient(db_url)
+        except Exception as exc:
+            pass
 
     # SQLite fallback
     db_file = get_db_path()
@@ -171,14 +174,9 @@ def _normalize_query_for_postgres(query):
     - Replaces datetime('now') with CURRENT_TIMESTAMP
     - Replaces date('now') with CURRENT_DATE
     """
-    # Replace parameter placeholders
-    # Ensure we only replace standalone question marks (not inside literals if any)
     pg_query = query.replace("?", "%s")
-    
-    # Replace SQLite datetime/date functions
     pg_query = re.sub(r"\bdatetime\('now'\)", "CURRENT_TIMESTAMP", pg_query, flags=re.IGNORECASE)
     pg_query = re.sub(r"\bdate\('now'\)", "CURRENT_DATE", pg_query, flags=re.IGNORECASE)
-    
     return pg_query
 
 
@@ -199,7 +197,7 @@ def query_db(query, args=(), one=False):
     """Executes a query and returns dictionaries."""
     conn = get_db_connection()
     try:
-        if is_postgres():
+        if not isinstance(conn, sqlite3.Connection) and is_postgres():
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) if _HAS_PSYCOPG2 else conn.cursor()
             pg_query = _normalize_query_for_postgres(query)
             cur.execute(pg_query, args)
@@ -208,7 +206,6 @@ def query_db(query, args=(), one=False):
             if _HAS_PSYCOPG2:
                 results = [_format_row_dict(dict(r)) for r in rows]
             else:
-                # pg8000 tuple mapping
                 col_names = [col[0] for col in cur.description] if cur.description else []
                 results = [_format_row_dict(dict(zip(col_names, row))) for row in rows]
                 
@@ -232,13 +229,12 @@ def execute_db(query, args=()):
     """
     conn = get_db_connection()
     try:
-        if is_postgres():
+        if not isinstance(conn, sqlite3.Connection) and is_postgres():
             cur = conn.cursor()
             pg_query = _normalize_query_for_postgres(query)
             is_insert = pg_query.strip().upper().startswith("INSERT INTO")
             has_returning = "RETURNING" in pg_query.upper()
 
-            # Append RETURNING id for INSERT queries that don't have RETURNING
             if is_insert and not has_returning and "hospital_settings" not in pg_query.lower():
                 pg_query = pg_query.rstrip("; ") + " RETURNING id"
                 cur.execute(pg_query, args)
@@ -260,6 +256,7 @@ def execute_db(query, args=()):
         return cur.lastrowid
     finally:
         conn.close()
+
 
 
 def execute_many_db(query, args_list):
