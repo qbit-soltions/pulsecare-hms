@@ -445,10 +445,10 @@ def api_tts():
 
 
 # -----------------------------------------------------------------------------
-# REAL-TIME AI VOICE ASSISTANT (GEMINI + 100% FREE CUSTOM CLINICAL ACTION ENGINE)
+# REAL-TIME AI VOICE ASSISTANT (GROQ CLOUD + 100% FREE CUSTOM CLINICAL ACTION ENGINE)
 # -----------------------------------------------------------------------------
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_GENAI_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 _LANG_NAMES = {
     "hi": "Hindi (हिंदी)",
@@ -722,46 +722,49 @@ def api_ai_voice_chat():
     
     action, target_url, action_title = _detect_action_and_url(message)
 
-    # 1. Try Google Gemini Flash if API key is provided
-    if GEMINI_API_KEY:
+    # 1. Try Groq Cloud AI if API key is provided
+    if GROQ_API_KEY:
         try:
-            from google import genai
-            from google.genai import types
-            
-            client = genai.Client(api_key=GEMINI_API_KEY)
-            
             system_instruction = (
                 f"You are PulseCare Mitra (पल्सकेयर मित्र), the dedicated voice AI assistant for PulseCare Hospital Management System in India. "
-                f"You are speaking to: {user_info}. "
+                f"User context: {user_info}. "
                 f"RULES:\n"
-                f"1. Respond directly in {lang_name} language warmly and concisely (2 sentences max) as your response is spoken aloud via TTS.\n"
-                f"2. Ground in live hospital data: On-Duty Doctors: {ctx['doctors']} | Beds Available: {ctx['available_beds']}/{ctx['total_beds']} ({ctx['icu_beds']} ICU) | Pharmacy Stock: {ctx['drugs']} | Emergency Helpline: 108.\n"
-                f"3. If the user wants to go to a section (beds, doctor, appointments, pharmacy, lab, register, 108), confirm you are opening that page.\n"
-                f"4. Do NOT output markdown asterisks or hashtags because it will be spoken by voice."
+                f"1. Respond directly in {lang_name} language warmly and concisely (1 to 2 sentences maximum) as your response will be read aloud via text-to-speech.\n"
+                f"2. Current Live Hospital Data: Doctors: {ctx['doctors']} | Available Beds: {ctx['available_beds']}/{ctx['total_beds']} ({ctx['icu_beds']} ICU) | Pharmacy Stock: {ctx['drugs']} | Emergency Helpline: 108.\n"
+                f"3. If the user asks for actions (beds, doctor appointment, pharmacy, lab test, registration, emergency 108), confirm you are opening that page.\n"
+                f"4. Do NOT output markdown asterisks or formatting symbols, just plain natural spoken words."
             )
             
-            response = client.models.generate_content(
-                model="gemini-3.5-flash",
-                contents=message,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    temperature=0.4,
-                    max_output_tokens=220,
-                )
-            )
+            headers = {
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "qwen/qwen3.8-27b",
+                "messages": [
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": message}
+                ],
+                "max_tokens": 200,
+                "temperature": 0.3
+            }
             
-            reply_text = response.text.strip().replace("*", "").replace("#", "")
-            return jsonify({
-                "success": True,
-                "reply": reply_text,
-                "language": lang,
-                "action": action,
-                "target_url": target_url,
-                "action_title": action_title,
-                "engine": "gemini-3.5-flash"
-            })
+            groq_res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=6)
+            if groq_res.status_code == 200:
+                res_data = groq_res.json()
+                reply_text = res_data["choices"][0]["message"]["content"].strip().replace("*", "").replace("#", "")
+                if reply_text:
+                    return jsonify({
+                        "success": True,
+                        "reply": reply_text,
+                        "language": lang,
+                        "action": action,
+                        "target_url": target_url,
+                        "action_title": action_title,
+                        "engine": "groq-qwen3.8-27b"
+                    })
         except Exception as exc:
-            app.logger.warning(f"Gemini API voice error, using PulseCare Custom Action fallback: {exc}")
+            app.logger.warning(f"Groq API voice error, using PulseCare Custom Action fallback: {exc}")
 
     # 2. Fallback to 100% Free Custom Action Engine
     reply_text, fb_action, fb_url, fb_title = _custom_hospital_voice_engine(message, lang, ctx)
