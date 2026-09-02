@@ -12,13 +12,13 @@
   'use strict';
 
   const AI_LANGS = {
-    hi: { code: "hi", bcp47: "hi-IN", name: "हिंदी", greeting: "नमस्ते! मैं पल्सकेयर मित्र हूँ। आप मुझसे अस्पताल, डॉक्टर, खाली बेड या स्वास्थ्य लक्षणों के बारे में पूछ सकते हैं।" },
-    ta: { code: "ta", bcp47: "ta-IN", name: "தமிழ்", greeting: "வணக்கம்! நான் பல்ஸ்கேர் மித்ரா. மருத்துவர்கள், படுக்கை இருப்பு அல்லது அவசர உதவி பற்றி கேளுங்கள்." },
-    te: { code: "te", bcp47: "te-IN", name: "తెలుగు", greeting: "నమస్కారం! నేను పల్స్‌కేర్ మిత్ర. వైద్యులు, ఖాళీ పడకలు లేదా అత్యవసర సేవల గురించి అడగండి." },
-    bn: { code: "bn", bcp47: "bn-IN", name: "বাংলা", greeting: "নমস্কার! আমি পাল্সকেয়ার মিত্র। ডাক্তার, বেড বা স্বাস্থ্য বিষয়ে আমাকে জিজ্ঞাসা করুন।" },
-    mr: { code: "mr", bcp47: "mr-IN", name: "मराठी", greeting: "नमस्कार! मी पल्सकेअर मित्र आहे. डॉक्टर, खाटा किंवा उपचारांबद्दल मला विचारा." },
-    gu: { code: "gu", bcp47: "gu-IN", name: "ગુજરાતી", greeting: "નમસ્તે! હું પલ્સકેર મિત્ર છું. હોસ્પિટલ, ડૉક્ટર અથવા સારવાર વિશે પૂછો." },
-    en: { code: "en", bcp47: "en-IN", name: "English", greeting: "Hello! I am PulseCare Mitra, your healthcare AI assistant. Ask me about doctors, available beds, symptoms, or hospital services." }
+    hi: { code: "hi", bcp47: "hi-IN", name: "हिंदी", greeting: "नमस्ते! मैं पल्सकेयर मित्र हूँ — आपका स्वास्थ्य साथी। आप मुझसे बेझिझक कोई भी सवाल पूछ सकते हैं।" },
+    ta: { code: "ta", bcp47: "ta-IN", name: "தமிழ்", greeting: "வணக்கம்! நான் பல்ஸ்கேர் மித்ரா — உங்கள் நலன் நண்பன். என்னிடம் எதையும் தயங்காமல் கேளுங்கள்." },
+    te: { code: "te", bcp47: "te-IN", name: "తెలుగు", greeting: "నమస్కారం! నేను పల్స్‌కేర్ మిత్ర — మీ ఆరోగ్య సహాయకుడు. మీకు ఏ విషయంలోనైనా సహాయం చేయడానికి నేను ఇక్కడ ఉన్నాను." },
+    bn: { code: "bn", bcp47: "bn-IN", name: "বাংলা", greeting: "নমস্কার! আমি পাল্সকেয়ার মিত্র — আপনার স্বাস্থ্য সঙ্গী। যেকোনো প্রশ্ন নির্দ্বিধায় করুন।" },
+    mr: { code: "mr", bcp47: "mr-IN", name: "मराठी", greeting: "नमस्कार! मी पल्सकेअर मित्र आहे — आपला आरोग्य सहकारी. कसलीही मदत लागल्यास विचारा." },
+    gu: { code: "gu", bcp47: "gu-IN", name: "ગુજરાતી", greeting: "નમસ્તે! હું પલ્સકેર મિત્ર છું — તમારો સ્વાસ્થ્ય સાથી. કોઈ પણ પ્રશ્ન પૂછો, હું અહીં છું." },
+    en: { code: "en", bcp47: "en-IN", name: "English", greeting: "Hi there! I am PulseCare Mitra, your personal health companion. I am here to listen and help — whether you need medical guidance, want to book an appointment, or just need someone to talk to. How can I support you today?" }
   };
 
   const QUICK_PROMPTS = {
@@ -239,13 +239,16 @@
     const langKey = getActiveLang();
     const statusEl = document.getElementById("ai-modal-status");
     const liveTranscript = document.getElementById("ai-live-transcript");
-    const chatFeed = document.getElementById("ai-chat-feed");
 
     if (liveTranscript) liveTranscript.classList.add("d-none");
-    if (statusEl) statusEl.innerHTML = `<span class="spinner-border spinner-border-sm text-primary me-2"></span>Thinking & searching healthcare network...`;
+    if (statusEl) statusEl.innerHTML = `<span class="spinner-border spinner-border-sm text-primary me-2"></span>Thinking...`;
 
     // Append User Message to UI
     appendChatMessage("user", queryText);
+
+    // Track in conversation history (keep last 8 turns = 4 user+4 ai)
+    conversationHistory.push({ role: "user", content: queryText });
+    if (conversationHistory.length > 8) conversationHistory.splice(0, 2);
 
     try {
       const res = await fetch("/api/ai-voice/chat", {
@@ -254,14 +257,18 @@
         body: JSON.stringify({
           message: queryText,
           language: langKey,
-          current_url: window.location.pathname
+          current_url: window.location.pathname,
+          history: conversationHistory.slice(0, -1)  // send prior turns excluding current
         })
       });
 
       const data = await res.json();
       if (data && data.success) {
-        const reply = data.reply || "I am here to assist you with healthcare services.";
-        if (statusEl) statusEl.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>Spoken in ${AI_LANGS[langKey] ? AI_LANGS[langKey].name : 'English'}</span>`;
+        const reply = data.reply || "I am here for you. Please ask me anything.";
+        if (statusEl) statusEl.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>PulseCare Mitra</span>`;
+
+        // Push AI reply to history
+        conversationHistory.push({ role: "assistant", content: reply });
 
         // Append AI Message to UI
         appendChatMessage("ai", reply, data.action, data.target_url);

@@ -8,7 +8,6 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 import json
-import re
 import random
 import requests
 from datetime import datetime, date, timedelta
@@ -407,7 +406,6 @@ def set_language(lang_code):
         resp.set_cookie("googtrans", f"/en/{lang_code}", max_age=30*86400, path="/")
     return resp
 
-
 @app.route("/api/tts")
 def api_tts():
     """High-fidelity Text-to-Speech audio streaming endpoint for rural & regional languages."""
@@ -451,7 +449,7 @@ def api_tts():
 # REAL-TIME AI VOICE ASSISTANT (GROQ CLOUD + 100% FREE CUSTOM CLINICAL ACTION ENGINE)
 # -----------------------------------------------------------------------------
 
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY") or "GROQ_KEY_REMOVED"
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 _LANG_NAMES = {
     "hi": "Hindi (हिंदी)",
@@ -510,68 +508,68 @@ def _detect_action_and_url(message):
     msg = message.lower()
     
     # 1. Emergency 108 Calls
-    if re.search(r'\b(emergency|ambulance|108|102|accident|heart attack|unconscious|serious|urgent|bleeding|आपातकालीन|एम्बुलेंस|इमरजेंसी|அவசரம்|ஆம்புலன்ஸ்|ஆపద|అంబులెన్స్)\b', msg):
+    if any(w in msg for w in ["emergency", "ambulance", "108", "102", "accident", "heart attack", "unconscious", "serious", "urgent", "bleeding", "आपातकालीन", "एम्बुलेंस", "इमरजेंसी", "அவசரம்", "ஆம்புலன்ஸ்", "ஆపద", "అంబులెన్స్"]):
         return "call_108", "tel:108", "🚨 Call 108 Emergency Ambulance"
 
     # 2. Bed Matrix & Inpatient Wards
-    if re.search(r'\b(beds?|wards?|admit|admission|icu|maternity|occupancy|bistar|बेड|खाली|वार्ड|बिस्तर|படுக்கை|காலியான|పడుక|పడక|खाट)\b', msg):
+    if any(w in msg for w in ["bed", "ward", "admit", "icu", "maternity", "occupancy", "bistar", "बेड", "खाली", "वार्ड", "बिस्तर", "படுக்கை", "காலியான", "పడుక", "పడక", "खाट"]):
         return "navigate", "/wards", "🛏️ View Live Bed Matrix"
 
     # 3. Doctor Consultation & Appointments
-    if re.search(r'\b(doctors?|specialists?|appointments?|book appointment|opd|consult|consultation|physicians?|dr\.?|डॉक्टर|अपॉइंटमेंट|மருத்துவர்|முன்பதிவு|వైద్యుడు|డాక్టర్)\b', msg):
+    if any(w in msg for w in ["doctor", "specialist", "appointment", "book appointment", "opd", "consult", "dr.", "rajesh", "sarah", "physician", "डॉक्टर", "अपॉइंटमेंट", "மருத்துவர்", "முன்பதிவு", "వైద్యుడు", "డాక్టర్"]):
         return "navigate", "/appointments", "👨‍⚕️ Book Doctor Consultation"
 
     # 4. OPD Waiting Room TV Queue
-    if re.search(r'\b(queue|token|tokens|waiting room|tv display|queue status|line|टोकन|लाइन|வரிசை|క్యూ)\b', msg):
+    if any(w in msg for w in ["queue", "token", "waiting room", "tv display", "queue status", "line", "टोकन", "लाइन", "வரிசை", "క్యూ"]):
         return "navigate", "/appointments/queue", "📺 View OPD TV Queue Board"
 
     # 5. Pharmacy & Medicines
-    if re.search(r'\b(pharmacy|medicines?|drugs?|paracetamol|amoxicillin|stock|inventory|dawa|marunthu|tablets?|दवा|दवाइयाँ|फार्मेसी|औषध|மருந்து|பார்மசி|மందులు|ఫార్మసీ|ওষুধ)\b', msg):
+    if any(w in msg for w in ["pharmacy", "medicine", "drug", "paracetamol", "amoxicillin", "stock", "inventory", "dawa", "marunthu", "tablet", "दवा", "दवाइयाँ", "फार्मेसी", "औषध", "மருந்து", "பார்மசி", "மందులు", "ఫార్మసీ", "ওষুধ"]):
         return "navigate", "/pharmacy", "💊 Open Pharmacy Catalog"
 
     # 6. Diagnostic Lab Reports
-    if re.search(r'\b(labs?|tests?|reports?|blood test|cbc|pathology|urine|sugar|जांच|रिपोर्ट|लैब|இரத்த பரிசோதனை|ஆய்வகம்|రక్త పరీక్ష|ల్యాబ్)\b', msg):
+    if any(w in msg for w in ["lab", "test", "report", "blood test", "cbc", "pathology", "urine", "sugar", "जांच", "रिपोर्ट", "लैब", "இரத்த பரிசோதனை", "ஆய்வகம்", "రక్త పరీక్ష", "ల్యాబ్"]):
         return "navigate", "/laboratory", "🔬 View Lab Diagnostic Reports"
 
     # 7. Teleconsultation Video OPD
-    if re.search(r'\b(teleconsult|teleconsultation|video call|telemedicine|remote consult|वीडियो|தொலை மருத்துவம்)\b', msg):
+    if any(w in msg for w in ["teleconsult", "video call", "telemedicine", "remote consult", "वीडियो", "தொலை மருத்துவம்"]):
         return "navigate", "/teleconsult", "📹 Launch Tele-Consultation"
 
     # 8. Inter-Facility Referrals
-    if re.search(r'\b(referral|referrals|transfer|district hospital transfer|रिफरल|பரிந்துரை)\b', msg):
+    if any(w in msg for w in ["referral", "transfer", "district hospital transfer", "रिफरल", "பரிந்துரை"]):
         return "navigate", "/referrals", "🚑 Inter-Facility Referrals"
 
     # 9. High Risk Pregnancy & Non-Communicable Disease Registry
-    if re.search(r'\b(high risk|pregnant|pregnancy|anc|ncd|hypertension|diabetes|गर्भवती|उच्च जोखिम)\b', msg):
+    if any(w in msg for w in ["high risk", "pregnant", "anc", "ncd", "hypertension", "diabetes", "गर्भवती", "उच्च जोखिम"]):
         return "navigate", "/high-risk", "⚠️ High-Risk Patient Registry"
 
     # 10. Billing & Invoices
-    if re.search(r'\b(bills?|invoices?|receipts?|payments?|fees?|billing|बिल|रसीद|ரசீது)\b', msg):
+    if any(w in msg for w in ["bill", "invoice", "receipt", "payment", "fee", "बिल", "रसीद", "ரசீது"]):
         return "navigate", "/billing", "🧾 View Hospital Invoices"
 
     # 11. ABHA Card & Registration
-    if re.search(r'\b(register|registration|new patient|create abha|abha card|ayushman|health id|पंजीकरण|कार्ड|அட்டை|பதிவு)\b', msg):
+    if any(w in msg for w in ["register", "new patient", "create abha", "abha card", "ayushman", "health id", "पंजीकरण", "कार्ड", "அட்டை", "பதிவு"]):
         return "navigate", "/register", "🆔 Register National ABHA Card"
 
     # 12. User Profile & Health Records
-    if re.search(r'\b(profile|my account|my records|ehr|health history|मेरा खाता)\b', msg):
+    if any(w in msg for w in ["profile", "my account", "my records", "ehr", "history", "मेरा खाता"]):
         return "navigate", "/profile", "👤 Open Health Records"
 
     # 13. Medical Staff Directory
-    if re.search(r'\b(staff|nurse list|directory|employees|कर्मचारी)\b', msg):
+    if any(w in msg for w in ["staff", "nurse list", "directory", "employees", "कर्मचारी"]):
         return "navigate", "/staff", "📋 Medical Staff Directory"
 
     # 14. Facility Analytics
-    if re.search(r'\b(analytics|metrics|kpi|hospital stats|आंकड़े)\b', msg):
+    if any(w in msg for w in ["analytics", "metrics", "kpi", "hospital stats", "आंकड़े"]):
         return "navigate", "/facility/analytics", "📊 Facility Analytics & KPIs"
 
     # 15. Switch Account Modal
-    if re.search(r'\b(switch account|change role|switch user|रोल बदलें)\b', msg):
+    if any(w in msg for w in ["switch account", "change role", "switch user", "रोल बदलें"]):
         return "open_modal", "#switchAccountModal", "🔄 Switch User Account"
 
     # 16. Symptoms / Medical Advice -> Doctor Consult or Emergency
-    if re.search(r'\b(fever|bukhar|taap|headache|sardard|pain|dard|cough|khansi|cold|vomit|vomiting|dizziness|बुखार|दर्द|காய்ச்சல்|தலைவலி|జ్వరం)\b', msg):
-        if re.search(r'\b(chest|heart|breath|saans|unconscious|stroke|bleeding)\b', msg):
+    if any(w in msg for w in ["fever", "bukhar", "taap", "headache", "sardard", "pain", "dard", "cough", "khansi", "cold", "vomit", "dizziness", "बुखार", "दर्द", "कாய்ச்சல்", "தலைவலி", "జ్వరం"]):
+        if any(w in msg for w in ["chest", "heart", "breath", "saans", "unconscious", "stroke", "bleeding"]):
             return "call_108", "tel:108", "🚨 Call 108 Emergency Ambulance"
         return "navigate", "/appointments", "👨‍⚕️ Book Doctor Consultation"
 
@@ -739,36 +737,46 @@ def api_ai_voice_chat():
     user_info = f"User is signed in as {session.get('full_name')} ({session.get('user_role', 'guest')})" if "user_id" in session else "User is a citizen/patient."
     
     action, target_url, action_title = _detect_action_and_url(message)
+    history = data.get("history", [])  # prior conversation turns from frontend
 
     # 1. Try Groq Cloud AI with Empathetic Companion Prompt
-    active_groq_key = os.environ.get("GROQ_API_KEY") or GROQ_API_KEY or "GROQ_KEY_REMOVED"
-    if active_groq_key:
+    if GROQ_API_KEY:
         try:
             system_instruction = (
-                f"You are PulseCare Mitra (पल्सकेयर मित्र), a deeply empathetic, caring, and professional voice health assistant and emotional companion "
-                f"for the PulseCare Public Health Network in India. You are speaking to: {user_info}. "
-                f"CRITICAL BEHAVIORS:\n"
-                f"1. Empathy & Mental Support: If the user expresses anxiety, fear, stress, loneliness, depression, grief, or trouble sleeping, offer heartfelt warmth, emotional validation, soothing reassurance, and gentle grounding guidance (like taking slow, deep breaths).\n"
-                f"2. Conversational Warmth: When greeted or asked general life/health questions, chat naturally, warmly, and politely like a caring doctor or friend.\n"
-                f"3. Healthcare Guidance: Provide practical, reassuring first-aid and lifestyle advice for symptoms, and remind them our medical team is here to help.\n"
-                f"4. Hospital Actions: If they want to see beds, doctors, medicines, lab reports, or dial 108 emergency, confirm you are opening that page.\n"
-                f"5. Voice-Friendly: Respond directly in {lang_name} language. Keep answers concise (2 to 3 sentences max) so it sounds natural when spoken aloud. Never use markdown asterisks or hashtags."
+                f"You are PulseCare Mitra, a warm, empathetic, and caring health companion and voice assistant "
+                f"for PulseCare Hospital Network in India. You are like a trusted doctor-friend who genuinely listens. "
+                f"You are speaking to: {user_info}. "
+                f"Live Hospital Context (use only when relevant): Doctors on duty: {ctx['doctors']} | "
+                f"Available Beds: {ctx['available_beds']}/{ctx['total_beds']} (ICU: {ctx['icu_beds']}) | "
+                f"Pharmacy Stock: {ctx['drugs']} | Emergency: 108.\n"
+                f"RULES:\n"
+                f"1. EMPATHY FIRST: If the user is sad, anxious, stressed, depressed, lonely, in pain, or scared — respond with genuine warmth, compassion, and emotional validation before offering any advice. Make them feel heard.\n"
+                f"2. NATURAL CONVERSATION: Reply naturally like a caring companion. Do not repeat hospital data or introduce yourself unless asked.\n"
+                f"3. HEALTH GUIDANCE: Give calm, reassuring, practical guidance for symptoms. Always encourage consulting a doctor for serious concerns.\n"
+                f"4. ACTIONS: If the user wants beds, doctors, appointments, pharmacy, lab reports, or emergency 108 — briefly confirm you are opening that page.\n"
+                f"5. LANGUAGE: Respond directly in {lang_name}. Keep responses short (2 to 3 sentences max) for voice readability. Never use asterisks, hashtags, or markdown."
             )
-            
+
+            # Build messages list with conversation history for context
+            messages = [{"role": "system", "content": system_instruction}]
+            # Include prior turns (up to 6) for continuity
+            for turn in history[-6:]:
+                if turn.get("role") in ("user", "assistant") and turn.get("content"):
+                    messages.append({"role": turn["role"], "content": turn["content"]})
+            # Add current user message
+            messages.append({"role": "user", "content": message})
+
             headers = {
-                "Authorization": f"Bearer {active_groq_key}",
+                "Authorization": f"Bearer {GROQ_API_KEY}",
                 "Content-Type": "application/json"
             }
             payload = {
                 "model": "qwen/qwen3.8-27b",
-                "messages": [
-                    {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": message}
-                ],
+                "messages": messages,
                 "max_tokens": 200,
-                "temperature": 0.6
+                "temperature": 0.65
             }
-            
+
             groq_res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=7)
             if groq_res.status_code == 200:
                 res_data = groq_res.json()
