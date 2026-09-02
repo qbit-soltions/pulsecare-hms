@@ -8,6 +8,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 import json
+import re
 import random
 import requests
 from datetime import datetime, date, timedelta
@@ -406,6 +407,7 @@ def set_language(lang_code):
         resp.set_cookie("googtrans", f"/en/{lang_code}", max_age=30*86400, path="/")
     return resp
 
+
 @app.route("/api/tts")
 def api_tts():
     """High-fidelity Text-to-Speech audio streaming endpoint for rural & regional languages."""
@@ -449,7 +451,7 @@ def api_tts():
 # REAL-TIME AI VOICE ASSISTANT (GROQ CLOUD + 100% FREE CUSTOM CLINICAL ACTION ENGINE)
 # -----------------------------------------------------------------------------
 
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY") or "GROQ_KEY_REMOVED"
 
 _LANG_NAMES = {
     "hi": "Hindi (हिंदी)",
@@ -508,68 +510,68 @@ def _detect_action_and_url(message):
     msg = message.lower()
     
     # 1. Emergency 108 Calls
-    if any(w in msg for w in ["emergency", "ambulance", "108", "102", "accident", "heart attack", "unconscious", "serious", "urgent", "bleeding", "आपातकालीन", "एम्बुलेंस", "इमरजेंसी", "அவசரம்", "ஆம்புலன்ஸ்", "ஆపద", "అంబులెన్స్"]):
+    if re.search(r'\b(emergency|ambulance|108|102|accident|heart attack|unconscious|serious|urgent|bleeding|आपातकालीन|एम्बुलेंस|इमरजेंसी|அவசரம்|ஆம்புலன்ஸ்|ஆపద|అంబులెన్స్)\b', msg):
         return "call_108", "tel:108", "🚨 Call 108 Emergency Ambulance"
 
     # 2. Bed Matrix & Inpatient Wards
-    if any(w in msg for w in ["bed", "ward", "admit", "icu", "maternity", "occupancy", "bistar", "बेड", "खाली", "वार्ड", "बिस्तर", "படுக்கை", "காலியான", "పడుక", "పడక", "खाट"]):
+    if re.search(r'\b(beds?|wards?|admit|admission|icu|maternity|occupancy|bistar|बेड|खाली|वार्ड|बिस्तर|படுக்கை|காலியான|పడుక|పడక|खाट)\b', msg):
         return "navigate", "/wards", "🛏️ View Live Bed Matrix"
 
     # 3. Doctor Consultation & Appointments
-    if any(w in msg for w in ["doctor", "specialist", "appointment", "book appointment", "opd", "consult", "dr.", "rajesh", "sarah", "physician", "डॉक्टर", "अपॉइंटमेंट", "மருத்துவர்", "முன்பதிவு", "వైద్యుడు", "డాక్టర్"]):
+    if re.search(r'\b(doctors?|specialists?|appointments?|book appointment|opd|consult|consultation|physicians?|dr\.?|डॉक्टर|अपॉइंटमेंट|மருத்துவர்|முன்பதிவு|వైద్యుడు|డాక్టర్)\b', msg):
         return "navigate", "/appointments", "👨‍⚕️ Book Doctor Consultation"
 
     # 4. OPD Waiting Room TV Queue
-    if any(w in msg for w in ["queue", "token", "waiting room", "tv display", "queue status", "line", "टोकन", "लाइन", "வரிசை", "క్యూ"]):
+    if re.search(r'\b(queue|token|tokens|waiting room|tv display|queue status|line|टोकन|लाइन|வரிசை|క్యూ)\b', msg):
         return "navigate", "/appointments/queue", "📺 View OPD TV Queue Board"
 
     # 5. Pharmacy & Medicines
-    if any(w in msg for w in ["pharmacy", "medicine", "drug", "paracetamol", "amoxicillin", "stock", "inventory", "dawa", "marunthu", "tablet", "दवा", "दवाइयाँ", "फार्मेसी", "औषध", "மருந்து", "பார்மசி", "மందులు", "ఫార్మసీ", "ওষুধ"]):
+    if re.search(r'\b(pharmacy|medicines?|drugs?|paracetamol|amoxicillin|stock|inventory|dawa|marunthu|tablets?|दवा|दवाइयाँ|फार्मेसी|औषध|மருந்து|பார்மசி|மందులు|ఫార్మసీ|ওষুধ)\b', msg):
         return "navigate", "/pharmacy", "💊 Open Pharmacy Catalog"
 
     # 6. Diagnostic Lab Reports
-    if any(w in msg for w in ["lab", "test", "report", "blood test", "cbc", "pathology", "urine", "sugar", "जांच", "रिपोर्ट", "लैब", "இரத்த பரிசோதனை", "ஆய்வகம்", "రక్త పరీక్ష", "ల్యాబ్"]):
+    if re.search(r'\b(labs?|tests?|reports?|blood test|cbc|pathology|urine|sugar|जांच|रिपोर्ट|लैब|இரத்த பரிசோதனை|ஆய்வகம்|రక్త పరీక్ష|ల్యాబ్)\b', msg):
         return "navigate", "/laboratory", "🔬 View Lab Diagnostic Reports"
 
     # 7. Teleconsultation Video OPD
-    if any(w in msg for w in ["teleconsult", "video call", "telemedicine", "remote consult", "वीडियो", "தொலை மருத்துவம்"]):
+    if re.search(r'\b(teleconsult|teleconsultation|video call|telemedicine|remote consult|वीडियो|தொலை மருத்துவம்)\b', msg):
         return "navigate", "/teleconsult", "📹 Launch Tele-Consultation"
 
     # 8. Inter-Facility Referrals
-    if any(w in msg for w in ["referral", "transfer", "district hospital transfer", "रिफरल", "பரிந்துரை"]):
+    if re.search(r'\b(referral|referrals|transfer|district hospital transfer|रिफरल|பரிந்துரை)\b', msg):
         return "navigate", "/referrals", "🚑 Inter-Facility Referrals"
 
     # 9. High Risk Pregnancy & Non-Communicable Disease Registry
-    if any(w in msg for w in ["high risk", "pregnant", "anc", "ncd", "hypertension", "diabetes", "गर्भवती", "उच्च जोखिम"]):
+    if re.search(r'\b(high risk|pregnant|pregnancy|anc|ncd|hypertension|diabetes|गर्भवती|उच्च जोखिम)\b', msg):
         return "navigate", "/high-risk", "⚠️ High-Risk Patient Registry"
 
     # 10. Billing & Invoices
-    if any(w in msg for w in ["bill", "invoice", "receipt", "payment", "fee", "बिल", "रसीद", "ரசீது"]):
+    if re.search(r'\b(bills?|invoices?|receipts?|payments?|fees?|billing|बिल|रसीद|ரசீது)\b', msg):
         return "navigate", "/billing", "🧾 View Hospital Invoices"
 
     # 11. ABHA Card & Registration
-    if any(w in msg for w in ["register", "new patient", "create abha", "abha card", "ayushman", "health id", "पंजीकरण", "कार्ड", "அட்டை", "பதிவு"]):
+    if re.search(r'\b(register|registration|new patient|create abha|abha card|ayushman|health id|पंजीकरण|कार्ड|அட்டை|பதிவு)\b', msg):
         return "navigate", "/register", "🆔 Register National ABHA Card"
 
     # 12. User Profile & Health Records
-    if any(w in msg for w in ["profile", "my account", "my records", "ehr", "history", "मेरा खाता"]):
+    if re.search(r'\b(profile|my account|my records|ehr|health history|मेरा खाता)\b', msg):
         return "navigate", "/profile", "👤 Open Health Records"
 
     # 13. Medical Staff Directory
-    if any(w in msg for w in ["staff", "nurse list", "directory", "employees", "कर्मचारी"]):
+    if re.search(r'\b(staff|nurse list|directory|employees|कर्मचारी)\b', msg):
         return "navigate", "/staff", "📋 Medical Staff Directory"
 
     # 14. Facility Analytics
-    if any(w in msg for w in ["analytics", "metrics", "kpi", "hospital stats", "आंकड़े"]):
+    if re.search(r'\b(analytics|metrics|kpi|hospital stats|आंकड़े)\b', msg):
         return "navigate", "/facility/analytics", "📊 Facility Analytics & KPIs"
 
     # 15. Switch Account Modal
-    if any(w in msg for w in ["switch account", "change role", "switch user", "रोल बदलें"]):
+    if re.search(r'\b(switch account|change role|switch user|रोल बदलें)\b', msg):
         return "open_modal", "#switchAccountModal", "🔄 Switch User Account"
 
     # 16. Symptoms / Medical Advice -> Doctor Consult or Emergency
-    if any(w in msg for w in ["fever", "bukhar", "taap", "headache", "sardard", "pain", "dard", "cough", "khansi", "cold", "vomit", "dizziness", "बुखार", "दर्द", "कாய்ச்சல்", "தலைவலி", "జ్వరం"]):
-        if any(w in msg for w in ["chest", "heart", "breath", "saans", "unconscious", "stroke", "bleeding"]):
+    if re.search(r'\b(fever|bukhar|taap|headache|sardard|pain|dard|cough|khansi|cold|vomit|vomiting|dizziness|बुखार|दर्द|காய்ச்சல்|தலைவலி|జ్వరం)\b', msg):
+        if re.search(r'\b(chest|heart|breath|saans|unconscious|stroke|bleeding)\b', msg):
             return "call_108", "tel:108", "🚨 Call 108 Emergency Ambulance"
         return "navigate", "/appointments", "👨‍⚕️ Book Doctor Consultation"
 
@@ -578,8 +580,9 @@ def _detect_action_and_url(message):
 
 def _custom_hospital_voice_engine(message, lang, ctx):
     """
-    100% Free, Custom-Built Clinical Intelligence & Hospital Action Engine for PulseCare.
-    Understands medical queries, live bed status, on-duty doctors, and executes site actions directly.
+    100% Free, Empathetic Healthcare Companion & Clinical Action Engine for PulseCare.
+    Provides mental health comfort, emotional validation, soothing reassurance,
+    symptom first-aid, and executes hospital site actions.
     """
     action, target_url, action_title = _detect_action_and_url(message)
     msg_lower = message.lower()
@@ -587,50 +590,84 @@ def _custom_hospital_voice_engine(message, lang, ctx):
     # 1. Critical Emergency 108
     if action == "call_108":
         if lang == "hi":
-            reply = f"आपातकालीन 108 एम्बुलेंस प्रोटोकॉल सक्रिय किया जा रहा है। तुरंत कॉल करें! निकटतम सुविधा: {ctx['facilities']}।"
+            reply = f"आपातकालीन 108 एम्बुलेंस सेवा सक्रिय की जा रही है। कृपया तुरंत 108 पर कॉल करें। निकटतम अस्पताल: {ctx['facilities']}।"
         elif lang == "ta":
-            reply = f"அவசர 108 ஆம்புலன்ஸ் சேவை இணைக்கப்படுகிறது. உடனே தொடர்பு கொள்ளவும்! அருகில் உள்ள மருத்துவமனை: {ctx['facilities']}."
+            reply = f"அவசர 108 ஆம்புலன்ஸ் சேவை இணைக்கப்படுகிறது. உடனே தொடர்பு கொள்ளவும். அருகில் உள்ள மருத்துவமனை: {ctx['facilities']}."
         elif lang == "te":
-            reply = f"అత్యవసర 108 అంబులెన్స్ ప్రోటోకాల్ ప్రారంభించబడింది. వెంటనే కాల్ చేయండి! సమీప ఆసుపత్రి: {ctx['facilities']}."
+            reply = f"అత్యవసర 108 అంబులెన్స్ ప్రోటోకాల్ ప్రారంభించబడింది. వెంటనే 108 కి కాల్ చేయండి! సమీప ఆసుపత్రి: {ctx['facilities']}."
         else:
-            reply = f"Emergency 108 Protocol activated. Dialing national ambulance service now! Nearest facility: {ctx['facilities']}."
+            reply = f"Emergency 108 Ambulance Protocol activated. Dialing national emergency helpline now. Nearest facility: {ctx['facilities']}."
         return reply, action, target_url, action_title
 
-    # 2. Bed Occupancy & Inpatient Wards
+    # 2. Mental Health, Emotional Support & Stress Relief
+    if any(w in msg_lower for w in ["anxiety", "anxious", "stress", "worried", "worry", "scared", "fear", "depress", "depression", "sad", "crying", "cry", "lonely", "alone", "panic", "tension", "heavy", "घबराहट", "चिंता", "तनाव", "उदासी", "अकेला", "पैनिक", "பயம்", "கவலை", "மன அழுத்தம்", "தனிமை"]):
+        if lang == "hi":
+            reply = "मैं आपकी बात समझ रहा हूँ और आप अकेले नहीं हैं। कृपया मेरे साथ एक गहरी, शांत साँस लें। आपकी भावनाएं महत्वपूर्ण हैं और हम हर कदम पर आपके साथ हैं। क्या आप हमारे परामर्शदाता या डॉक्टर से बात करना चाहेंगे?"
+        elif lang == "ta":
+            reply = "உங்கள் உணர்வுகளை நான் முழுமையாகப் புரிந்து கொள்கிறேன், நீங்கள் தனியாக இல்லை. தயவுசெய்து மெதுவாக ஒரு ஆழ்ந்த மூச்சை எடுங்கள். உங்கள் நல்வாழ்வுக்காக எங்கள் ஆதரவுக் குழு எப்போதும் உங்களுடன் உள்ளது."
+        elif lang == "te":
+            reply = "మీ భావాలను నేను అర్థం చేసుకున్నాను, మీరు ఒంటరిగా లేరు. దయచేసి నెమ్మదిగా ఒక లోతైన శ్వాస తీసుకోండి. మేము ఎల్లప్పుడూ మీకు సహాయం చేయడానికి సిద్ధంగా ఉన్నాము."
+        else:
+            reply = "I hear you, and please know that you are not alone. Let's take a slow, gentle breath together right now. Whatever you are experiencing, we are right here with you, and our compassionate team is always ready to support you."
+        return reply, "navigate", "/appointments", "👨‍⚕️ Speak with a Counselor / Doctor"
+
+    # 3. Sleep & Insomnia Support
+    if any(w in msg_lower for w in ["sleep", "insomnia", "can't sleep", "nightmare", "restless", "नींद", "தூக்கம்", "నిద్ర"]):
+        if lang == "hi":
+            reply = "नींद न आना कठिन हो सकता है, लेकिन आपका शरीर और मन विश्राम के हकदार हैं। कमरे की लाइटें धीमी करें, स्क्रीन से दूर रहें और धीमी गहरी साँसें लें। हम आपकी मदद के लिए उपस्थित हैं।"
+        elif lang == "ta":
+            reply = "தூக்கம் வராமல் இருப்பது கடினமாக இருக்கலாம், ஆனால் உங்கள் மனதுக்கு அமைதி தேவை. விளக்குகளை குறைத்து, மெதுவாக மூச்சு விடுங்கள். நாங்கள் உங்களுடன் இருக்கிறோம்."
+        else:
+            reply = "Having trouble sleeping can feel exhausting, but your mind deserves calm and rest. Try dimming the lights, stepping away from screens, and taking slow rhythmic breaths. We are here to support you."
+        return reply, None, None, None
+
+    # 4. Friendly Greetings & Companionship
+    if any(w in msg_lower for w in ["hello", "hi", "hey", "good morning", "good evening", "good afternoon", "namaste", "vanakkam", "how are you", "who are you", "नमस्ते", "வணக்கம்", "హలో", "మీరు ఎవరు"]):
+        if lang == "hi":
+            reply = "नमस्ते! मैं पल्सकेयर मित्र हूँ, आपका आत्मीय स्वास्थ्य साथी और सहायक। मैं अच्छा हूँ और आपसे बात करके बहुत खुशी हुई। आज आप कैसा महसूस कर रहे हैं?"
+        elif lang == "ta":
+            reply = "வணக்கம்! நான் பல்ஸ்கேர் மித்ரா, உங்கள் அன்பான நலவாழ்வு தோழன். நான் நலமாக உள்ளேன். இன்று உங்கள் உடல்நிலை மற்றும் மனநிலை எப்படி இருக்கிறது?"
+        elif lang == "te":
+            reply = "నమస్కారం! నేను పల్స్‌కేర్ మిత్ర, మీ ఆరోగ్య స్నేహితుడిని. నేను బాగున్నాను. ఈ రోజు మీ ఆరోగ్యం ఎలా ఉంది?"
+        else:
+            reply = "Hello! I am PulseCare Mitra, your caring health companion and voice assistant. I am doing well, and I am truly glad to be here with you today. How are you feeling right now?"
+        return reply, None, None, None
+
+    # 5. Gratitude & Warmth
+    if any(w in msg_lower for w in ["thank", "thanks", "appreciate", "shukriya", "dhanyavad", "nandri", "धन्यवाद", "शुक्रिया", "நன்றி"]):
+        if lang == "hi":
+            reply = "आपका बहुत-बहुत स्वागत है! आपका स्वास्थ्य और मानसिक शांति हमारे लिए सबसे महत्वपूर्ण है। जब भी ज़रूरत हो, मैं हमेशा यहीं हूँ।"
+        elif lang == "ta":
+            reply = "மிக்க மகிழ்ச்சி! உங்கள் நலமும் மன அமைதியும் எங்களுக்கு மிகவும் முக்கியம். எப்போது உதவிகள் தேவைப்பட்டாலும் நான் இங்கேயே இருப்பேன்."
+        else:
+            reply = "You are so very welcome! Taking care of your health and peace of mind is what matters most. I am always right here whenever you need someone to talk to."
+        return reply, None, None, None
+
+    # 6. Bed Occupancy & Inpatient Wards
     if "bed" in msg_lower or (action == "navigate" and target_url == "/wards"):
         if lang == "hi":
-            reply = f"पल्सकेयर नेटवर्क में वर्तमान में {ctx['available_beds']} बेड उपलब्ध हैं (जिनमें {ctx['icu_beds']} आईसीयू बेड शामिल हैं)। वार्ड और बेड मैट्रिक्स खोल रहे हैं।"
+            reply = f"पल्सकेयर नेटवर्क में वर्तमान में {ctx['available_beds']} बेड उपलब्ध हैं (जिनमें {ctx['icu_beds']} आईसीयू बेड शामिल हैं)। वार्ड और लाइव बेड मैट्रिक्स खोल रहे हैं।"
         elif lang == "ta":
             reply = f"பல்ஸ்கேர் நெட்வொர்க்கில் தற்போது {ctx['available_beds']} படுக்கைகள் காலியாக உள்ளன ({ctx['icu_beds']} ICU படுக்கைகள் உட்பட). வார்டு பக்கத்திற்கு செல்கிறேன்."
-        elif lang == "te":
-            reply = f"పల్స్‌కేర్ నెట్‌వర్క్‌లో ప్రస్తుతం {ctx['available_beds']} పడకలు అందుబాటులో ఉన్నాయి ({ctx['icu_beds']} ఐసీయూ పడకలు). వార్డుల పేజీకి వెళ్తున్నాను."
         else:
-            reply = f"PulseCare currently has {ctx['available_beds']} available beds across wards (including {ctx['icu_beds']} ICU beds). Navigating to the Bed Matrix."
+            reply = f"PulseCare currently has {ctx['available_beds']} available beds across wards (including {ctx['icu_beds']} ICU beds). Opening the live Bed Matrix."
         return reply, "navigate", "/wards", "🛏️ View Live Bed Matrix"
 
-    # 3. On-Duty Doctors & Consultations
+    # 7. On-Duty Doctors & Consultations
     if target_url == "/appointments" or any(w in msg_lower for w in ["doctor", "specialist", "dr.", "appointment", "opd", "चिकित्सक", "डॉक्टर"]):
         if lang == "hi":
             reply = f"हमारे नेटवर्क में ऑन-ड्यूटी डॉक्टर उपलब्ध हैं: {ctx['doctors']}। अपॉइंटमेंट बुकिंग पोर्टल खोल रहे हैं।"
         elif lang == "ta":
             reply = f"தற்போது பணியில் உள்ள மருத்துவர்கள்: {ctx['doctors']}. முன்பதிவு பக்கத்தை திறக்கிறேன்."
-        elif lang == "te":
-            reply = f"డ్యూటీలో ఉన్న వైద్యులు: {ctx['doctors']}. అపాయింట్‌మెంట్ బుకింగ్ పేజీని ఓపెన్ చేస్తున్నాను."
         else:
-            reply = f"On-duty doctors available now: {ctx['doctors']}. Opening the appointment scheduling portal."
+            reply = f"On-duty doctors available now include: {ctx['doctors']}. Opening the appointment scheduling portal."
         return reply, "navigate", "/appointments", "👨‍⚕️ Book Doctor Consultation"
 
-    # 4. OPD Live TV Queue
+    # 8. OPD Live TV Queue
     if target_url == "/appointments/queue":
-        if lang == "hi":
-            reply = "लाइव ओपीडी टोकन और वेटिंग रूम टीवी स्क्रीन खोली जा रही है।"
-        elif lang == "ta":
-            reply = "நேரடி OPD டோக்கன் மற்றும் காத்திருப்பு அறை டிவி திரையை திறக்கிறேன்."
-        else:
-            reply = "Opening live OPD Token Waiting Room TV Display Board."
-        return reply, "navigate", "/appointments/queue", "📺 View OPD TV Queue Board"
+        return ("लाइव ओपीडी टोकन और वेटिंग रूम स्क्रीन खोली जा रही है।" if lang == "hi" else "Opening live OPD Token Waiting Room TV Display Board.", "navigate", "/appointments/queue", "📺 View OPD TV Queue Board")
 
-    # 5. Pharmacy & Medicine Inventory
+    # 9. Pharmacy & Medicine Inventory
     if target_url == "/pharmacy" or any(w in msg_lower for w in ["pharmacy", "medicine", "drug", "paracetamol", "dawa", "दवा"]):
         if lang == "hi":
             reply = f"सेंट्रल फार्मेसी में स्टॉक उपलब्ध है: {ctx['drugs']}। फार्मेसी कैटलॉग खोल रहे हैं।"
@@ -640,63 +677,43 @@ def _custom_hospital_voice_engine(message, lang, ctx):
             reply = f"Central Pharmacy active inventory includes: {ctx['drugs']}. Opening pharmacy catalog."
         return reply, "navigate", "/pharmacy", "💊 Open Pharmacy Catalog"
 
-    # 6. Diagnostic Laboratory Reports
+    # 10. Diagnostic Laboratory Reports
     if target_url == "/laboratory" or any(w in msg_lower for w in ["lab", "blood", "test", "report", "cbc", "जांच"]):
-        if lang == "hi":
-            reply = "लैब इन्वेस्टिगेशन कैटलॉग (CBC, ब्लड शुगर, लिपिड प्रोफाइल) खोला जा रहा है।"
-        elif lang == "ta":
-            reply = "ஆய்வக பரிசோதனை முடிவுகள் மற்றும் சோதனைகள் பக்கத்தை திறக்கிறேன்."
-        else:
-            reply = "Opening Diagnostic Laboratory reports and test catalog."
-        return reply, "navigate", "/laboratory", "🔬 View Lab Diagnostic Reports"
+        return ("लैब इन्वेस्टिगेशन कैटलॉग (CBC, ब्लड शुगर, लिपिड प्रोफाइल) खोला जा रहा है।" if lang == "hi" else "Opening Diagnostic Laboratory reports and test catalog.", "navigate", "/laboratory", "🔬 View Lab Diagnostic Reports")
 
-    # 7. Teleconsultation Video OPD
+    # 11. Teleconsultation Video OPD
     if target_url == "/teleconsult":
-        if lang == "hi":
-            reply = "ग्रामीण टेलीमेडिसिन वीडियो ओपीडी परामर्श कक्ष प्रारंभ किया जा रहा है।"
-        else:
-            reply = "Launching rural telemedicine video consultation room."
-        return reply, "navigate", "/teleconsult", "📹 Launch Tele-Consultation"
+        return ("ग्रामीण टेलीमेडिसिन वीडियो ओपीडी परामर्श कक्ष प्रारंभ किया जा रहा है।" if lang == "hi" else "Launching rural telemedicine video consultation room.", "navigate", "/teleconsult", "📹 Launch Tele-Consultation")
 
-    # 8. ABHA Card & Registration
+    # 12. ABHA Card & Registration
     if target_url == "/register" or any(w in msg_lower for w in ["register", "abha", "ayushman", "पंजीकरण"]):
-        if lang == "hi":
-            reply = "14-अंकीय आयुष्मान भारत स्वास्थ्य खाता (ABHA ID) पंजीकरण फॉर्म खोला जा रहा है।"
-        elif lang == "ta":
-            reply = "14-இலக்க ஆயுஷ்மான் பாரத் ABHA அடையாள அட்டை பதிவு பக்கத்தை திறக்கிறேன்."
-        else:
-            reply = "Opening 14-digit National ABHA Health Card registration portal."
-        return reply, "navigate", "/register", "🆔 Register National ABHA Card"
+        return ("14-अंकीय आयुष्मान भारत स्वास्थ्य खाता (ABHA ID) पंजीकरण फॉर्म खोला जा रहा है।" if lang == "hi" else "Opening 14-digit National ABHA Health Card registration portal.", "navigate", "/register", "🆔 Register National ABHA Card")
 
-    # 9. Clinical Symptoms Triage
-    if any(w in msg_lower for w in ["fever", "bukhar", "taap", "headache", "sardard", "pain", "dard", "cough", "khansi", "cold", "जुकाम", "बुखार", "दर्द", "காய்ச்சல்", "தலைவலி", "జ్వరం"]):
-        if any(w in msg_lower for w in ["chest", "chhati", "breath", "saans", "சீனை வலி", "శ్వాస"]):
-            if lang == "hi":
-                reply = "सीने में दर्द या सांस लेने में कठिनाई गंभीर आपातकालीन स्थिति हो सकती है। तुरंत 108 एम्बुलेंस बुलाएं!"
-            else:
-                reply = "Chest pain or difficulty breathing may be a critical emergency. Please immediately call 108 ambulance!"
-            return reply, "call_108", "tel:108", "🚨 Call 108 Ambulance"
+    # 13. Clinical Symptoms Triage (Stomach, Fever, Headache, Burns, Dizziness)
+    if any(w in msg_lower for w in ["fever", "bukhar", "headache", "sardard", "pain", "dard", "cough", "stomach", "pet", "vomit", "dizzy", "burn", "bp", "बुखार", "दर्द", "पेट", "காய்ச்சல்", "தலைவலி", "வயிறு"]):
+        if any(w in msg_lower for w in ["chest", "chhati", "breath", "saans", "stroke", "சீனை வலி", "శ్వాస"]):
+            reply = "सीने में दर्द या सांस लेने में कठिनाई गंभीर आपातकालीन स्थिति हो सकती है। तुरंत 108 एम्बुलेंस बुलाएं!" if lang == "hi" else "Chest pain or difficulty breathing may be a critical emergency. Please immediately call 108 ambulance!"
+            return reply, "call_108", "tel:108", "🚨 Call 108 Emergency Ambulance"
+        
         if lang == "hi":
-            reply = "हल्के बुखार या दर्द के लिए पर्याप्त पानी पिएं और विश्राम करें। यदि बुखार 101°F से अधिक है या 2 दिनों से बना है, तो तुरंत डॉक्टर से परामर्श लें।"
+            reply = "मैं समझ सकता हूँ कि आप असहज महसूस कर रहे हैं। कृपया आराम करें, पर्याप्त पानी पिएं और यदि लक्षण बने रहें तो तुरंत डॉक्टर से परामर्श लें।"
         elif lang == "ta":
-            reply = "காய்ச்சல் அல்லது தலைவலிக்கு போதுமான நீர் அருந்தி ஓய்வெடுக்கவும். தொடர்ந்து இருந்தால் மருத்துவரை அணுகவும்."
+            reply = "நீங்கள் சிரமப்படுவதை உணர்கிறேன். தயவுசெய்து ஓய்வெடுக்கவும், அறிகுறிகள் தொடர்ந்தால் மருத்துவரிடம் ஆலோசிக்கவும்."
         else:
-            reply = "For fever or body ache, stay well-hydrated and rest. If symptoms persist for more than 2 days, please schedule an appointment with our medical officer."
+            reply = "I understand you are feeling unwell right now. Please rest comfortably, stay hydrated, and let our doctor evaluate your symptoms so you can feel better soon."
         return reply, "navigate", "/appointments", "👨‍⚕️ Book Doctor Consultation"
 
-    # 10. General Page Navigation Fallback
+    # 14. General Page Navigation
     if action and target_url:
         return f"Opening requested page: {action_title}.", action, target_url, action_title
 
-    # 11. Welcome & General Guidance
+    # 15. Conversational Caring Default
     if lang == "hi":
-        reply = f"नमस्ते! मैं पल्सकेयर मित्र हूँ। आप मुझसे ऑन-ड्यूटी डॉक्टर ({ctx['doctors']}), खाली बेड ({ctx['available_beds']} उपलब्ध), फार्मेसी दवाइयों, या 108 एम्बुलेंस के बारे में पूछ सकते हैं।"
+        reply = "मैं यहाँ आपका साथ देने और मदद करने के लिए उपस्थित हूँ। आप मुझसे अपने स्वास्थ्य, मानसिक शांति, लक्षणों, डॉक्टरों या किसी भी सहायता के बारे में खुलकर बात कर सकते हैं।"
     elif lang == "ta":
-        reply = f"வணக்கம்! நான் பல்ஸ்கேர் மித்ரா. மருத்துவர்கள், படுக்கை இருப்பு ({ctx['available_beds']} காலியாக உள்ளது), மருந்துகள் அல்லது 108 அவசர உதவி பற்றி கேளுங்கள்."
-    elif lang == "te":
-        reply = f"నమస్కారం! నేను పల్స్‌కేర్ మిత్ర. వైద్యులు, ఖాళీ పడకలు ({ctx['available_beds']} అందుబాటులో ఉన్నాయి), మందులు లేదా 108 అంబులెన్స్ గురించి అడగండి."
+        reply = "உங்களுக்கு உதவவும் ஆறுதல் அளிக்கவும் நான் எப்போதும் இங்கு உள்ளேன். உங்கள் உடல்நலம், மனநிலை, மருத்துவர்கள் அல்லது உதவிகள் பற்றி என்னிடம் கேளுங்கள்."
     else:
-        reply = f"Hello! I am PulseCare Mitra, your custom healthcare voice assistant. Ask me about doctors ({ctx['doctors']}), available beds ({ctx['available_beds']} free), pharmacy stock, or emergency 108 services."
+        reply = "I am right here with you. You can talk to me about how you are feeling, ask for health tips, check on doctors and beds, or let me know whenever you need emotional support."
     return reply, None, None, None
 
 
@@ -704,8 +721,8 @@ def _custom_hospital_voice_engine(message, lang, ctx):
 def api_ai_voice_chat():
     """
     PulseCare Mitra Voice AI Assistant API.
-    Combines Google Gemini 3.5 Flash for conversational intelligence with PulseCare's
-    Real-Time Hospital Action Engine for 100% reliable clinical navigation and 108 dialing.
+    Combines Groq Cloud AI for deep empathy, mental health support, and companionship
+    with PulseCare's Real-Time Hospital Action Engine for clinical navigation and 108 dialing.
     """
     data = request.get_json(silent=True) or {}
     message = data.get("message", "").strip()
@@ -723,21 +740,23 @@ def api_ai_voice_chat():
     
     action, target_url, action_title = _detect_action_and_url(message)
 
-    # 1. Try Groq Cloud AI if API key is provided
-    if GROQ_API_KEY:
+    # 1. Try Groq Cloud AI with Empathetic Companion Prompt
+    active_groq_key = os.environ.get("GROQ_API_KEY") or GROQ_API_KEY or "GROQ_KEY_REMOVED"
+    if active_groq_key:
         try:
             system_instruction = (
-                f"You are PulseCare Mitra (पल्सकेयर मित्र), the dedicated voice AI assistant for PulseCare Hospital Management System in India. "
-                f"User context: {user_info}. "
-                f"RULES:\n"
-                f"1. Respond directly in {lang_name} language warmly and concisely (1 to 2 sentences maximum) as your response will be read aloud via text-to-speech.\n"
-                f"2. Current Live Hospital Data: Doctors: {ctx['doctors']} | Available Beds: {ctx['available_beds']}/{ctx['total_beds']} ({ctx['icu_beds']} ICU) | Pharmacy Stock: {ctx['drugs']} | Emergency Helpline: 108.\n"
-                f"3. If the user asks for actions (beds, doctor appointment, pharmacy, lab test, registration, emergency 108), confirm you are opening that page.\n"
-                f"4. Do NOT output markdown asterisks or formatting symbols, just plain natural spoken words."
+                f"You are PulseCare Mitra (पल्सकेयर मित्र), a deeply empathetic, caring, and professional voice health assistant and emotional companion "
+                f"for the PulseCare Public Health Network in India. You are speaking to: {user_info}. "
+                f"CRITICAL BEHAVIORS:\n"
+                f"1. Empathy & Mental Support: If the user expresses anxiety, fear, stress, loneliness, depression, grief, or trouble sleeping, offer heartfelt warmth, emotional validation, soothing reassurance, and gentle grounding guidance (like taking slow, deep breaths).\n"
+                f"2. Conversational Warmth: When greeted or asked general life/health questions, chat naturally, warmly, and politely like a caring doctor or friend.\n"
+                f"3. Healthcare Guidance: Provide practical, reassuring first-aid and lifestyle advice for symptoms, and remind them our medical team is here to help.\n"
+                f"4. Hospital Actions: If they want to see beds, doctors, medicines, lab reports, or dial 108 emergency, confirm you are opening that page.\n"
+                f"5. Voice-Friendly: Respond directly in {lang_name} language. Keep answers concise (2 to 3 sentences max) so it sounds natural when spoken aloud. Never use markdown asterisks or hashtags."
             )
             
             headers = {
-                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Authorization": f"Bearer {active_groq_key}",
                 "Content-Type": "application/json"
             }
             payload = {
@@ -747,10 +766,10 @@ def api_ai_voice_chat():
                     {"role": "user", "content": message}
                 ],
                 "max_tokens": 200,
-                "temperature": 0.3
+                "temperature": 0.6
             }
             
-            groq_res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=6)
+            groq_res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=7)
             if groq_res.status_code == 200:
                 res_data = groq_res.json()
                 reply_text = res_data["choices"][0]["message"]["content"].strip().replace("*", "").replace("#", "")
@@ -767,7 +786,7 @@ def api_ai_voice_chat():
         except Exception as exc:
             app.logger.warning(f"Groq API voice error, using PulseCare Custom Action fallback: {exc}")
 
-    # 2. Fallback to 100% Free Custom Action Engine
+    # 2. Fallback to Empathetic Custom Action Engine
     reply_text, fb_action, fb_url, fb_title = _custom_hospital_voice_engine(message, lang, ctx)
     return jsonify({
         "success": True,
@@ -776,7 +795,7 @@ def api_ai_voice_chat():
         "action": action or fb_action,
         "target_url": target_url or fb_url,
         "action_title": action_title or fb_title,
-        "engine": "PulseCare Custom Action AI"
+        "engine": "PulseCare Custom Companion AI"
     })
 
 
