@@ -376,6 +376,7 @@ def translate_term(term_key, lang="en"):
         return TRANSLATIONS[lang][term_key]
     return TRANSLATIONS.get("en", {}).get(term_key, term_key)
 
+@app.template_filter("t")
 @app.template_filter("translate")
 def t_filter(key):
     """Jinja filter for localization."""
@@ -859,7 +860,8 @@ def inject_global_context():
             ("bn", "বাংলা (Bengali)"),
             ("mr", "मराठी (Marathi)"),
             ("gu", "ગુજરાતી (Gujarati)")
-        ]
+        ],
+        "t": t_filter
     }
 
 @app.template_filter("fromjson")

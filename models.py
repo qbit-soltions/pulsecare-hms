@@ -200,7 +200,10 @@ def query_db(query, args=(), one=False):
         if not isinstance(conn, sqlite3.Connection) and is_postgres():
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) if _HAS_PSYCOPG2 else conn.cursor()
             pg_query = _normalize_query_for_postgres(query)
-            cur.execute(pg_query, args)
+            if args:
+                cur.execute(pg_query, args)
+            else:
+                cur.execute(pg_query)
             rows = cur.fetchall()
             
             if _HAS_PSYCOPG2:
@@ -237,12 +240,18 @@ def execute_db(query, args=()):
 
             if is_insert and not has_returning and "hospital_settings" not in pg_query.lower():
                 pg_query = pg_query.rstrip("; ") + " RETURNING id"
-                cur.execute(pg_query, args)
+                if args:
+                    cur.execute(pg_query, args)
+                else:
+                    cur.execute(pg_query)
                 res = cur.fetchone()
                 conn.commit()
                 return res[0] if res else None
             else:
-                cur.execute(pg_query, args)
+                if args:
+                    cur.execute(pg_query, args)
+                else:
+                    cur.execute(pg_query)
                 conn.commit()
                 if has_returning:
                     res = cur.fetchone()
