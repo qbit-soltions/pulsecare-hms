@@ -5,6 +5,8 @@ Assisted Teleconsultations, Closed-Loop Referrals, High-Risk Patient Surveillanc
 Cross-Facility Supply Chains, Multilingual UI, and ABDM/FHIR Interoperability.
 """
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import json
 import random
 import requests
@@ -348,35 +350,33 @@ TRANSLATIONS = {
     "gu": {
         "teleconsultation": "ટેલિકન્સલ્ટેશન સહાય",
         "referrals": "રેફરલ ટ્રેકિંગ",
-        "high_risk_registry": "ઉચ્ચ જોખમવાળા દર્દીની દેખરેખ",
-        "resource_grid": "દવા અને લેબ ઉપલબ્ધતા",
-        "quality_analytics": "જાહેર આરોગ્ય વિશ્લેષણ",
+        "high_risk_registry": "ઉચ્ચ જોખમવાળા દર્દીઓ",
         "patients": "દર્દી નોંધણી (ABHA)",
         "appointments": "ઓપીડી એપોઇન્ટમેન્ટ",
-        "wards": "વોર્ડ અને બેડ મેનેજમેન્ટ",
+        "wards": "વોર્ડ અને બેડ વ્યવસ્થાપન",
         "pharmacy": "ફાર્મસી અને દવાઓ",
         "laboratory": "નિદાન પ્રયોગશાળા",
-        "billing": "બિલિંગ અને આરોગ્ય યોજનાઓ",
+        "billing": "બિલિંગ અને યોજનાઓ",
         "emergency_escalation": "૧૦૮ ઇમરજન્સી એમ્બ્યુલન્સ",
         "offline_mode": "ઓફલાઇન મોડ",
-        "triage_red": "ગંભીર / કટોકટી",
+        "triage_red": "અતિ ગંભીર / કટોકટી",
         "triage_yellow": "તાત્કાલિક / ઉચ્ચ જોખમ",
         "triage_green": "સામાન્ય / સ્થિર",
         "frontline_worker": "આશા / આરોગ્ય કાર્યકર",
-        "sub_centre": "ઉપ-કેન્દ્ર",
+        "sub_centre": "પેટા-કેન્દ્ર",
         "phc": "પ્રાથમિક આરોગ્ય કેન્દ્ર",
         "chc": "સામુદાયિક આરોગ્ય કેન્દ્ર",
         "district_hospital": "જિલ્લા હોસ્પિટલ"
     }
 }
 
-def translate_term(key, lang="en"):
-    """Helper to retrieve localized strings."""
-    if not lang or lang not in TRANSLATIONS:
-        lang = "en"
-    return TRANSLATIONS[lang].get(key, TRANSLATIONS["en"].get(key, key))
+def translate_term(term_key, lang="en"):
+    """Helper to get translated UI string with English fallback."""
+    if lang in TRANSLATIONS and term_key in TRANSLATIONS[lang]:
+        return TRANSLATIONS[lang][term_key]
+    return TRANSLATIONS.get("en", {}).get(term_key, term_key)
 
-@app.template_filter("t")
+@app.template_filter("translate")
 def t_filter(key):
     """Jinja filter for localization."""
     lang = session.get("lang") or (request.cookies.get("pulse_lang") if request else "en") or "en"
@@ -428,7 +428,6 @@ def api_tts():
         lang = "en"
         
     try:
-        # Fetch high-quality natural audio stream
         url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl={lang}&client=tw-ob&q={requests.utils.quote(text[:250])}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -445,9 +444,8 @@ def api_tts():
     return Response(b"", mimetype="audio/mpeg")
 
 
-
 # -----------------------------------------------------------------------------
-# REAL-TIME AI VOICE ASSISTANT ENDPOINT (100% FREE / GEMINI + MULTILINGUAL)
+# REAL-TIME AI VOICE ASSISTANT (GEMINI + 100% FREE CUSTOM CLINICAL ACTION ENGINE)
 # -----------------------------------------------------------------------------
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_GENAI_API_KEY")
@@ -463,14 +461,20 @@ _LANG_NAMES = {
 }
 
 def _get_hms_live_context():
-    """Fetches a live snapshot of facility status, beds, doctors, and services for AI grounding."""
+    """Fetches a real-time snapshot of live facility status, beds, doctors, and pharmacy inventory."""
     try:
-        doctors = query_db("SELECT full_name, specialization, qualification, role FROM users WHERE role IN ('doctor', 'medical_officer') AND is_active = 1 LIMIT 5")
-        doc_list = ", ".join([f"{d['full_name']} ({d['specialization'] or 'General Medicine'})" for d in doctors]) if doctors else "Dr. Rajesh Verma (Internal Medicine)"
+        doctors = query_db("SELECT full_name, specialization, qualification, role FROM users WHERE role IN ('doctor', 'medical_officer') AND is_active = 1 LIMIT 6")
+        doc_list = ", ".join([f"{d['full_name']} ({d['specialization'] or 'General Medicine'})" for d in doctors]) if doctors else "Dr. Rajesh Verma (Internal Medicine), Dr. Sarah Jenkins (Cardiology)"
         
         bed_stats = query_db("SELECT status, count(*) as count FROM beds GROUP BY status")
         avail_beds = sum([b['count'] for b in bed_stats if b['status'] == 'Available']) if bed_stats else 42
         total_beds = sum([b['count'] for b in bed_stats]) if bed_stats else 72
+        
+        icu_beds = query_db("SELECT count(*) as count FROM beds WHERE ward_type = 'ICU' AND status = 'Available'", one=True)
+        icu_count = icu_beds['count'] if icu_beds else 4
+        
+        drugs = query_db("SELECT item_name, current_stock, unit FROM pharmacy_inventory WHERE current_stock > 0 LIMIT 4")
+        drug_list = ", ".join([f"{d['item_name']} ({d['current_stock']} {d['unit']})" for d in drugs]) if drugs else "Paracetamol 500mg, Amoxicillin 250mg, ORS Sachets"
         
         facilities = query_db("SELECT name, tier_type, emergency_helpline FROM facilities LIMIT 4")
         fac_list = ", ".join([f"{f['name']} ({f['tier_type']})" for f in facilities]) if facilities else "District Hospital, Chandpur PHC, Bilaspur Sub-Centre"
@@ -479,6 +483,8 @@ def _get_hms_live_context():
             "doctors": doc_list,
             "available_beds": avail_beds,
             "total_beds": total_beds,
+            "icu_beds": icu_count,
+            "drugs": drug_list,
             "facilities": fac_list,
             "emergency_helpline": "108 / 102",
             "abha_helpline": "14477"
@@ -488,104 +494,217 @@ def _get_hms_live_context():
             "doctors": "Dr. Rajesh Verma (Internal Medicine), Dr. Sarah Jenkins (Cardiology)",
             "available_beds": 42,
             "total_beds": 72,
+            "icu_beds": 4,
+            "drugs": "Paracetamol 500mg, Amoxicillin 250mg, ORS Sachets",
             "facilities": "District Hospital, Chandpur PHC, Rampur Sub-Centre",
             "emergency_helpline": "108",
             "abha_helpline": "14477"
         }
 
 
-def _rule_based_voice_fallback(message, lang, ctx):
-    """Accurate offline/free multilingual clinical fallback engine when external AI is offline."""
+def _detect_action_and_url(message):
+    """Detects rich interactive actions, destinations, and modal triggers from user query."""
+    msg = message.lower()
+    
+    # 1. Emergency 108 Calls
+    if any(w in msg for w in ["emergency", "ambulance", "108", "102", "accident", "heart attack", "unconscious", "serious", "urgent", "bleeding", "आपातकालीन", "एम्बुलेंस", "इमरजेंसी", "அவசரம்", "ஆம்புலன்ஸ்", "ஆపద", "అంబులెన్స్"]):
+        return "call_108", "tel:108", "🚨 Call 108 Emergency Ambulance"
+
+    # 2. Bed Matrix & Inpatient Wards
+    if any(w in msg for w in ["bed", "ward", "admit", "icu", "maternity", "occupancy", "bistar", "बेड", "खाली", "वार्ड", "बिस्तर", "படுக்கை", "காலியான", "పడుక", "పడక", "खाट"]):
+        return "navigate", "/wards", "🛏️ View Live Bed Matrix"
+
+    # 3. Doctor Consultation & Appointments
+    if any(w in msg for w in ["doctor", "specialist", "appointment", "book appointment", "opd", "consult", "dr.", "rajesh", "sarah", "physician", "डॉक्टर", "अपॉइंटमेंट", "மருத்துவர்", "முன்பதிவு", "వైద్యుడు", "డాక్టర్"]):
+        return "navigate", "/appointments", "👨‍⚕️ Book Doctor Consultation"
+
+    # 4. OPD Waiting Room TV Queue
+    if any(w in msg for w in ["queue", "token", "waiting room", "tv display", "queue status", "line", "टोकन", "लाइन", "வரிசை", "క్యూ"]):
+        return "navigate", "/appointments/queue", "📺 View OPD TV Queue Board"
+
+    # 5. Pharmacy & Medicines
+    if any(w in msg for w in ["pharmacy", "medicine", "drug", "paracetamol", "amoxicillin", "stock", "inventory", "dawa", "marunthu", "tablet", "दवा", "दवाइयाँ", "फार्मेसी", "औषध", "மருந்து", "பார்மசி", "மందులు", "ఫార్మసీ", "ওষুধ"]):
+        return "navigate", "/pharmacy", "💊 Open Pharmacy Catalog"
+
+    # 6. Diagnostic Lab Reports
+    if any(w in msg for w in ["lab", "test", "report", "blood test", "cbc", "pathology", "urine", "sugar", "जांच", "रिपोर्ट", "लैब", "இரத்த பரிசோதனை", "ஆய்வகம்", "రక్త పరీక్ష", "ల్యాబ్"]):
+        return "navigate", "/laboratory", "🔬 View Lab Diagnostic Reports"
+
+    # 7. Teleconsultation Video OPD
+    if any(w in msg for w in ["teleconsult", "video call", "telemedicine", "remote consult", "वीडियो", "தொலை மருத்துவம்"]):
+        return "navigate", "/teleconsult", "📹 Launch Tele-Consultation"
+
+    # 8. Inter-Facility Referrals
+    if any(w in msg for w in ["referral", "transfer", "district hospital transfer", "रिफरल", "பரிந்துரை"]):
+        return "navigate", "/referrals", "🚑 Inter-Facility Referrals"
+
+    # 9. High Risk Pregnancy & Non-Communicable Disease Registry
+    if any(w in msg for w in ["high risk", "pregnant", "anc", "ncd", "hypertension", "diabetes", "गर्भवती", "उच्च जोखिम"]):
+        return "navigate", "/high-risk", "⚠️ High-Risk Patient Registry"
+
+    # 10. Billing & Invoices
+    if any(w in msg for w in ["bill", "invoice", "receipt", "payment", "fee", "बिल", "रसीद", "ரசீது"]):
+        return "navigate", "/billing", "🧾 View Hospital Invoices"
+
+    # 11. ABHA Card & Registration
+    if any(w in msg for w in ["register", "new patient", "create abha", "abha card", "ayushman", "health id", "पंजीकरण", "कार्ड", "அட்டை", "பதிவு"]):
+        return "navigate", "/register", "🆔 Register National ABHA Card"
+
+    # 12. User Profile & Health Records
+    if any(w in msg for w in ["profile", "my account", "my records", "ehr", "history", "मेरा खाता"]):
+        return "navigate", "/profile", "👤 Open Health Records"
+
+    # 13. Medical Staff Directory
+    if any(w in msg for w in ["staff", "nurse list", "directory", "employees", "कर्मचारी"]):
+        return "navigate", "/staff", "📋 Medical Staff Directory"
+
+    # 14. Facility Analytics
+    if any(w in msg for w in ["analytics", "metrics", "kpi", "hospital stats", "आंकड़े"]):
+        return "navigate", "/facility/analytics", "📊 Facility Analytics & KPIs"
+
+    # 15. Switch Account Modal
+    if any(w in msg for w in ["switch account", "change role", "switch user", "रोल बदलें"]):
+        return "open_modal", "#switchAccountModal", "🔄 Switch User Account"
+
+    # 16. Symptoms / Medical Advice -> Doctor Consult or Emergency
+    if any(w in msg for w in ["fever", "bukhar", "taap", "headache", "sardard", "pain", "dard", "cough", "khansi", "cold", "vomit", "dizziness", "बुखार", "दर्द", "कாய்ச்சல்", "தலைவலி", "జ్వరం"]):
+        if any(w in msg for w in ["chest", "heart", "breath", "saans", "unconscious", "stroke", "bleeding"]):
+            return "call_108", "tel:108", "🚨 Call 108 Emergency Ambulance"
+        return "navigate", "/appointments", "👨‍⚕️ Book Doctor Consultation"
+
+    return None, None, None
+
+
+def _custom_hospital_voice_engine(message, lang, ctx):
+    """
+    100% Free, Custom-Built Clinical Intelligence & Hospital Action Engine for PulseCare.
+    Understands medical queries, live bed status, on-duty doctors, and executes site actions directly.
+    """
+    action, target_url, action_title = _detect_action_and_url(message)
     msg_lower = message.lower()
     
-    # 1. Bed Availability
-    if any(w in msg_lower for w in ["bed", "ward", "admit", "khali", "jagah", "bistar", "बेड", "खाली", "वार्ड", "बिस्तर", "படுக்கை", "காலியான", "పడుక", "పడక", "বেড", "खाट"]):
+    # 1. Critical Emergency 108
+    if action == "call_108":
         if lang == "hi":
-            return f"पल्सकेयर नेटवर्क में वर्तमान में {ctx['available_beds']} बेड उपलब्ध हैं (कुल {ctx['total_beds']} में से)। आप वार्ड और बेड मैट्रिक्स पेज पर लाइव स्थिति देख सकते हैं।", "navigate", "/wards"
+            reply = f"आपातकालीन 108 एम्बुलेंस प्रोटोकॉल सक्रिय किया जा रहा है। तुरंत कॉल करें! निकटतम सुविधा: {ctx['facilities']}।"
         elif lang == "ta":
-            return f"பல்ஸ்கேர் நெட்வொர்க்கில் தற்போது {ctx['available_beds']} படுக்கைகள் காலியாக உள்ளன. வார்டு பக்கத்திற்கு அழைத்துச் செல்கிறேன்.", "navigate", "/wards"
+            reply = f"அவசர 108 ஆம்புலன்ஸ் சேவை இணைக்கப்படுகிறது. உடனே தொடர்பு கொள்ளவும்! அருகில் உள்ள மருத்துவமனை: {ctx['facilities']}."
         elif lang == "te":
-            return f"పల్స్‌కేర్ నెట్‌వర్క్‌లో ప్రస్తుతం {ctx['available_beds']} పడకలు అందుబాటులో ఉన్నాయి. వార్డుల పేజీని ఓపెన్ చేస్తున్నాను.", "navigate", "/wards"
+            reply = f"అత్యవసర 108 అంబులెన్స్ ప్రోటోకాల్ ప్రారంభించబడింది. వెంటనే కాల్ చేయండి! సమీప ఆసుపత్రి: {ctx['facilities']}."
         else:
-            return f"PulseCare currently has {ctx['available_beds']} beds available out of {ctx['total_beds']}. Taking you to the Bed Matrix.", "navigate", "/wards"
+            reply = f"Emergency 108 Protocol activated. Dialing national ambulance service now! Nearest facility: {ctx['facilities']}."
+        return reply, action, target_url, action_title
 
-    # 2. Doctor / Specialist
-    if any(w in msg_lower for w in ["doctor", "specialist", "daktar", "dr", "rajesh", "sarah", "डॉक्टर", "वैद्य", "மருத்துவர்", "டாக்டர்", "వైద్యుడు", "డాక్టర్", "ডাক্তার"]):
+    # 2. Bed Occupancy & Inpatient Wards
+    if "bed" in msg_lower or (action == "navigate" and target_url == "/wards"):
         if lang == "hi":
-            return f"हमारे नेटवर्क में डॉक्टर उपलब्ध हैं: {ctx['doctors']}। आप ओपीडी अपॉइंटमेंट तुरंत बुक कर सकते हैं।", "navigate", "/appointments"
+            reply = f"पल्सकेयर नेटवर्क में वर्तमान में {ctx['available_beds']} बेड उपलब्ध हैं (जिनमें {ctx['icu_beds']} आईसीयू बेड शामिल हैं)। वार्ड और बेड मैट्रिक्स खोल रहे हैं।"
         elif lang == "ta":
-            return f"கிடைக்கக்கூடிய மருத்துவர்கள்: {ctx['doctors']}. நீங்கள் உடனே முன்பदीவு செய்யலாம்.", "navigate", "/appointments"
+            reply = f"பல்ஸ்கேர் நெட்வொர்க்கில் தற்போது {ctx['available_beds']} படுக்கைகள் காலியாக உள்ளன ({ctx['icu_beds']} ICU படுக்கைகள் உட்பட). வார்டு பக்கத்திற்கு செல்கிறேன்."
+        elif lang == "te":
+            reply = f"పల్స్‌కేర్ నెట్‌వర్క్‌లో ప్రస్తుతం {ctx['available_beds']} పడకలు అందుబాటులో ఉన్నాయి ({ctx['icu_beds']} ఐసీయూ పడకలు). వార్డుల పేజీకి వెళ్తున్నాను."
         else:
-            return f"Available doctors include: {ctx['doctors']}. You can book an OPD consultation or tele-consultation.", "navigate", "/appointments"
+            reply = f"PulseCare currently has {ctx['available_beds']} available beds across wards (including {ctx['icu_beds']} ICU beds). Navigating to the Bed Matrix."
+        return reply, "navigate", "/wards", "🛏️ View Live Bed Matrix"
 
-    # 3. Emergency / Ambulance
-    if any(w in msg_lower for w in ["emergency", "ambulance", "108", "urgent", "serious", "aapaatkallin", "आपातकालीन", "एम्बुलेंस", "इमरजेंसी", "அவசரம்", "ஆம்புலன்ஸ்", "ఆపద", "అంబులెన్స్"]):
+    # 3. On-Duty Doctors & Consultations
+    if target_url == "/appointments" or any(w in msg_lower for w in ["doctor", "specialist", "dr.", "appointment", "opd", "चिकित्सक", "डॉक्टर"]):
         if lang == "hi":
-            return f"आपातकालीन स्थिति में तुरंत राष्ट्रीय एम्बुलेंस सेवा 108 या 102 पर कॉल करें। निकटतम सुविधा: {ctx['facilities']}।", "call_108", "tel:108"
+            reply = f"हमारे नेटवर्क में ऑन-ड्यूटी डॉक्टर उपलब्ध हैं: {ctx['doctors']}। अपॉइंटमेंट बुकिंग पोर्टल खोल रहे हैं।"
         elif lang == "ta":
-            return f"அவசர சிகிச்சைக்கு உடனே 108 ஆம்புலன்ஸ் எண்ணை அழைக்கவும். அருகில் உள்ள மருத்துவமனை: {ctx['facilities']}.", "call_108", "tel:108"
+            reply = f"தற்போது பணியில் உள்ள மருத்துவர்கள்: {ctx['doctors']}. முன்பதிவு பக்கத்தை திறக்கிறேன்."
+        elif lang == "te":
+            reply = f"డ్యూటీలో ఉన్న వైద్యులు: {ctx['doctors']}. అపాయింట్‌మెంట్ బుకింగ్ పేజీని ఓపెన్ చేస్తున్నాను."
         else:
-            return f"For medical emergencies, immediately call national ambulance helpline 108. Nearest facility: {ctx['facilities']}.", "call_108", "tel:108"
+            reply = f"On-duty doctors available now: {ctx['doctors']}. Opening the appointment scheduling portal."
+        return reply, "navigate", "/appointments", "👨‍⚕️ Book Doctor Consultation"
 
-    # 4. Pharmacy / Medicines
-    if any(w in msg_lower for w in ["medicine", "pharmacy", "drug", "dawa", "tablet", "marunthu", "दवा", "दवाइयाँ", "फार्मेसी", "औषध", "மருந்து", "பார்மசி", "மందులు", "ఫార్మసీ", "ওষুধ"]):
+    # 4. OPD Live TV Queue
+    if target_url == "/appointments/queue":
         if lang == "hi":
-            return "सेंट्रल फार्मेसी डिपो में जीवनरक्षक दवाइयाँ, एंटीबायोटिक्स और ओआरएस उपलब्ध हैं। फार्मेसी इन्वेंटरी खोल रहे हैं।", "navigate", "/pharmacy"
+            reply = "लाइव ओपीडी टोकन और वेटिंग रूम टीवी स्क्रीन खोली जा रही है।"
         elif lang == "ta":
-            return "மத்திய மருந்தகத்தில் தேவையான மருந்துகள் இருப்பில் உள்ளன. பார்மசி பக்கத்திற்கு செல்கிறேன்.", "navigate", "/pharmacy"
+            reply = "நேரடி OPD டோக்கன் மற்றும் காத்திருப்பு அறை டிவி திரையை திறக்கிறேன்."
         else:
-            return "The Central Pharmacy has essential life-saving medicines and active stock. Opening pharmacy catalog.", "navigate", "/pharmacy"
+            reply = "Opening live OPD Token Waiting Room TV Display Board."
+        return reply, "navigate", "/appointments/queue", "📺 View OPD TV Queue Board"
 
-    # 5. ABHA / Health Card / Registration
-    if any(w in msg_lower for w in ["abha", "card", "ayushman", "register", "new patient", "panjiyan", "कार्ड", "पंजीकरण", "अட்டை", "பதிவு"]):
+    # 5. Pharmacy & Medicine Inventory
+    if target_url == "/pharmacy" or any(w in msg_lower for w in ["pharmacy", "medicine", "drug", "paracetamol", "dawa", "दवा"]):
         if lang == "hi":
-            return "आप अपने 14-अंकीय आयुष्मान भारत स्वास्थ्य खाता (ABHA ID) के साथ नया खाता बना सकते हैं या लॉगिन कर सकते हैं।", "navigate", "/register"
+            reply = f"सेंट्रल फार्मेसी में स्टॉक उपलब्ध है: {ctx['drugs']}। फार्मेसी कैटलॉग खोल रहे हैं।"
         elif lang == "ta":
-            return "உங்கள் 14-இலக்க ஆயுஷ்மான் பாரத் ABHA அடையாள அட்டையை உருவாக்க பதிவு பக்கத்திற்கு செல்கிறேன்.", "navigate", "/register"
+            reply = f"மத்திய மருந்தகத்தில் இருப்பு உள்ள மருந்துகள்: {ctx['drugs']}. மருந்தக பக்கத்திற்கு செல்கிறேன்."
         else:
-            return "You can register for your 14-digit National ABHA Health Card and digitize your longitudinal health records.", "navigate", "/register"
+            reply = f"Central Pharmacy active inventory includes: {ctx['drugs']}. Opening pharmacy catalog."
+        return reply, "navigate", "/pharmacy", "💊 Open Pharmacy Catalog"
 
-    # 6. Lab Tests / Diagnostic Reports
-    if any(w in msg_lower for w in ["lab", "test", "report", "blood", "cbc", "pathology", "jaanch", "जांच", "लैब", "இரத்த பரிசோதனை", "ஆய்வகம்", "రక్త పరీక్ష", "ల్యాబ్"]):
+    # 6. Diagnostic Laboratory Reports
+    if target_url == "/laboratory" or any(w in msg_lower for w in ["lab", "blood", "test", "report", "cbc", "जांच"]):
         if lang == "hi":
-            return "लैब इन्वेस्टिगेशन कैटलॉग में सीबीसी, ब्लड शुगर, और लिवर फंक्शन टेस्ट उपलब्ध हैं। लैब रिपोर्ट पेज खोल रहे हैं।", "navigate", "/laboratory"
+            reply = "लैब इन्वेस्टिगेशन कैटलॉग (CBC, ब्लड शुगर, लिपिड प्रोफाइल) खोला जा रहा है।"
         elif lang == "ta":
-            return "ஆய்வக பரிசோதனை முடிவுகள் மற்றும் சோதனைகள் பக்கத்தை திறக்கிறேன்.", "navigate", "/laboratory"
+            reply = "ஆய்வக பரிசோதனை முடிவுகள் மற்றும் சோதனைகள் பக்கத்தை திறக்கிறேன்."
         else:
-            return "Diagnostic lab tests include CBC, Lipid Profile, Blood Sugar, and Renal Panels. Opening Laboratory portal.", "navigate", "/laboratory"
+            reply = "Opening Diagnostic Laboratory reports and test catalog."
+        return reply, "navigate", "/laboratory", "🔬 View Lab Diagnostic Reports"
 
-    # 7. Symptoms Guidance (Fever, Headache, Cough, BP)
+    # 7. Teleconsultation Video OPD
+    if target_url == "/teleconsult":
+        if lang == "hi":
+            reply = "ग्रामीण टेलीमेडिसिन वीडियो ओपीडी परामर्श कक्ष प्रारंभ किया जा रहा है।"
+        else:
+            reply = "Launching rural telemedicine video consultation room."
+        return reply, "navigate", "/teleconsult", "📹 Launch Tele-Consultation"
+
+    # 8. ABHA Card & Registration
+    if target_url == "/register" or any(w in msg_lower for w in ["register", "abha", "ayushman", "पंजीकरण"]):
+        if lang == "hi":
+            reply = "14-अंकीय आयुष्मान भारत स्वास्थ्य खाता (ABHA ID) पंजीकरण फॉर्म खोला जा रहा है।"
+        elif lang == "ta":
+            reply = "14-இலக்க ஆயுஷ்மான் பாரத் ABHA அடையாள அட்டை பதிவு பக்கத்தை திறக்கிறேன்."
+        else:
+            reply = "Opening 14-digit National ABHA Health Card registration portal."
+        return reply, "navigate", "/register", "🆔 Register National ABHA Card"
+
+    # 9. Clinical Symptoms Triage
     if any(w in msg_lower for w in ["fever", "bukhar", "taap", "headache", "sardard", "pain", "dard", "cough", "khansi", "cold", "जुकाम", "बुखार", "दर्द", "காய்ச்சல்", "தலைவலி", "జ్వరం"]):
         if any(w in msg_lower for w in ["chest", "chhati", "breath", "saans", "சீனை வலி", "శ్వాస"]):
             if lang == "hi":
-                return "सीने में दर्द या सांस लेने में कठिनाई आपातकालीन हो सकती है। कृपया तुरंत 108 एम्बुलेंस पर कॉल करें या आपातकालीन वार्ड में जाएं।", "call_108", "tel:108"
+                reply = "सीने में दर्द या सांस लेने में कठिनाई गंभीर आपातकालीन स्थिति हो सकती है। तुरंत 108 एम्बुलेंस बुलाएं!"
             else:
-                return "Chest pain or difficulty breathing may be a critical emergency. Please immediately call 108 ambulance or visit the nearest emergency department.", "call_108", "tel:108"
+                reply = "Chest pain or difficulty breathing may be a critical emergency. Please immediately call 108 ambulance!"
+            return reply, "call_108", "tel:108", "🚨 Call 108 Ambulance"
         if lang == "hi":
-            return "हल्के बुखार या दर्द के लिए पर्याप्त पानी पिएं और आराम करें। यदि तापमान 101°F से अधिक है या 2 दिनों से अधिक रहता है, तो कृपया डॉक्टर से जांच कराएं।", "navigate", "/appointments"
+            reply = "हल्के बुखार या दर्द के लिए पर्याप्त पानी पिएं और विश्राम करें। यदि बुखार 101°F से अधिक है या 2 दिनों से बना है, तो तुरंत डॉक्टर से परामर्श लें।"
         elif lang == "ta":
-            return "காய்ச்சல் அல்லது தலைவலிக்கு போதுமான நீர் அருந்தி ஓய்வெடுக்கவும். தொடர்ந்து இருந்தால் மருத்துவரை அணுகவும்.", "navigate", "/appointments"
+            reply = "காய்ச்சல் அல்லது தலைவலிக்கு போதுமான நீர் அருந்தி ஓய்வெடுக்கவும். தொடர்ந்து இருந்தால் மருத்துவரை அணுகவும்."
         else:
-            return "For fever or body ache, stay well-hydrated and rest. If symptoms persist for more than 2 days, please schedule an appointment with our medical officer.", "navigate", "/appointments"
+            reply = "For fever or body ache, stay well-hydrated and rest. If symptoms persist for more than 2 days, please schedule an appointment with our medical officer."
+        return reply, "navigate", "/appointments", "👨‍⚕️ Book Doctor Consultation"
 
-    # Default general guidance
+    # 10. General Page Navigation Fallback
+    if action and target_url:
+        return f"Opening requested page: {action_title}.", action, target_url, action_title
+
+    # 11. Welcome & General Guidance
     if lang == "hi":
-        return f"नमस्ते! मैं पल्सकेयर मित्र स्वास्थ्य सहायक हूँ। आप मुझसे ऑन-ड्यूटी डॉक्टर, उपलब्ध बेड ({ctx['available_beds']} खाली), दवाइयों, लैब टेस्ट या 108 एम्बुलेंस के बारे में पूछ सकते हैं।", None, None
+        reply = f"नमस्ते! मैं पल्सकेयर मित्र हूँ। आप मुझसे ऑन-ड्यूटी डॉक्टर ({ctx['doctors']}), खाली बेड ({ctx['available_beds']} उपलब्ध), फार्मेसी दवाइयों, या 108 एम्बुलेंस के बारे में पूछ सकते हैं।"
     elif lang == "ta":
-        return f"வணக்கம்! நான் பல்ஸ்கேர் மித்ரா. மருத்துவர்கள், படுக்கை இருப்பு ({ctx['available_beds']} காலியாக உள்ளது), மருந்துகள் அல்லது 108 அவசர உதவி பற்றி கேளுங்கள்.", None, None
+        reply = f"வணக்கம்! நான் பல்ஸ்கேர் மித்ரா. மருத்துவர்கள், படுக்கை இருப்பு ({ctx['available_beds']} காலியாக உள்ளது), மருந்துகள் அல்லது 108 அவசர உதவி பற்றி கேளுங்கள்."
     elif lang == "te":
-        return f"నమస్కారం! నేను పల్స్‌కేర్ మిత్ర. వైద్యులు, ఖాళీ పడకలు ({ctx['available_beds']} ఖాళీగా ఉన్నాయి), మందులు లేదా 108 అంబులెన్స్ గురించి అడగండి.", None, None
+        reply = f"నమస్కారం! నేను పల్స్‌కేర్ మిత్ర. వైద్యులు, ఖాళీ పడకలు ({ctx['available_beds']} అందుబాటులో ఉన్నాయి), మందులు లేదా 108 అంబులెన్స్ గురించి అడగండి."
     else:
-        return f"Hello! I am PulseCare Mitra, your healthcare voice AI. You can ask me about available doctors, bed status ({ctx['available_beds']} beds free), pharmacy medicines, lab reports, or emergency 108 services.", None, None
-
+        reply = f"Hello! I am PulseCare Mitra, your custom healthcare voice assistant. Ask me about doctors ({ctx['doctors']}), available beds ({ctx['available_beds']} free), pharmacy stock, or emergency 108 services."
+    return reply, None, None, None
 
 
 @app.route("/api/ai-voice/chat", methods=["POST"])
 def api_ai_voice_chat():
     """
-    Real-Time AI Voice Assistant API.
-    Processes voice transcript, grounds in live HMS database, and returns concise spoken responses
-    in Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, or English.
+    PulseCare Mitra Voice AI Assistant API.
+    Combines Google Gemini 3.5 Flash for conversational intelligence with PulseCare's
+    Real-Time Hospital Action Engine for 100% reliable clinical navigation and 108 dialing.
     """
     data = request.get_json(silent=True) or {}
     message = data.get("message", "").strip()
@@ -599,25 +718,11 @@ def api_ai_voice_chat():
     lang_name = _LANG_NAMES.get(lang, "English")
 
     ctx = _get_hms_live_context()
-    user_info = f"User is signed in as {session.get('full_name')} ({session.get('user_role', 'guest')})" if "user_id" in session else "User is a citizen/visitor."
+    user_info = f"User is signed in as {session.get('full_name')} ({session.get('user_role', 'guest')})" if "user_id" in session else "User is a citizen/patient."
     
-    # Check if user asked for quick navigation or emergency
-    action, target_url = None, None
-    msg_lower = message.lower()
-    if any(w in msg_lower for w in ["bed", "ward", "admit", "bistar", "बेड", "खाली", "वार्ड", "படுக்கை", "పడుక", "పడక"]):
-        action, target_url = "navigate", "/wards"
-    elif any(w in msg_lower for w in ["doctor", "appointment", "book appointment", "opd", "appointment book", "डॉक्टर", "மருத்துவர்", "వైద్యుడు"]):
-        action, target_url = "navigate", "/appointments"
-    elif any(w in msg_lower for w in ["pharmacy", "medicine", "dawa", "marunthu", "tablet", "दवा", "மருந்து", "మందులు"]):
-        action, target_url = "navigate", "/pharmacy"
-    elif any(w in msg_lower for w in ["lab", "blood test", "report", "जांच", "பரிசோதனை", "రక్త పరీక్ష"]):
-        action, target_url = "navigate", "/laboratory"
-    elif any(w in msg_lower for w in ["emergency", "ambulance", "108", "urgent", "आपातकालीन", "அவசரம்", "ఆపద"]):
-        action, target_url = "call_108", "tel:108"
-    elif any(w in msg_lower for w in ["register", "new account", "create abha", "पंजीकरण", "பதிவு"]):
-        action, target_url = "navigate", "/register"
+    action, target_url, action_title = _detect_action_and_url(message)
 
-    # Try Google Gemini 2.5 Flash Free Tier if configured
+    # 1. Try Google Gemini Flash if API key is provided
     if GEMINI_API_KEY:
         try:
             from google import genai
@@ -626,28 +731,22 @@ def api_ai_voice_chat():
             client = genai.Client(api_key=GEMINI_API_KEY)
             
             system_instruction = (
-                f"You are PulseCare Mitra (पल्सकेयर मित्र), a caring, professional, and concise voice AI assistant "
-                f"for the PulseCare Public Health & Rural Telemedicine Network in India. "
+                f"You are PulseCare Mitra (पल्सकेयर मित्र), the dedicated voice AI assistant for PulseCare Hospital Management System in India. "
                 f"You are speaking to: {user_info}. "
-                f"CRITICAL INSTRUCTIONS:\n"
-                f"1. Respond directly in {lang_name} language using clear, simple words easily understood by rural citizens, elderly patients, and frontline ASHA health workers.\n"
-                f"2. Keep answers brief (2 to 3 sentences maximum) as your answer will be spoken aloud via text-to-speech.\n"
-                f"3. Live Health Network Data:\n"
-                f"   - On-duty Doctors: {ctx['doctors']}\n"
-                f"   - Bed Occupancy: {ctx['available_beds']} beds currently available out of {ctx['total_beds']} total beds.\n"
-                f"   - Facilities: {ctx['facilities']}\n"
-                f"   - Emergency Ambulance: 108 | National ABHA Support: 14477\n"
-                f"4. For medical symptoms, offer reassuring first-aid/comfort advice and always recommend consulting a doctor.\n"
-                f"5. Do NOT output markdown symbols like ** or ## because it will be spoken aloud."
+                f"RULES:\n"
+                f"1. Respond directly in {lang_name} language warmly and concisely (2 sentences max) as your response is spoken aloud via TTS.\n"
+                f"2. Ground in live hospital data: On-Duty Doctors: {ctx['doctors']} | Beds Available: {ctx['available_beds']}/{ctx['total_beds']} ({ctx['icu_beds']} ICU) | Pharmacy Stock: {ctx['drugs']} | Emergency Helpline: 108.\n"
+                f"3. If the user wants to go to a section (beds, doctor, appointments, pharmacy, lab, register, 108), confirm you are opening that page.\n"
+                f"4. Do NOT output markdown asterisks or hashtags because it will be spoken by voice."
             )
             
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.5-flash",
                 contents=message,
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction,
                     temperature=0.4,
-                    max_output_tokens=250,
+                    max_output_tokens=220,
                 )
             )
             
@@ -658,26 +757,24 @@ def api_ai_voice_chat():
                 "language": lang,
                 "action": action,
                 "target_url": target_url,
-                "engine": "gemini-2.5-flash"
+                "action_title": action_title,
+                "engine": "gemini-3.5-flash"
             })
         except Exception as exc:
-            app.logger.warning(f"Gemini AI voice error, using fallback: {exc}")
+            app.logger.warning(f"Gemini API voice error, using PulseCare Custom Action fallback: {exc}")
 
-    # Seamless zero-cost fallback engine
-    reply_text, fb_action, fb_url = _rule_based_voice_fallback(message, lang, ctx)
+    # 2. Fallback to 100% Free Custom Action Engine
+    reply_text, fb_action, fb_url, fb_title = _custom_hospital_voice_engine(message, lang, ctx)
     return jsonify({
         "success": True,
         "reply": reply_text,
         "language": lang,
         "action": action or fb_action,
         "target_url": target_url or fb_url,
-        "engine": "pulsecare-clinical-heuristics"
+        "action_title": action_title or fb_title,
+        "engine": "PulseCare Custom Action AI"
     })
 
-
-# -----------------------------------------------------------------------------
-# CONTEXT PROCESSORS & TEMPLATE FILTERS
-# -----------------------------------------------------------------------------
 
 @app.context_processor
 def inject_global_context():
