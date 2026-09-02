@@ -271,16 +271,23 @@
         conversationHistory.push({ role: "assistant", content: reply });
 
         // Append AI Message to UI
-        appendChatMessage("ai", reply, data.action, data.target_url);
+        appendChatMessage("ai", reply, data.action, data.target_url, data.action_title);
 
-        // Speak aloud
-        playVoiceAudio(reply, function () {
-          if (data.action === "navigate" && data.target_url && data.target_url !== window.location.pathname) {
-            setTimeout(function () {
-              window.location.href = data.target_url;
-            }, 1200);
+        // Speak aloud in parallel
+        playVoiceAudio(reply);
+
+        // Execute action immediately (don't wait for voice)
+        if (data.action === "call_108" && data.target_url) {
+          window.open(data.target_url);
+        } else if (data.action === "navigate" && data.target_url && data.target_url !== window.location.pathname) {
+          showNavigationCountdown(data.target_url, data.action_title || "Opening page");
+        } else if (data.action === "open_modal" && data.target_url) {
+          const modalEl = document.querySelector(data.target_url);
+          if (modalEl && typeof bootstrap !== "undefined") {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
           }
-        });
+        }
+
       } else {
         appendChatMessage("ai", "I could not process your query right now. Please try again.");
         if (statusEl) statusEl.innerText = "Please try asking again.";
@@ -292,7 +299,48 @@
     }
   }
 
-  function appendChatMessage(sender, text, action, targetUrl) {
+  let navCountdownTimer = null;
+
+  function showNavigationCountdown(url, title) {
+    // Cancel any previous countdown
+    if (navCountdownTimer) {
+      clearTimeout(navCountdownTimer);
+      navCountdownTimer = null;
+    }
+    const banner = document.getElementById("ai-nav-countdown");
+    if (banner) banner.remove();
+
+    const el = document.createElement("div");
+    el.id = "ai-nav-countdown";
+    el.style.cssText = "position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:9999;background:#0f243d;color:#fff;padding:12px 20px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.4);display:flex;align-items:center;gap:12px;font-size:0.85rem;min-width:260px;";
+    el.innerHTML = `
+      <i class="bi bi-arrow-right-circle-fill text-info fs-5"></i>
+      <div class="flex-grow-1">
+        <div class="fw-bold text-white">${title || 'Opening page...'}</div>
+        <div class="text-white-50 fs-9">Navigating in <span id="ai-nav-secs">3</span>s</div>
+      </div>
+      <button onclick="document.getElementById('ai-nav-countdown').remove(); clearTimeout(window._aiNavTimer);" 
+              class="btn btn-sm btn-outline-light rounded-pill px-2 py-0 fs-9">Cancel</button>
+    `;
+    document.body.appendChild(el);
+
+    let secs = 3;
+    const tick = setInterval(() => {
+      secs--;
+      const secsEl = document.getElementById("ai-nav-secs");
+      if (secsEl) secsEl.textContent = secs;
+      if (secs <= 0) {
+        clearInterval(tick);
+        const banner = document.getElementById("ai-nav-countdown");
+        if (banner) banner.remove();
+        window.location.href = url;
+      }
+    }, 1000);
+    window._aiNavTimer = tick;
+    navCountdownTimer = tick;
+  }
+
+  function appendChatMessage(sender, text, action, targetUrl, actionTitle) {
     const chatFeed = document.getElementById("ai-chat-feed");
     if (!chatFeed) return;
 
@@ -308,10 +356,11 @@
     } else {
       let actionBtnHtml = "";
       if (targetUrl) {
+        const label = actionTitle || targetUrl;
         if (action === "call_108") {
-          actionBtnHtml = `<a href="tel:108" class="btn btn-sm btn-danger rounded-pill mt-2 px-3 fs-8 fw-bold"><i class="bi bi-telephone-fill me-1"></i> Call 108 Helpline</a>`;
-        } else {
-          actionBtnHtml = `<a href="${targetUrl}" class="btn btn-sm btn-primary rounded-pill mt-2 px-3 fs-8 fw-bold"><i class="bi bi-arrow-right-circle-fill me-1"></i> Open Page (${targetUrl})</a>`;
+          actionBtnHtml = `<a href="tel:108" class="btn btn-sm btn-danger rounded-pill mt-2 px-3 fs-8 fw-bold"><i class="bi bi-telephone-fill me-1"></i>Call 108 Emergency</a>`;
+        } else if (action === "navigate") {
+          actionBtnHtml = `<button type="button" onclick="window.location.href='${targetUrl}'" class="btn btn-sm btn-primary rounded-pill mt-2 px-3 fs-8 fw-bold"><i class="bi bi-arrow-right-circle-fill me-1"></i>${escapeHtml(label)}</button>`;
         }
       }
 

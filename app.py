@@ -503,77 +503,136 @@ def _get_hms_live_context():
         }
 
 
-def _detect_action_and_url(message):
-    """Detects rich interactive actions, destinations, and modal triggers from user query."""
-    msg = message.lower()
-    
-    # 1. Emergency 108 Calls
-    if any(w in msg for w in ["emergency", "ambulance", "108", "102", "accident", "heart attack", "unconscious", "serious", "urgent", "bleeding", "आपातकालीन", "एम्बुलेंस", "इमरजेंसी", "அவசரம்", "ஆம்புலன்ஸ்", "ஆపద", "అంబులెన్స్"]):
+def _detect_action_and_url(message, user_role="patient"):
+    """
+    Detects navigation intent and actions from user message.
+    Uses strict phrase matching to avoid false positives on general health conversation.
+    Role-gated: some pages are restricted to staff/admin only.
+    """
+    msg = message.lower().strip()
+
+    # Role-based page access
+    staff_roles = {"admin", "doctor", "nurse", "pharmacist", "lab_technician", "medical_officer", "staff"}
+    is_staff = user_role in staff_roles
+
+    # 1. Emergency 108 Calls - only trigger on clear emergency phrases
+    EMERGENCY_PHRASES = [
+        "call 108", "dial 108", "108 ambulance", "emergency ambulance", "call ambulance",
+        "need ambulance", "heart attack", "stroke", "unconscious", "not breathing",
+        "serious accident", "emergency help", "আপৎকালীন", "आपातकाल में 108", "ambulance chahiye",
+        "108 pe call", "அவசர 108", "108 அம்புலன்ஸ்", "అత్యవసర 108"
+    ]
+    if any(p in msg for p in EMERGENCY_PHRASES):
         return "call_108", "tel:108", "🚨 Call 108 Emergency Ambulance"
 
-    # 2. Bed Matrix & Inpatient Wards
-    if any(w in msg for w in ["bed", "ward", "admit", "icu", "maternity", "occupancy", "bistar", "बेड", "खाली", "वार्ड", "बिस्तर", "படுக்கை", "காலியான", "పడుక", "పడక", "खाट"]):
+    # 2. Bed / Ward Matrix - require navigation intent phrases
+    BED_PHRASES = [
+        "show beds", "check beds", "available beds", "bed availability", "icu beds",
+        "open ward", "go to ward", "ward page", "bed matrix", "beds available",
+        "बेड उपलब्ध", "खाली बेड", "वार्ड खोलें", "படுக்கை இருப்பு", "காலியான படுக்கை",
+        "పడకలు ఉన్నాయా", "ఖాళీ పడకలు"
+    ]
+    if any(p in msg for p in BED_PHRASES):
         return "navigate", "/wards", "🛏️ View Live Bed Matrix"
 
-    # 3. Doctor Consultation & Appointments
-    if any(w in msg for w in ["doctor", "specialist", "appointment", "book appointment", "opd", "consult", "dr.", "rajesh", "sarah", "physician", "डॉक्टर", "अपॉइंटमेंट", "மருத்துவர்", "முன்பதிவு", "వైద్యుడు", "డాక్టర్"]):
+    # 3. Doctor Appointment - require booking intent
+    APPOINTMENT_PHRASES = [
+        "book appointment", "make appointment", "see a doctor", "consult a doctor",
+        "book a doctor", "doctor appointment", "opd booking", "book opd", "book consult",
+        "schedule appointment", "डॉक्टर से मिलना", "अपॉइंटमेंट बुक", "appointment chahiye",
+        "மருத்துவர் பதிவு", "முன்பதிவு", "వైద్యుడిని చూడాలి", "అపాయింట్మెంట్"
+    ]
+    if any(p in msg for p in APPOINTMENT_PHRASES):
         return "navigate", "/appointments", "👨‍⚕️ Book Doctor Consultation"
 
-    # 4. OPD Waiting Room TV Queue
-    if any(w in msg for w in ["queue", "token", "waiting room", "tv display", "queue status", "line", "टोकन", "लाइन", "வரிசை", "క్యూ"]):
+    # 4. OPD Queue Board
+    OPD_QUEUE_PHRASES = [
+        "opd queue", "token number", "waiting room screen", "queue display", "tv display",
+        "show queue", "my token", "queue status", "टोकन नंबर", "वेटिंग रूम", "வரிசை", "క్యూ"
+    ]
+    if any(p in msg for p in OPD_QUEUE_PHRASES):
         return "navigate", "/appointments/queue", "📺 View OPD TV Queue Board"
 
-    # 5. Pharmacy & Medicines
-    if any(w in msg for w in ["pharmacy", "medicine", "drug", "paracetamol", "amoxicillin", "stock", "inventory", "dawa", "marunthu", "tablet", "दवा", "दवाइयाँ", "फार्मेसी", "औषध", "மருந்து", "பார்மசி", "மందులు", "ఫార్మసీ", "ওষুধ"]):
+    # 5. Pharmacy - require medicine-lookup intent
+    PHARMACY_PHRASES = [
+        "open pharmacy", "go to pharmacy", "pharmacy page", "check medicine", "medicine stock",
+        "drug stock", "check paracetamol", "check amoxicillin", "pharmacy catalog",
+        "दवा स्टॉक", "फार्मेसी खोलें", "மருந்தக", "مارنதகம்", "ఫార్మసీ", "మందులు ఇన్వెంటరీ"
+    ]
+    if any(p in msg for p in PHARMACY_PHRASES):
         return "navigate", "/pharmacy", "💊 Open Pharmacy Catalog"
 
-    # 6. Diagnostic Lab Reports
-    if any(w in msg for w in ["lab", "test", "report", "blood test", "cbc", "pathology", "urine", "sugar", "जांच", "रिपोर्ट", "लैब", "இரத்த பரிசோதனை", "ஆய்வகம்", "రక్త పరీక్ష", "ల్యాబ్"]):
+    # 6. Lab / Diagnostic Reports - require report-lookup intent
+    LAB_PHRASES = [
+        "view lab", "lab reports", "blood test report", "my test results", "open lab",
+        "cbc report", "diagnostic report", "pathology report", "urine test report",
+        "जांच रिपोर्ट", "लैब रिपोर्ट", "ஆய்வக அறிக்கை", "ల్యాబ్ రిపోర్ట్"
+    ]
+    if any(p in msg for p in LAB_PHRASES):
         return "navigate", "/laboratory", "🔬 View Lab Diagnostic Reports"
 
-    # 7. Teleconsultation Video OPD
-    if any(w in msg for w in ["teleconsult", "video call", "telemedicine", "remote consult", "वीडियो", "தொலை மருத்துவம்"]):
+    # 7. Teleconsultation
+    TELE_PHRASES = [
+        "teleconsult", "video consultation", "video call doctor", "telemedicine",
+        "remote consult", "online doctor", "वीडियो परामर्श", "தொலை மருத்துவம்"
+    ]
+    if any(p in msg for p in TELE_PHRASES):
         return "navigate", "/teleconsult", "📹 Launch Tele-Consultation"
 
-    # 8. Inter-Facility Referrals
-    if any(w in msg for w in ["referral", "transfer", "district hospital transfer", "रिफरल", "பரிந்துரை"]):
+    # 8. Referrals - staff/admin only
+    REFERRAL_PHRASES = [
+        "referral", "inter-facility transfer", "refer patient", "patient transfer",
+        "रिफरल", "பரிந்துரை"
+    ]
+    if is_staff and any(p in msg for p in REFERRAL_PHRASES):
         return "navigate", "/referrals", "🚑 Inter-Facility Referrals"
 
-    # 9. High Risk Pregnancy & Non-Communicable Disease Registry
-    if any(w in msg for w in ["high risk", "pregnant", "anc", "ncd", "hypertension", "diabetes", "गर्भवती", "उच्च जोखिम"]):
+    # 9. High-Risk Registry - staff/admin only
+    HIGHRISK_PHRASES = [
+        "high risk patient", "anc registry", "ncd registry", "high risk pregnancy",
+        "उच्च जोखिम", "high risk list"
+    ]
+    if is_staff and any(p in msg for p in HIGHRISK_PHRASES):
         return "navigate", "/high-risk", "⚠️ High-Risk Patient Registry"
 
-    # 10. Billing & Invoices
-    if any(w in msg for w in ["bill", "invoice", "receipt", "payment", "fee", "बिल", "रसीद", "ரசீது"]):
+    # 10. Billing
+    BILLING_PHRASES = [
+        "my bill", "view bill", "payment receipt", "hospital invoice", "billing page",
+        "मेरा बिल", "बिल देखें", "ரசீது"
+    ]
+    if any(p in msg for p in BILLING_PHRASES):
         return "navigate", "/billing", "🧾 View Hospital Invoices"
 
-    # 11. ABHA Card & Registration
-    if any(w in msg for w in ["register", "new patient", "create abha", "abha card", "ayushman", "health id", "पंजीकरण", "कार्ड", "அட்டை", "பதிவு"]):
+    # 11. ABHA Registration
+    ABHA_PHRASES = [
+        "register abha", "create abha", "abha card", "abha id", "ayushman health card",
+        "new health id", "health card registration", "abha पंजीकरण", "abha card banaye"
+    ]
+    if any(p in msg for p in ABHA_PHRASES):
         return "navigate", "/register", "🆔 Register National ABHA Card"
 
-    # 12. User Profile & Health Records
-    if any(w in msg for w in ["profile", "my account", "my records", "ehr", "history", "मेरा खाता"]):
+    # 12. My Profile / Health Records
+    PROFILE_PHRASES = [
+        "my profile", "view profile", "my health records", "open profile", "my ehr",
+        "मेरी प्रोफाइल", "my account settings"
+    ]
+    if any(p in msg for p in PROFILE_PHRASES):
         return "navigate", "/profile", "👤 Open Health Records"
 
-    # 13. Medical Staff Directory
-    if any(w in msg for w in ["staff", "nurse list", "directory", "employees", "कर्मचारी"]):
+    # 13. Staff Directory - staff/admin only
+    STAFF_PHRASES = [
+        "staff list", "staff directory", "nurse list", "employee list", "all doctors list",
+        "कर्मचारी सूची"
+    ]
+    if is_staff and any(p in msg for p in STAFF_PHRASES):
         return "navigate", "/staff", "📋 Medical Staff Directory"
 
-    # 14. Facility Analytics
-    if any(w in msg for w in ["analytics", "metrics", "kpi", "hospital stats", "आंकड़े"]):
+    # 14. Analytics - admin only
+    if user_role == "admin" and any(p in msg for p in ["analytics", "hospital stats", "kpi", "performance metrics", "facility report"]):
         return "navigate", "/facility/analytics", "📊 Facility Analytics & KPIs"
 
-    # 15. Switch Account Modal
-    if any(w in msg for w in ["switch account", "change role", "switch user", "रोल बदलें"]):
-        return "open_modal", "#switchAccountModal", "🔄 Switch User Account"
-
-    # 16. Symptoms / Medical Advice -> Doctor Consult or Emergency
-    if any(w in msg for w in ["fever", "bukhar", "taap", "headache", "sardard", "pain", "dard", "cough", "khansi", "cold", "vomit", "dizziness", "बुखार", "दर्द", "कாய்ச்சல்", "தலைவலி", "జ్వరం"]):
-        if any(w in msg for w in ["chest", "heart", "breath", "saans", "unconscious", "stroke", "bleeding"]):
-            return "call_108", "tel:108", "🚨 Call 108 Emergency Ambulance"
-        return "navigate", "/appointments", "👨‍⚕️ Book Doctor Consultation"
-
     return None, None, None
+
 
 
 def _custom_hospital_voice_engine(message, lang, ctx):
@@ -734,37 +793,59 @@ def api_ai_voice_chat():
     lang_name = _LANG_NAMES.get(lang, "English")
 
     ctx = _get_hms_live_context()
-    user_info = f"User is signed in as {session.get('full_name')} ({session.get('user_role', 'guest')})" if "user_id" in session else "User is a citizen/patient."
-    
-    action, target_url, action_title = _detect_action_and_url(message)
+
+    # --- Role and access level ---
+    user_role = session.get("user_role", "patient") if "user_id" in session else "patient"
+    user_name = session.get("full_name", "")
+    if "user_id" in session:
+        user_info = f"Logged-in user: {user_name} (Role: {user_role})."
+    else:
+        user_info = "User is a guest patient or citizen (not logged in)."
+
+    # Role-based accessible pages
+    ROLE_PAGES = {
+        "patient":          ["appointments", "pharmacy (view only)", "lab reports (own)", "billing (own)", "profile", "teleconsult", "abha registration"],
+        "doctor":           ["appointments", "wards", "pharmacy", "laboratory", "teleconsult", "referrals", "high-risk registry", "billing", "profile", "staff"],
+        "nurse":            ["appointments", "wards", "laboratory", "high-risk registry", "profile"],
+        "pharmacist":       ["pharmacy", "billing", "profile"],
+        "lab_technician":   ["laboratory", "billing", "profile"],
+        "admin":            ["all pages including analytics, staff, referrals, high-risk, wards, appointments, pharmacy, laboratory, teleconsult, billing"],
+        "medical_officer":  ["appointments", "wards", "referrals", "high-risk registry", "teleconsult", "laboratory"],
+    }
+    accessible = ROLE_PAGES.get(user_role, ROLE_PAGES["patient"])
+    accessible_str = ", ".join(accessible)
+
+    action, target_url, action_title = _detect_action_and_url(message, user_role)
     history = data.get("history", [])  # prior conversation turns from frontend
 
-    # 1. Try Groq Cloud AI with Empathetic Companion Prompt
+    # 1. Try Groq Cloud AI
     if GROQ_API_KEY:
         try:
             system_instruction = (
-                f"You are PulseCare Mitra, a warm, empathetic, and caring health companion and voice assistant "
-                f"for PulseCare Hospital Network in India. You are like a trusted doctor-friend who genuinely listens. "
-                f"You are speaking to: {user_info}. "
-                f"Live Hospital Context (use only when relevant): Doctors on duty: {ctx['doctors']} | "
-                f"Available Beds: {ctx['available_beds']}/{ctx['total_beds']} (ICU: {ctx['icu_beds']}) | "
-                f"Pharmacy Stock: {ctx['drugs']} | Emergency: 108.\n"
-                f"RULES:\n"
-                f"1. EMPATHY FIRST: If the user is sad, anxious, stressed, depressed, lonely, in pain, or scared — respond with genuine warmth, compassion, and emotional validation before offering any advice. Make them feel heard.\n"
-                f"2. NATURAL CONVERSATION: Reply naturally like a caring companion. Do not repeat hospital data or introduce yourself unless asked.\n"
-                f"3. HEALTH GUIDANCE: Give calm, reassuring, practical guidance for symptoms. Always encourage consulting a doctor for serious concerns.\n"
-                f"4. ACTIONS: If the user wants beds, doctors, appointments, pharmacy, lab reports, or emergency 108 — briefly confirm you are opening that page.\n"
-                f"5. LANGUAGE: Respond directly in {lang_name}. Keep responses short (2 to 3 sentences max) for voice readability. Never use asterisks, hashtags, or markdown."
+                f"You are PulseCare Mitra, a warm, empathetic healthcare voice assistant and personal health companion "
+                f"for PulseCare Hospital Network in India. You are like a trusted doctor-friend who genuinely listens and cares.\n"
+                f"CONTEXT:\n"
+                f"- {user_info}\n"
+                f"- Pages this user can access: {accessible_str}\n"
+                f"- Live hospital data (use only when specifically asked): "
+                f"Doctors on duty: {ctx['doctors']} | Available Beds: {ctx['available_beds']}/{ctx['total_beds']} (ICU: {ctx['icu_beds']}) | "
+                f"Pharmacy stock: {ctx['drugs']} | Emergency helpline: 108.\n"
+                f"STRICT RULES:\n"
+                f"1. ANSWER THE QUESTION DIRECTLY: Read the user message carefully and respond specifically to what they asked. Do not give a generic intro or hospital data dump.\n"
+                f"2. EMPATHY: If user is sad, anxious, stressed, lonely, or in pain — validate their feelings with warmth first, then offer support.\n"
+                f"3. HEALTH KNOWLEDGE: Use your medical knowledge to answer health, symptom, nutrition, and wellness questions accurately and calmly.\n"
+                f"4. SITE ACTIONS: If the user explicitly asks to open a page (appointments, pharmacy, beds, lab, etc.) and they have access — confirm you are opening it.\n"
+                f"5. ACCESS CONTROL: If user asks for a page they cannot access given their role, politely say it requires a higher access level.\n"
+                f"6. LANGUAGE: Respond in {lang_name} only. Keep response short (2-3 sentences) for text-to-speech. No markdown, asterisks, hashtags, or bullet points."
             )
 
-            # Build messages list with conversation history for context
+            # Build messages with conversation history
             messages = [{"role": "system", "content": system_instruction}]
-            # Include prior turns (up to 6) for continuity
             for turn in history[-6:]:
                 if turn.get("role") in ("user", "assistant") and turn.get("content"):
-                    messages.append({"role": turn["role"], "content": turn["content"]})
-            # Add current user message
-            messages.append({"role": "user", "content": message})
+                    messages.append({"role": turn["role"], "content": str(turn["content"])[:400]})
+            # Add current user message with /no_think to prevent Qwen reasoning mode
+            messages.append({"role": "user", "content": f"{message} /no_think"})
 
             headers = {
                 "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -773,14 +854,18 @@ def api_ai_voice_chat():
             payload = {
                 "model": "qwen/qwen3.8-27b",
                 "messages": messages,
-                "max_tokens": 200,
-                "temperature": 0.65
+                "max_tokens": 180,
+                "temperature": 0.6
             }
 
             groq_res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=7)
             if groq_res.status_code == 200:
                 res_data = groq_res.json()
-                reply_text = res_data["choices"][0]["message"]["content"].strip().replace("*", "").replace("#", "")
+                raw_reply = res_data["choices"][0]["message"].get("content", "").strip()
+                # Strip any <think>...</think> blocks that leaked through
+                import re as _re
+                raw_reply = _re.sub(r'<think>.*?</think>', '', raw_reply, flags=_re.DOTALL).strip()
+                reply_text = raw_reply.replace("*", "").replace("#", "").replace("/no_think", "").strip()
                 if reply_text:
                     return jsonify({
                         "success": True,
@@ -792,7 +877,7 @@ def api_ai_voice_chat():
                         "engine": "groq-qwen3.8-27b"
                     })
         except Exception as exc:
-            app.logger.warning(f"Groq API voice error, using PulseCare Custom Action fallback: {exc}")
+            app.logger.warning(f"Groq API voice error, using PulseCare Custom fallback: {exc}")
 
     # 2. Fallback to Empathetic Custom Action Engine
     reply_text, fb_action, fb_url, fb_title = _custom_hospital_voice_engine(message, lang, ctx)
