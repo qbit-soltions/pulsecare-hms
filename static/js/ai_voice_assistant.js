@@ -301,43 +301,85 @@
 
   let navCountdownTimer = null;
 
-  function showNavigationCountdown(url, title) {
-    // Cancel any previous countdown
+  function cancelNavCountdown() {
     if (navCountdownTimer) {
-      clearTimeout(navCountdownTimer);
+      clearInterval(navCountdownTimer);
       navCountdownTimer = null;
+    }
+    const badge = document.getElementById("ai-nav-secs-badge");
+    if (badge) {
+      badge.className = "badge bg-secondary text-white";
+      badge.textContent = "Cancelled";
+    }
+    const statusText = document.getElementById("ai-nav-status-text");
+    if (statusText) {
+      statusText.textContent = "Stayed on current page. Click Go Now when ready.";
     }
     const banner = document.getElementById("ai-nav-countdown");
     if (banner) banner.remove();
+  }
 
-    const el = document.createElement("div");
-    el.id = "ai-nav-countdown";
-    el.style.cssText = "position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:9999;background:#0f243d;color:#fff;padding:12px 20px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.4);display:flex;align-items:center;gap:12px;font-size:0.85rem;min-width:260px;";
-    el.innerHTML = `
-      <i class="bi bi-arrow-right-circle-fill text-info fs-5"></i>
-      <div class="flex-grow-1">
-        <div class="fw-bold text-white">${title || 'Opening page...'}</div>
-        <div class="text-white-50 fs-9">Navigating in <span id="ai-nav-secs">3</span>s</div>
-      </div>
-      <button onclick="document.getElementById('ai-nav-countdown').remove(); clearTimeout(window._aiNavTimer);" 
-              class="btn btn-sm btn-outline-light rounded-pill px-2 py-0 fs-9">Cancel</button>
-    `;
-    document.body.appendChild(el);
+  function navigateTo(url) {
+    cancelNavCountdown();
+    stopListening();
+    stopAllSpeech();
+
+    const modalEl = document.getElementById("pulseAIVoiceModal");
+    if (modalEl && typeof bootstrap !== "undefined") {
+      try {
+        const bsModal = bootstrap.Modal.getInstance(modalEl);
+        if (bsModal) bsModal.hide();
+      } catch (e) {}
+    }
+    document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
+    document.body.classList.remove("modal-open");
+    document.body.style.removeProperty("overflow");
+    document.body.style.removeProperty("padding-right");
+
+    window.location.href = url;
+  }
+
+  function showNavigationCountdown(url, title) {
+    cancelNavCountdown();
+
+    const chatFeed = document.getElementById("ai-chat-feed");
+    if (chatFeed) {
+      const card = document.createElement("div");
+      card.id = "ai-nav-card";
+      card.className = "alert alert-primary border-0 rounded-4 shadow-sm p-3 my-2";
+      card.innerHTML = `
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="fw-bold fs-8 text-primary">
+            <i class="bi bi-box-arrow-up-right me-1"></i>${escapeHtml(title || 'Opening page...')}
+          </div>
+          <span class="badge bg-primary text-white" id="ai-nav-secs-badge">Redirecting in 3s</span>
+        </div>
+        <div class="d-flex align-items-center justify-content-between">
+          <small class="text-muted fs-9" id="ai-nav-status-text">Taking you to this page automatically...</small>
+          <div class="d-flex gap-2">
+            <button type="button" onclick="window.PulseCareAIAssistant.navigateTo('${url}')" class="btn btn-sm btn-primary rounded-pill px-3 fs-9 fw-bold">
+              <i class="bi bi-arrow-right-circle-fill me-1"></i>Go Now
+            </button>
+            <button type="button" onclick="window.PulseCareAIAssistant.cancelNav()" class="btn btn-sm btn-outline-secondary rounded-pill px-2 fs-9">
+              Stay
+            </button>
+          </div>
+        </div>
+      `;
+      chatFeed.appendChild(card);
+      chatFeed.scrollTop = chatFeed.scrollHeight;
+    }
 
     let secs = 3;
-    const tick = setInterval(() => {
+    navCountdownTimer = setInterval(() => {
       secs--;
-      const secsEl = document.getElementById("ai-nav-secs");
-      if (secsEl) secsEl.textContent = secs;
+      const badge = document.getElementById("ai-nav-secs-badge");
+      if (badge) badge.textContent = `Redirecting in ${secs}s`;
       if (secs <= 0) {
-        clearInterval(tick);
-        const banner = document.getElementById("ai-nav-countdown");
-        if (banner) banner.remove();
-        window.location.href = url;
+        cancelNavCountdown();
+        navigateTo(url);
       }
     }, 1000);
-    window._aiNavTimer = tick;
-    navCountdownTimer = tick;
   }
 
   function appendChatMessage(sender, text, action, targetUrl, actionTitle) {
@@ -360,7 +402,7 @@
         if (action === "call_108") {
           actionBtnHtml = `<a href="tel:108" class="btn btn-sm btn-danger rounded-pill mt-2 px-3 fs-8 fw-bold"><i class="bi bi-telephone-fill me-1"></i>Call 108 Emergency</a>`;
         } else if (action === "navigate") {
-          actionBtnHtml = `<button type="button" onclick="window.location.href='${targetUrl}'" class="btn btn-sm btn-primary rounded-pill mt-2 px-3 fs-8 fw-bold"><i class="bi bi-arrow-right-circle-fill me-1"></i>${escapeHtml(label)}</button>`;
+          actionBtnHtml = `<button type="button" onclick="window.PulseCareAIAssistant.navigateTo('${targetUrl}')" class="btn btn-sm btn-primary rounded-pill mt-2 px-3 fs-8 fw-bold"><i class="bi bi-arrow-right-circle-fill me-1"></i>${escapeHtml(label)}</button>`;
         }
       }
 
@@ -548,7 +590,10 @@
     ask: processUserQuery,
     startListening: startListening,
     stopListening: stopListening,
+    navigateTo: navigateTo,
+    cancelNav: cancelNavCountdown,
     stop: function () {
+      cancelNavCountdown();
       stopListening();
       stopAllSpeech();
     },
