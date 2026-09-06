@@ -31,10 +31,10 @@
       </div>
 
       <!-- ── Viewport: Holds Remote Video, Waiting Overlay, Local PiP, and End Screen ── -->
-      <div class="position-relative bg-black overflow-hidden" style="height: 440px;">
+      <div class="position-relative bg-black overflow-hidden" style="height: 440px;" id="videoViewport">
 
-        <!-- 1. Remote Video Element (Main Screen) -->
-        <video id="remoteVideo" autoplay playsinline class="w-100 h-100" style="object-fit: cover; background: #0b0f19; display: none;"></video>
+        <!-- 1. Remote Video Element (Main Screen - contain ensures no cropping of patient/doctor) -->
+        <video id="remoteVideo" autoplay playsinline class="w-100 h-100" style="object-fit: contain; background: #070b14; display: none;"></video>
 
         <!-- 2. Waiting / Standby Overlay (Visible when waiting for peer) -->
         <div id="remoteWaitingOverlay"
@@ -50,12 +50,12 @@
             </div>
           </div>
 
-          <h5 class="text-white fw-bold mb-1" id="waitingHeading">Waiting for Remote Participant…</h5>
+          <h5 class="text-white fw-bold mb-1" id="waitingHeading">Connecting to Telehealth Chamber…</h5>
           <p class="text-white-50 fs-8 mb-2" id="waitingSub">
-            {% if session.get('user_role') == 'doctor' %}
-              Connecting to peripheral facility: <strong class="text-info">{{ tele.from_facility_name }}</strong> (Patient: {{ tele.first_name }} {{ tele.last_name }})
+            {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
+              Waiting for Peripheral Facility <strong class="text-info">{{ tele.from_facility_name }}</strong> (ASHA: {{ tele.initiator_name or 'Worker' }} with {{ tele.first_name }} {{ tele.last_name }}) to connect.
             {% else %}
-              Waiting for District Specialist <strong class="text-info">{{ tele.specialist_name or 'On-Call' }}</strong> to join the room.
+              Waiting for District Specialist <strong class="text-info">{{ tele.specialist_name or 'On-Call Specialist' }}</strong> ({{ tele.to_facility_name }}) to join room.
             {% endif %}
           </p>
 
@@ -66,14 +66,19 @@
             <span class="badge bg-success bg-opacity-25 border border-success text-success fs-9">
               <i class="bi bi-shield-check me-1"></i>Direct P2P Encrypted
             </span>
-            <span id="peerCountBadge" class="badge bg-info bg-opacity-25 border border-info text-info fs-9">
-              <i class="bi bi-people me-1"></i>In Room: <span id="peerCount">1</span>
+            <span id="peerStatusBadge" class="badge bg-info bg-opacity-25 border border-info text-info fs-9">
+              <i class="bi bi-people me-1"></i>Participants: <span id="peerCount">1</span>
             </span>
           </div>
 
-          <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 fs-8" onclick="window.pcTele.copyRoomLink()">
-            <i class="bi bi-clipboard-check me-1"></i>Copy Invite Link for Specialist / Patient
-          </button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 fs-8" onclick="window.pcTele.copyRoomLink()">
+              <i class="bi bi-clipboard-check me-1"></i>Copy Room Link
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 fs-8" onclick="window.pcTele.retryConnection()">
+              <i class="bi bi-arrow-clockwise me-1"></i>Force Connect
+            </button>
+          </div>
         </div>
 
         <!-- 3. Local Self-View (Picture-in-Picture) -->
@@ -84,12 +89,17 @@
           
           <!-- Local user tag -->
           <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 px-1 py-0 text-center text-white" style="font-size: 0.65rem;">
-            <i class="bi bi-person-fill text-primary me-1"></i>{{ session.get('full_name', 'You') }} ({{ session.get('user_role', 'user')|upper }})
+            <i class="bi bi-person-fill text-primary me-1"></i>{{ session.get('full_name', 'You') }} ({{ 'DOCTOR' if session.get('user_role') in ['doctor','medical_officer'] else 'ASHA / FRONT' if session.get('user_role') == 'asha_cho' else 'PATIENT' }})
           </div>
 
           <!-- Muted badge -->
           <div id="localMuteBadge" class="position-absolute top-0 end-0 m-1 badge bg-danger p-1" style="display: none; font-size: 0.6rem;">
             <i class="bi bi-mic-mute-fill"></i>
+          </div>
+
+          <!-- Camera mode indicator -->
+          <div id="cameraModeBadge" class="position-absolute top-0 start-0 m-1 badge bg-dark bg-opacity-75 border border-secondary text-white p-1" style="font-size: 0.55rem;">
+            FRONT
           </div>
 
           <!-- Cam off placeholder -->
@@ -129,12 +139,16 @@
       <!-- ── Hardware Controls & Actions Bar ── -->
       <div class="card-footer bg-black py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <!-- Media Controls -->
-        <div class="d-flex gap-2 align-items-center">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
           <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3" id="btnToggleMic" onclick="window.pcTele.toggleMic()" title="Toggle Microphone">
             <i class="bi bi-mic-fill me-1" id="micIcon"></i><span id="micText">Mute</span>
           </button>
           <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3" id="btnToggleCam" onclick="window.pcTele.toggleCam()" title="Toggle Camera">
             <i class="bi bi-camera-video-fill me-1" id="camIcon"></i><span id="camText">Camera</span>
+          </button>
+          <!-- Switch Camera Button (Front/Rear for ASHA tablets/phones, next device for PCs) -->
+          <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-3 text-white" id="btnSwitchCam" onclick="window.pcTele.switchCamera()" title="Switch Front/Rear Camera (Useful for examining patients)">
+            <i class="bi bi-camera-reverse me-1 text-warning"></i><span id="switchCamText">Flip Cam</span>
           </button>
           <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 d-none d-sm-inline-flex" id="btnShareScreen" onclick="window.pcTele.toggleScreenShare()" title="Share Screen / ECG">
             <i class="bi bi-display me-1"></i>Share Screen
@@ -402,7 +416,7 @@
 
 
 {# ══════════════════════════════════════════════════════════════
-   PULSECARE NATIVE WebRTC ENGINE (100% P2P & RESILIENT)
+   PULSECARE HIGH-PERFORMANCE WebRTC ENGINE (100% P2P)
 ══════════════════════════════════════════════════════════════ #}
 {% block page_scripts %}
 <script>
@@ -415,59 +429,76 @@
   const USER_NAME   = {{ session.get('full_name', 'User') | tojson }};
   const IS_DOCTOR   = ["doctor", "specialist", "medical_officer"].includes(USER_ROLE);
 
-  // WebRTC Configuration using Google's public STUN servers
+  // Generate a distinct Client ID per browser tab to avoid any same-user collision
+  const CLIENT_PREFIX = IS_DOCTOR ? "doc_" : (USER_ROLE === "asha_cho" ? "asha_" : "pat_");
+  const CLIENT_ID = CLIENT_PREFIX + {{ session.get('user_id', 0) }} + "_" + Math.random().toString(36).substring(2, 8);
+
   const RTC_CONFIG = {
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
-      { urls: "stun:stun2.l.google.com:19302" }
-    ]
+      { urls: "stun:stun2.l.google.com:19302" },
+      { urls: "stun:stun3.l.google.com:19302" },
+      { urls: "stun:stun4.l.google.com:19302" }
+    ],
+    iceCandidatePoolSize: 10
   };
 
-  let localStream     = null;
-  let peerConnection  = null;
-  let pollInterval    = null;
-  let timerInterval   = null;
-  let callSeconds     = 0;
-  let isMuted         = false;
-  let isCamOff        = false;
-  let isSharingScreen = false;
-  let callActive      = false;
-  let hasMadeOffer    = false;
-  let iceQueue        = [];
+  let localStream       = null;
+  let peerConnection    = null;
+  let pollInterval      = null;
+  let timerInterval     = null;
+  let callSeconds       = 0;
+  let isMuted           = false;
+  let isCamOff          = false;
+  let isSharingScreen   = false;
+  let callActive        = false;
+  let currentFacingMode = "user"; // "user" (front/selfie) or "environment" (rear/patient camera)
+  let videoDevices      = [];
+  let currentDeviceIdx  = 0;
+  let activeTargetId    = null;
+  let hasInitiatedOffer = false;
+  let iceQueue          = [];
 
-  document.addEventListener("DOMContentLoaded", function () {
-    initLocalMedia();
+  document.addEventListener("DOMContentLoaded", async function () {
     initRxBuilder();
+    // Step 1: Initialize local media first
+    await initLocalMedia();
+    // Step 2: Enumerate available video cameras
+    await enumerateCameras();
+    // Step 3: Start signaling once media is ready
     startSignaling();
   });
 
   /* ─────────────────────────────────────────────────────────────
-     1. Local Media Stream Initialization with Safe Fallback
+     1. Local Media Stream Initialization
   ───────────────────────────────────────────────────────────── */
-  async function initLocalMedia() {
+  async function initLocalMedia(preferredFacingMode) {
+    const facing = preferredFacingMode || currentFacingMode;
     try {
-      // 1. Try real video + audio
       localStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: { echoCancellation: true, noiseSuppression: true }
+        video: {
+          facingMode: { ideal: facing },
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 }
+        },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
       attachLocalStream(localStream);
+      updateCameraBadge(facing);
     } catch (errVideo) {
       console.warn("[Media] Video camera unavailable, trying audio-only...", errVideo);
       try {
-        // 2. Try audio only
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const canvasStream = createVirtualCanvasStream("Diagnostic Audio Mode");
         canvasStream.getVideoTracks().forEach(t => localStream.addTrack(t));
         attachLocalStream(localStream);
-        showToast("<i class='bi bi-mic me-1'></i>Joined in Audio-Only Diagnostic Mode (Camera unavailable).", "info");
+        showToast("<i class='bi bi-mic me-1'></i>Joined in Audio Mode (Webcam unavailable).", "info");
       } catch (errAudio) {
-        console.warn("[Media] Audio hardware unavailable, generating clinical test stream...", errAudio);
-        // 3. Fallback to synthetic virtual stream so nothing ever crashes
+        console.warn("[Media] Audio hardware unavailable, generating synthetic clinical feed...", errAudio);
         localStream = createVirtualCanvasStream("Virtual Clinical Feed");
         attachLocalStream(localStream);
-        showToast("<i class='bi bi-info-circle me-1'></i>Virtual Telehealth Preview Active (No webcam detected).", "info");
+        showToast("<i class='bi bi-info-circle me-1'></i>Virtual Clinical Stream Active (No hardware found).", "info");
       }
     }
   }
@@ -476,11 +507,131 @@
     const vid = document.getElementById("localVideo");
     if (vid) {
       vid.srcObject = stream;
-      vid.play().catch(e => console.log("[Video play note]", e));
+      vid.play().catch(e => console.log(e));
+      vid.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
+    }
+    // If peer connection already exists, ensure tracks are attached
+    if (peerConnection) {
+      ensureTracksAttached(peerConnection);
     }
   }
 
-  // Generates an interactive medical canvas stream when physical webcam is missing
+  function ensureTracksAttached(pc) {
+    if (!localStream) return;
+    const senders = pc.getSenders();
+    localStream.getTracks().forEach(track => {
+      const existing = senders.find(s => s.track && s.track.kind === track.kind);
+      if (!existing) {
+        console.log("[WebRTC] Adding local track to pc:", track.kind);
+        pc.addTrack(track, localStream);
+      }
+    });
+  }
+
+  async function enumerateCameras() {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      videoDevices = devices.filter(d => d.kind === "videoinput");
+      console.log("[Cameras found]", videoDevices.length, videoDevices);
+    } catch (e) {
+      console.log("[Camera enum note]", e);
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     2. Camera Switch / Flip (Front ⇄ Rear / External Dermascope)
+  ───────────────────────────────────────────────────────────── */
+  async function switchCamera() {
+    if (!localStream) {
+      showToast("No camera feed active to switch.", "warning");
+      return;
+    }
+
+    const currentVideoTrack = localStream.getVideoTracks()[0];
+    const btn = document.getElementById("btnSwitchCam");
+    const switchText = document.getElementById("switchCamText");
+
+    // Toggle facing mode: "user" (front) ⇄ "environment" (rear/outward)
+    currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+    updateCameraBadge(currentFacingMode);
+
+    if (btn) btn.disabled = true;
+
+    try {
+      let newConstraints = {
+        video: {
+          facingMode: { ideal: currentFacingMode },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false // keep existing audio track untouched
+      };
+
+      // If multiple explicit device IDs are detected, cycle through them
+      if (videoDevices.length > 1) {
+        currentDeviceIdx = (currentDeviceIdx + 1) % videoDevices.length;
+        const targetDevice = videoDevices[currentDeviceIdx];
+        if (targetDevice && targetDevice.deviceId) {
+          newConstraints.video.deviceId = { exact: targetDevice.deviceId };
+        }
+      }
+
+      const newStream = await navigator.mediaDevices.getUserMedia(newConstraints);
+      const newVideoTrack = newStream.getVideoTracks()[0];
+
+      if (newVideoTrack) {
+        // Stop previous video track
+        if (currentVideoTrack) {
+          currentVideoTrack.stop();
+          localStream.removeTrack(currentVideoTrack);
+        }
+
+        localStream.addTrack(newVideoTrack);
+
+        // Update local video element
+        const localVid = document.getElementById("localVideo");
+        if (localVid) {
+          localVid.srcObject = localStream;
+          // Selfie mirror only for front camera, unmirror for back camera (examining patient/rash)
+          localVid.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
+        }
+
+        // Replace track on WebRTC peer connection (seamless: no renegotiation needed)
+        if (peerConnection) {
+          const senders = peerConnection.getSenders();
+          const videoSender = senders.find(s => s.track && s.track.kind === "video");
+          if (videoSender) {
+            await videoSender.replaceTrack(newVideoTrack);
+            console.log("[WebRTC] Replaced video track on peer connection!");
+          }
+        }
+
+        const label = (currentFacingMode === "user") ? "Front Camera (Selfie)" : "Rear Camera (Patient View)";
+        if (switchText) switchText.textContent = (currentFacingMode === "user") ? "Rear Cam" : "Front Cam";
+        showToast("<i class='bi bi-camera me-1 text-warning'></i>Switched to " + label + ".", "info");
+      }
+    } catch (err) {
+      console.warn("[Switch camera fallback]", err);
+      // Revert facing mode if failed
+      currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+      updateCameraBadge(currentFacingMode);
+      showToast("Could not switch camera: " + (err.message || "Hardware unavailable"), "warning");
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function updateCameraBadge(mode) {
+    const badge = document.getElementById("cameraModeBadge");
+    if (badge) {
+      badge.textContent = (mode === "user") ? "FRONT" : "REAR";
+      badge.className = (mode === "user") ? "position-absolute top-0 start-0 m-1 badge bg-dark bg-opacity-75 border border-secondary text-white p-1"
+                                          : "position-absolute top-0 start-0 m-1 badge bg-warning text-dark fw-bold p-1";
+    }
+  }
+
+  // Fallback interactive synthetic canvas stream
   function createVirtualCanvasStream(label) {
     const canvas = document.createElement("canvas");
     canvas.width = 640;
@@ -488,22 +639,18 @@
     const ctx = canvas.getContext("2d");
     let step = 0;
 
-    function renderCanvas() {
+    function render() {
       step = (step + 1) % 360;
       ctx.fillStyle = "#070b14";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // PulseCare grid lines
-      ctx.strokeStyle = "rgba(14, 165, 233, 0.15)";
+      // Grid
+      ctx.strokeStyle = "rgba(14, 165, 233, 0.12)";
       ctx.lineWidth = 1;
-      for (let x = 0; x < canvas.width; x += 40) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-      }
-      for (let y = 0; y < canvas.height; y += 40) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-      }
+      for (let x = 0; x < canvas.width; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
+      for (let y = 0; y < canvas.height; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
 
-      // ECG wave line
+      // ECG Line
       ctx.strokeStyle = "#10b981";
       ctx.lineWidth = 2.5;
       ctx.beginPath();
@@ -517,63 +664,58 @@
       }
       ctx.stroke();
 
-      // Clinical Text Header
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 16px sans-serif";
+      ctx.fillStyle = "#ffffff"; ctx.font = "bold 16px sans-serif";
       ctx.fillText(USER_NAME + " (" + USER_ROLE.toUpperCase() + ")", 20, 35);
-
-      ctx.fillStyle = "#38bdf8";
-      ctx.font = "12px sans-serif";
-      ctx.fillText("PulseCare Telehealth • " + label, 20, 58);
+      ctx.fillStyle = "#38bdf8"; ctx.font = "12px sans-serif";
+      ctx.fillText("PulseCare Clinical Stream • " + label, 20, 58);
       ctx.fillText("Session: " + SESSION_UID, 20, 76);
 
-      requestAnimationFrame(renderCanvas);
+      requestAnimationFrame(render);
     }
-    renderCanvas();
+    render();
 
     const stream = canvas.captureStream(15);
-    // Add silent audio track
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = audioCtx.createOscillator();
       const dst = audioCtx.createMediaStreamDestination();
       const gain = audioCtx.createGain();
-      gain.gain.value = 0; // completely silent
-      osc.connect(gain);
-      gain.connect(dst);
-      osc.start();
+      gain.gain.value = 0;
+      osc.connect(gain); gain.connect(dst); osc.start();
       dst.stream.getAudioTracks().forEach(t => stream.addTrack(t));
-    } catch (e) {
-      console.log("[Synthetic audio note]", e);
-    }
+    } catch (e) {}
     return stream;
   }
 
   /* ─────────────────────────────────────────────────────────────
-     2. WebRTC Peer Connection & Direct Signaling
+     3. WebRTC Peer Connection Management
   ───────────────────────────────────────────────────────────── */
   function getOrCreatePeerConnection() {
-    if (peerConnection) return peerConnection;
-
-    peerConnection = new RTCPeerConnection(RTC_CONFIG);
-
-    // Add local tracks
-    if (localStream) {
-      localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
-      });
+    if (peerConnection) {
+      ensureTracksAttached(peerConnection);
+      return peerConnection;
     }
 
-    // ICE Candidate Generation
+    console.log("[WebRTC] Creating RTCPeerConnection for client:", CLIENT_ID);
+    peerConnection = new RTCPeerConnection(RTC_CONFIG);
+
+    // Attach local tracks
+    ensureTracksAttached(peerConnection);
+
+    // ICE Candidates
     peerConnection.onicecandidate = function (evt) {
-      if (evt.candidate) {
-        sendSignal({ type: "candidate", candidate: evt.candidate });
+      if (evt.candidate && activeTargetId) {
+        sendSignal({
+          type: "candidate",
+          target_id: activeTargetId,
+          payload: evt.candidate
+        });
       }
     };
 
     // Remote Track Received
     peerConnection.ontrack = function (evt) {
-      console.log("[WebRTC] Remote track received:", evt.track.kind);
+      console.log("[WebRTC] Remote media track received:", evt.track.kind);
       const remoteVid = document.getElementById("remoteVideo");
       const overlay   = document.getElementById("remoteWaitingOverlay");
       if (remoteVid && evt.streams && evt.streams[0]) {
@@ -585,12 +727,14 @@
     };
 
     peerConnection.onconnectionstatechange = function () {
-      console.log("[WebRTC] Connection state:", peerConnection.connectionState);
+      console.log("[WebRTC] Connection state changed:", peerConnection.connectionState);
       if (peerConnection.connectionState === "connected") {
         onCallConnected();
       } else if (peerConnection.connectionState === "disconnected" || peerConnection.connectionState === "failed") {
         document.getElementById("callStatusDot").className = "status-dot bg-danger rounded-circle d-inline-block";
         document.getElementById("linkageTitle").textContent = "RECONNECTING CLINICAL LINK…";
+        // Auto retry connection
+        setTimeout(retryConnection, 2000);
       }
     };
 
@@ -605,76 +749,63 @@
   }
 
   /* ─────────────────────────────────────────────────────────────
-     3. Signaling Loop via Flask Endpoint
+     4. Robust Client-ID-Based Signaling Loop
   ───────────────────────────────────────────────────────────── */
   function startSignaling() {
-    // Join room
-    sendSignal({ type: "join", name: USER_NAME, restart: false });
-
-    // Poll every 1.5 seconds
-    pollInterval = setInterval(pollSignal, 1500);
+    // Send initial join
+    sendSignal({ type: "join", restart: true });
+    // Poll every 1000ms for ultra-responsive handshake
+    pollInterval = setInterval(pollSignal, 1000);
   }
 
   async function pollSignal() {
     try {
-      const resp = await fetch("/api/teleconsult/" + SESSION_ID + "/signal");
+      const resp = await fetch("/api/teleconsult/" + SESSION_ID + "/signal?client_id=" + encodeURIComponent(CLIENT_ID) + "&name=" + encodeURIComponent(USER_NAME) + "&role=" + encodeURIComponent(USER_ROLE));
       if (!resp.ok) return;
       const data = await resp.json();
 
-      // If call was marked ended on backend
       if (data.ended && callActive) {
         handleCallEndedByRemote();
         return;
       }
 
-      // Update peer count in waiting screen
-      const peerKeys = Object.keys(data.peers || {});
+      // Update participant count
+      const otherPeers = data.other_peers || [];
+      const totalCount = otherPeers.length + 1;
       const peerEl = document.getElementById("peerCount");
-      if (peerEl) peerEl.textContent = peerKeys.length;
+      if (peerEl) peerEl.textContent = totalCount;
 
       const pc = getOrCreatePeerConnection();
 
-      // Process Offer
-      if (data.offer && data.offer_from !== data.peer_side && pc.signalingState === "stable" && !pc.remoteDescription) {
-        console.log("[WebRTC] Received remote offer, creating answer...");
-        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-        // Flush any queued ICE candidates
-        while (iceQueue.length > 0) {
-          await pc.addIceCandidate(iceQueue.shift()).catch(e => console.log(e));
-        }
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        sendSignal({ type: "answer", sdp: answer });
-      }
-
-      // Process Answer
-      if (data.answer && data.answer_from !== data.peer_side && pc.signalingState === "have-local-offer") {
-        console.log("[WebRTC] Received remote answer, setting remote description...");
-        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        while (iceQueue.length > 0) {
-          await pc.addIceCandidate(iceQueue.shift()).catch(e => console.log(e));
+      // Process all messages in inbox destined for this client
+      if (data.messages && data.messages.length > 0) {
+        for (const msg of data.messages) {
+          await handleIncomingSignal(msg, pc);
         }
       }
 
-      // Process ICE Candidates
-      if (data.candidates && data.candidates.length > 0) {
-        for (const cand of data.candidates) {
-          const rtcCand = new RTCIceCandidate(cand);
-          if (pc.remoteDescription && pc.remoteDescription.type) {
-            await pc.addIceCandidate(rtcCand).catch(e => console.log(e));
-          } else {
-            iceQueue.push(rtcCand);
-          }
-        }
-      }
+      // Check if we need to initiate an Offer
+      if (otherPeers.length > 0 && !callActive) {
+        const targetPeer = otherPeers[0];
+        activeTargetId = targetPeer.id;
 
-      // Doctor initiates the offer once both peers are in the room
-      if (IS_DOCTOR && peerKeys.length >= 2 && !hasMadeOffer && pc.signalingState === "stable") {
-        console.log("[WebRTC] Both participants present. Creating offer...");
-        hasMadeOffer = true;
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        sendSignal({ type: "offer", sdp: offer });
+        // Deterministic Caller Rule:
+        // 1. Doctor initiates offer
+        // 2. If neither or both are doctors, peer with smaller client_id initiates
+        const amICaller = IS_DOCTOR || (!["doctor", "specialist", "medical_officer"].includes(targetPeer.role) && CLIENT_ID < targetPeer.id);
+
+        if (amICaller && !hasInitiatedOffer && pc.signalingState === "stable") {
+          console.log("[WebRTC] Initiating offer to target peer:", targetPeer.id, targetPeer.name);
+          hasInitiatedOffer = true;
+          ensureTracksAttached(pc);
+          const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+          await pc.setLocalDescription(offer);
+          sendSignal({
+            type: "offer",
+            target_id: targetPeer.id,
+            payload: offer
+          });
+        }
       }
 
     } catch (err) {
@@ -682,8 +813,53 @@
     }
   }
 
+  async function handleIncomingSignal(msg, pc) {
+    console.log("[WebRTC] Processing incoming message:", msg.type, "from:", msg.from_id);
+    activeTargetId = msg.from_id;
+
+    if (msg.type === "offer") {
+      // Received Offer from remote peer
+      ensureTracksAttached(pc);
+      await pc.setRemoteDescription(new RTCSessionDescription(msg.payload));
+
+      // Flush buffered ICE candidates
+      while (iceQueue.length > 0) {
+        await pc.addIceCandidate(iceQueue.shift()).catch(e => console.log(e));
+      }
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      sendSignal({
+        type: "answer",
+        target_id: msg.from_id,
+        payload: answer
+      });
+
+    } else if (msg.type === "answer") {
+      // Received Answer from remote peer
+      if (pc.signalingState === "have-local-offer") {
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.payload));
+        while (iceQueue.length > 0) {
+          await pc.addIceCandidate(iceQueue.shift()).catch(e => console.log(e));
+        }
+      }
+
+    } else if (msg.type === "candidate" && msg.payload) {
+      const rtcCand = new RTCIceCandidate(msg.payload);
+      if (pc.remoteDescription && pc.remoteDescription.type) {
+        await pc.addIceCandidate(rtcCand).catch(e => console.log(e));
+      } else {
+        iceQueue.push(rtcCand);
+      }
+    }
+  }
+
   async function sendSignal(payload) {
     try {
+      payload.client_id = CLIENT_ID;
+      payload.name = USER_NAME;
+      payload.role = USER_ROLE;
       await fetch("/api/teleconsult/" + SESSION_ID + "/signal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -694,8 +870,19 @@
     }
   }
 
+  function retryConnection() {
+    hasInitiatedOffer = false;
+    if (peerConnection) {
+      peerConnection.close();
+      peerConnection = null;
+    }
+    iceQueue = [];
+    showToast("<i class='bi bi-arrow-clockwise me-1'></i>Retrying WebRTC connection...", "info");
+    getOrCreatePeerConnection();
+  }
+
   /* ─────────────────────────────────────────────────────────────
-     4. Media Controls (Mic, Camera, Screen Share)
+     5. Media Controls (Mic, Camera, Screen Share)
   ───────────────────────────────────────────────────────────── */
   function toggleMic() {
     if (!localStream) return;
@@ -705,19 +892,19 @@
     isMuted = !isMuted;
     audioTracks.forEach(t => { t.enabled = !isMuted; });
 
-    const btn     = document.getElementById("btnToggleMic");
-    const icon    = document.getElementById("micIcon");
-    const text    = document.getElementById("micText");
-    const badge   = document.getElementById("localMuteBadge");
+    const btn   = document.getElementById("btnToggleMic");
+    const icon  = document.getElementById("micIcon");
+    const text  = document.getElementById("micText");
+    const badge = document.getElementById("localMuteBadge");
 
     if (isMuted) {
-      btn.className  = "btn btn-sm btn-danger rounded-pill px-3";
+      btn.className = "btn btn-sm btn-danger rounded-pill px-3";
       icon.className = "bi bi-mic-mute-fill me-1";
       text.textContent = "Unmute";
       if (badge) badge.style.display = "block";
       showToast("<i class='bi bi-mic-mute-fill me-1 text-danger'></i>Microphone muted.", "warning");
     } else {
-      btn.className  = "btn btn-sm btn-outline-light rounded-pill px-3";
+      btn.className = "btn btn-sm btn-outline-light rounded-pill px-3";
       icon.className = "bi bi-mic-fill me-1";
       text.textContent = "Mute";
       if (badge) badge.style.display = "none";
@@ -739,12 +926,12 @@
     const overlay = document.getElementById("localCamOffOverlay");
 
     if (isCamOff) {
-      btn.className  = "btn btn-sm btn-danger rounded-pill px-3";
+      btn.className = "btn btn-sm btn-danger rounded-pill px-3";
       icon.className = "bi bi-camera-video-off-fill me-1";
       text.textContent = "Cam Off";
       if (overlay) overlay.classList.remove("d-none");
     } else {
-      btn.className  = "btn btn-sm btn-outline-light rounded-pill px-3";
+      btn.className = "btn btn-sm btn-outline-light rounded-pill px-3";
       icon.className = "bi bi-camera-video-fill me-1";
       text.textContent = "Camera";
       if (overlay) overlay.classList.add("d-none");
@@ -777,7 +964,7 @@
         };
         showToast("<i class='bi bi-display me-1'></i>Screen sharing started.", "info");
       } catch (e) {
-        console.log("[Screen share cancelled]", e);
+        console.log("[Screen share note]", e);
       }
     } else {
       stopScreenShare(videoSender);
@@ -799,49 +986,43 @@
   }
 
   /* ─────────────────────────────────────────────────────────────
-     5. End Call Lifecycle & Backend Synchronization
+     6. End Call Lifecycle & Cleanup
   ───────────────────────────────────────────────────────────── */
   async function endCall() {
-    // 1. Post to backend to update DB status to Completed & notify signaling
     try {
       await fetch("/teleconsult/session/" + SESSION_ID + "/end", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" }
       });
     } catch (e) {
-      console.log("[End call backend notification]", e);
+      console.log(e);
     }
-
-    // 2. Local Cleanup
     performCallCleanup("You ended the teleconsultation call.");
   }
 
   function handleCallEndedByRemote() {
-    performCallCleanup("The teleconsultation was concluded by the other participant.");
+    performCallCleanup("The teleconsultation was concluded by the remote participant.");
   }
 
   function performCallCleanup(msg) {
     callActive = false;
     stopCallTimer();
 
-    // Release hardware tracks (LED turns off)
+    // Release camera & mic hardware (LED light turns off)
     if (localStream) {
       localStream.getTracks().forEach(t => t.stop());
     }
 
-    // Close peer connection
     if (peerConnection) {
       peerConnection.close();
       peerConnection = null;
     }
 
-    // Stop signaling poll
     if (pollInterval) {
       clearInterval(pollInterval);
       pollInterval = null;
     }
 
-    // Show Call Ended overlay
     const endedOverlay = document.getElementById("callEndedOverlay");
     const durationEl   = document.getElementById("finalCallDuration");
     const currentTimer = document.getElementById("callTimer");
@@ -849,11 +1030,9 @@
     if (durationEl && currentTimer) durationEl.textContent = currentTimer.textContent;
     if (endedOverlay) endedOverlay.classList.remove("d-none");
 
-    // Update status dot and title
     document.getElementById("callStatusDot").className = "status-dot bg-secondary rounded-circle d-inline-block";
     document.getElementById("linkageTitle").textContent = "TELECONSULTATION CONCLUDED";
 
-    // Auto-select Completed in status dropdown
     const statusSelect = document.getElementById("selectCallStatus");
     if (statusSelect) statusSelect.value = "Completed";
 
@@ -863,17 +1042,17 @@
   function reconnectCall() {
     const endedOverlay = document.getElementById("callEndedOverlay");
     if (endedOverlay) endedOverlay.classList.add("d-none");
+    hasInitiatedOffer = false;
     initLocalMedia();
     startSignaling();
-    hasMadeOffer = false;
     showToast("Reconnecting to room...", "info");
   }
 
   /* ─────────────────────────────────────────────────────────────
-     6. Timer & Helper Utilities
+     7. Timer & Utilities
   ───────────────────────────────────────────────────────────── */
   function startCallTimer() {
-    if (timerInterval) return; // already running
+    if (timerInterval) return;
     const timerEl = document.getElementById("callTimer");
     timerInterval = setInterval(function () {
       callSeconds++;
@@ -892,7 +1071,7 @@
 
   function copyRoomLink() {
     navigator.clipboard.writeText(window.location.href).then(function () {
-      showToast("<i class='bi bi-clipboard-check-fill text-success me-1'></i>Room URL copied! Send to doctor or patient.", "success");
+      showToast("<i class='bi bi-clipboard-check-fill text-success me-1'></i>Room URL copied to clipboard!", "success");
     });
   }
 
@@ -919,9 +1098,6 @@
     setTimeout(function () { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 4500);
   }
 
-  /* ─────────────────────────────────────────────────────────────
-     7. E-Prescription Dynamic Row Builder
-  ───────────────────────────────────────────────────────────── */
   function initRxBuilder() {
     const btn = document.getElementById("addRxItemBtn");
     if (!btn) return;
@@ -930,8 +1106,8 @@
       const first = container && container.querySelector(".rx-item-row");
       if (!first) return;
       const clone = first.cloneNode(true);
-      clone.querySelectorAll("input").forEach(function (inp) { inp.value = ""; });
-      clone.querySelectorAll("select").forEach(function (sel) { sel.selectedIndex = 0; });
+      clone.querySelectorAll("input").forEach(inp => { inp.value = ""; });
+      clone.querySelectorAll("select").forEach(sel => { sel.selectedIndex = 0; });
       container.appendChild(clone);
     });
   }
@@ -940,9 +1116,11 @@
   window.pcTele = {
     toggleMic: toggleMic,
     toggleCam: toggleCam,
+    switchCamera: switchCamera,
     toggleScreenShare: toggleScreenShare,
     endCall: endCall,
     reconnectCall: reconnectCall,
+    retryConnection: retryConnection,
     copyRoomLink: copyRoomLink,
     copyShareLink: copyShareLink
   };

@@ -1761,13 +1761,8 @@ def _get_tele_room(session_id):
             _TELE_ROOMS.pop(sid, None)
     if session_id not in _TELE_ROOMS:
         _TELE_ROOMS[session_id] = {
-            "peers": {},
-            "offer": None,
-            "answer": None,
-            "offer_from": None,
-            "answer_from": None,
-            "candidates_for_doctor": [],
-            "candidates_for_patient": [],
+            "peers": {},       # client_id -> { id, name, role, last_seen }
+            "inboxes": {},     # client_id -> [ incoming messages ]
             "ended": False,
             "created_at": now
         }
@@ -1778,66 +1773,84 @@ def _get_tele_room(session_id):
 @login_required
 def api_teleconsult_signal(session_id):
     """
-    Direct WebRTC Signaling Exchange for PulseCare Teleconsultation Chambers.
-    Allows peer discovery, SDP offer/answer exchange, and ICE candidate distribution.
+    Robust Client-ID-Based WebRTC Signaling for PulseCare Teleconsultation Chambers.
+    Guarantees peer discovery and direct message delivery between ASHA workers and doctors.
     """
     room = _get_tele_room(session_id)
-    user_role = session.get("user_role", "guest")
-    is_doctor = user_role in ["doctor", "specialist", "medical_officer"]
-    peer_side = "doctor" if is_doctor else "patient"
-    other_side = "patient" if is_doctor else "doctor"
+    now = _time.time()
 
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
-        sig_type = data.get("type")
+    else:
+        data = request.args.to_dict()
 
-        if sig_type == "join":
-            room["peers"][peer_side] = {
-                "name": session.get("full_name") or ("Doctor" if is_doctor else "Patient / ASHA"),
-                "role": user_role,
-                "last_seen": _time.time()
+    client_id = data.get("client_id")
+    if not client_id:
+        client_id = f"user_{session.get('user_id', 0)}"
+
+    user_role = data.get("role") or session.get("user_role", "guest")
+    user_name = data.get("name") or session.get("full_name") or "Participant"
+
+    # Register/refresh peer heartbeat
+    room["peers"][client_id] = {
+        "id": client_id,
+        "name": user_name,
+        "role": user_role,
+        "last_seen": now
+    }
+
+    # Clean up stale peers (> 12 seconds with no heartbeat)
+    room["peers"] = {
+        cid: p for cid, p in room["peers"].items()
+        if (now - p["last_seen"]) < 12 or cid == client_id
+    }
+
+    # Handle incoming messages
+    if request.method == "POST":
+        sig_type = data.get("type")
+        target_id = data.get("target_id")
+        payload = data.get("payload")
+
+        if sig_type in ["offer", "answer", "candidate"]:
+            msg = {
+                "from_id": client_id,
+                "from_name": user_name,
+                "from_role": user_role,
+                "type": sig_type,
+                "payload": payload
             }
-            if data.get("restart"):
-                room["ended"] = False
-                room["offer"] = None
-                room["answer"] = None
-                room["offer_from"] = None
-                room["answer_from"] = None
-                room[f"candidates_for_{peer_side}"] = []
-                room[f"candidates_for_{other_side}"] = []
-        elif sig_type == "offer":
-            room["offer"] = data.get("sdp")
-            room["offer_from"] = peer_side
-        elif sig_type == "answer":
-            room["answer"] = data.get("sdp")
-            room["answer_from"] = peer_side
-        elif sig_type == "candidate":
-            cand = data.get("candidate")
-            if cand:
-                room[f"candidates_for_{other_side}"].append(cand)
+            if target_id:
+                if target_id not in room["inboxes"]:
+                    room["inboxes"][target_id] = []
+                room["inboxes"][target_id].append(msg)
+            else:
+                for cid in room["peers"]:
+                    if cid != client_id:
+                        if cid not in room["inboxes"]:
+                            room["inboxes"][cid] = []
+                        room["inboxes"][cid].append(msg)
+
+        elif sig_type == "join" and data.get("restart"):
+            room["ended"] = False
+            room["inboxes"][client_id] = []
+
         elif sig_type in ["leave", "end"]:
             room["ended"] = True
-            room["peers"].pop(peer_side, None)
+            room["peers"].pop(client_id, None)
 
-    # Update heartbeat
-    if peer_side in room["peers"]:
-        room["peers"][peer_side]["last_seen"] = _time.time()
+    # Drain inbox for this client
+    client_inbox = room["inboxes"].get(client_id, [])
+    room["inboxes"][client_id] = []
 
-    # Retrieve candidates meant for this peer and clear them
-    my_cand_key = f"candidates_for_{peer_side}"
-    my_candidates = list(room.get(my_cand_key, []))
-    room[my_cand_key] = []
+    # Active peers excluding self
+    other_peers = [p for cid, p in room["peers"].items() if cid != client_id]
 
     return jsonify({
         "success": True,
-        "peer_side": peer_side,
-        "other_side": other_side,
+        "client_id": client_id,
         "peers": room["peers"],
-        "offer": room["offer"],
-        "offer_from": room.get("offer_from"),
-        "answer": room["answer"],
-        "answer_from": room.get("answer_from"),
-        "candidates": my_candidates,
+        "other_peers": other_peers,
+        "messages": client_inbox,
         "ended": room.get("ended", False)
     })
 
