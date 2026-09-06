@@ -159,11 +159,16 @@ def get_db_connection():
         except Exception as exc:
             pass
 
-    # SQLite fallback
+    # SQLite fallback – WAL mode + larger cache for much faster concurrent reads
     db_file = get_db_path()
-    conn = sqlite3.connect(db_file, timeout=30)
+    conn = sqlite3.connect(db_file, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")       # Much faster concurrent reads/writes
+    conn.execute("PRAGMA synchronous = NORMAL")     # Safe with WAL, faster than FULL
+    conn.execute("PRAGMA cache_size = -16000")      # 16MB page cache
+    conn.execute("PRAGMA temp_store = MEMORY")      # Temp tables in RAM
+    conn.execute("PRAGMA mmap_size = 134217728")    # 128MB memory-mapped I/O
     return conn
 
 

@@ -899,9 +899,40 @@ def api_ai_voice_chat():
 
 
 
+# ── Global sidebar badge cache (30-second TTL to cut 7 queries→1 per page) ───
+import time as _time
+_BADGE_CACHE = {"data": None, "ts": 0.0}
+_BADGE_TTL   = 30  # seconds
+
+
 @app.context_processor
 def inject_global_context():
     """Injects system settings, user facility info, public health counts, and translations."""
+
+    # Fast path: skip all DB queries for API/static endpoints (JSON responses don't render templates)
+    if request and request.path.startswith(('/api/', '/static/')):
+        return {
+            "query_db": query_db,
+            "hospital_name": "PulseCare",
+            "tagline": "",
+            "currency": "$",
+            "today_date": date.today().strftime("%Y-%m-%d"),
+            "now_datetime": datetime.now(),
+            "low_stock_count": 0,
+            "pending_lab_count": 0,
+            "today_apt_count": 0,
+            "active_teleconsult_count": 0,
+            "active_referral_count": 0,
+            "high_risk_count": 0,
+            "all_facilities": [],
+            "all_emergency_patients": [],
+            "current_user": None,
+            "current_facility": None,
+            "selected_lang": session.get("lang", "en"),
+            "available_languages": [],
+            "t": t_filter,
+        }
+
     user = None
     user_facility = None
     if "user_id" in session:
@@ -919,39 +950,55 @@ def inject_global_context():
             user_facility = query_db("SELECT * FROM facilities WHERE id = ?", (user["facility_id"],), one=True)
 
     # Public health network live badges
-    low_stock_count = 0
-    pending_lab_count = 0
-    today_apt_count = 0
-    active_teleconsult_count = 0
-    active_referral_count = 0
-    high_risk_count = 0
-    all_facilities = []
-    all_emergency_patients = []
+    # ── Sidebar badge counts – served from 30s in-memory cache ─────────────────
+    global _BADGE_CACHE
+    _now = _time.time()
+    if _BADGE_CACHE["data"] is not None and (_now - _BADGE_CACHE["ts"]) < _BADGE_TTL:
+        _bc = _BADGE_CACHE["data"]
+    else:
+        _bc = {
+            "low_stock_count": 0, "pending_lab_count": 0, "today_apt_count": 0,
+            "active_teleconsult_count": 0, "active_referral_count": 0, "high_risk_count": 0,
+            "all_facilities": [], "all_emergency_patients": [],
+        }
+        try:
+            _today = date.today().strftime("%Y-%m-%d")
+            # Run all 6 counts in a single query using a UNION for fewer round-trips
+            _counts = query_db(
+                """SELECT
+                    (SELECT COUNT(*) FROM medicines WHERE stock_quantity <= reorder_level)               AS low_stock,
+                    (SELECT COUNT(*) FROM lab_orders WHERE status IN ('Ordered','Sample Collected','In Testing')) AS lab,
+                    (SELECT COUNT(*) FROM appointments WHERE appointment_date = ? AND status != 'Cancelled') AS apts,
+                    (SELECT COUNT(*) FROM teleconsultations WHERE status IN ('Requested','In-Call'))       AS tele,
+                    (SELECT COUNT(*) FROM referrals WHERE status IN ('Initiated','Accepted','In-Transit')) AS refs,
+                    (SELECT COUNT(*) FROM high_risk_registry WHERE status IN ('Active Surveillance','Critical Escalation')) AS hr""",
+                (_today,), one=True
+            )
+            if _counts:
+                _bc["low_stock_count"]          = _counts.get("low_stock", 0) or 0
+                _bc["pending_lab_count"]        = _counts.get("lab", 0) or 0
+                _bc["today_apt_count"]          = _counts.get("apts", 0) or 0
+                _bc["active_teleconsult_count"] = _counts.get("tele", 0) or 0
+                _bc["active_referral_count"]    = _counts.get("refs", 0) or 0
+                _bc["high_risk_count"]          = _counts.get("hr", 0) or 0
+            _bc["all_facilities"] = query_db("SELECT id, name, tier_type, facility_code FROM facilities ORDER BY id ASC") or []
+            # Only load high-risk patients for the emergency sidebar (not all patients)
+            _bc["all_emergency_patients"] = query_db(
+                "SELECT id, patient_uid, first_name, last_name, village, abha_id FROM patients WHERE is_high_risk = 1 ORDER BY first_name ASC LIMIT 50"
+            ) or []
+        except Exception:
+            pass
+        _BADGE_CACHE["data"] = _bc
+        _BADGE_CACHE["ts"]   = _now
 
-    try:
-        low_stock_row = query_db("SELECT COUNT(*) as c FROM medicines WHERE stock_quantity <= reorder_level", one=True)
-        low_stock_count = low_stock_row["c"] if low_stock_row else 0
-        
-        pending_lab_row = query_db("SELECT COUNT(*) as c FROM lab_orders WHERE status IN ('Ordered', 'Sample Collected', 'In Testing')", one=True)
-        pending_lab_count = pending_lab_row["c"] if pending_lab_row else 0
-
-        today_str = date.today().strftime("%Y-%m-%d")
-        today_apt_row = query_db("SELECT COUNT(*) as c FROM appointments WHERE appointment_date = ? AND status != 'Cancelled'", (today_str,), one=True)
-        today_apt_count = today_apt_row["c"] if today_apt_row else 0
-
-        tele_row = query_db("SELECT COUNT(*) as c FROM teleconsultations WHERE status IN ('Requested', 'In-Call')", one=True)
-        active_teleconsult_count = tele_row["c"] if tele_row else 0
-
-        ref_row = query_db("SELECT COUNT(*) as c FROM referrals WHERE status IN ('Initiated', 'Accepted', 'In-Transit')", one=True)
-        active_referral_count = ref_row["c"] if ref_row else 0
-
-        hr_row = query_db("SELECT COUNT(*) as c FROM high_risk_registry WHERE status IN ('Active Surveillance', 'Critical Escalation')", one=True)
-        high_risk_count = hr_row["c"] if hr_row else 0
-
-        all_facilities = query_db("SELECT * FROM facilities ORDER BY id ASC")
-        all_emergency_patients = query_db("SELECT id, patient_uid, first_name, last_name, village, abha_id FROM patients ORDER BY is_high_risk DESC, first_name ASC")
-    except Exception:
-        all_emergency_patients = []
+    low_stock_count          = _bc["low_stock_count"]
+    pending_lab_count        = _bc["pending_lab_count"]
+    today_apt_count          = _bc["today_apt_count"]
+    active_teleconsult_count = _bc["active_teleconsult_count"]
+    active_referral_count    = _bc["active_referral_count"]
+    high_risk_count          = _bc["high_risk_count"]
+    all_facilities           = _bc["all_facilities"]
+    all_emergency_patients   = _bc["all_emergency_patients"]
 
     return {
         "current_user": user,
