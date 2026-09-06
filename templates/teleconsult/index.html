@@ -6,8 +6,8 @@
 
 {% block content %}
 <div class="row g-3 mb-4">
-  <!-- Top Stats -->
-  <div class="col-md-3">
+  <!-- Top Stats (2x2 on smartphones, 1x4 on desktop) -->
+  <div class="col-6 col-md-3">
     <div class="card border-0 shadow-sm rounded-3 p-3 bg-primary text-white">
       <div class="d-flex justify-content-between align-items-center">
         <div>
@@ -19,11 +19,11 @@
     </div>
   </div>
 
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="card border-0 shadow-sm rounded-3 p-3 bg-warning text-dark">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <div class="fs-8 text-uppercase opacity-75 fw-semibold">Requested / Waiting</div>
+          <div class="fs-8 text-uppercase opacity-75 fw-semibold">Waiting</div>
           <div class="fs-3 fw-bold">{{ teleconsults | selectattr('status', 'equalto', 'Requested') | list | length }}</div>
         </div>
         <i class="bi bi-clock-history fs-1 opacity-50"></i>
@@ -31,11 +31,11 @@
     </div>
   </div>
 
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="card border-0 shadow-sm rounded-3 p-3 bg-danger text-white">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <div class="fs-8 text-uppercase opacity-75 fw-semibold">Emergency / High-Risk</div>
+          <div class="fs-8 text-uppercase opacity-75 fw-semibold">High-Risk</div>
           <div class="fs-3 fw-bold">{{ teleconsults | selectattr('triage_level', 'in', ['Emergency', 'High-Risk']) | list | length }}</div>
         </div>
         <i class="bi bi-exclamation-triangle-fill fs-1 opacity-50"></i>
@@ -43,11 +43,11 @@
     </div>
   </div>
 
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="card border-0 shadow-sm rounded-3 p-3 bg-success text-white">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <div class="fs-8 text-uppercase opacity-75 fw-semibold">Completed Sessions</div>
+          <div class="fs-8 text-uppercase opacity-75 fw-semibold">Completed</div>
           <div class="fs-3 fw-bold">{{ teleconsults | selectattr('status', 'equalto', 'Completed') | list | length }}</div>
         </div>
         <i class="bi bi-check2-circle fs-1 opacity-50"></i>

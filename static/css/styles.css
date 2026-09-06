@@ -813,13 +813,226 @@ body.tap-to-speak-active button:hover {
   line-height: 1.15;
 }
 
-@media (max-width: 576px) {
-  #ai-assistant-fab {
-    bottom: 80px !important;
-    right: 16px !important;
+/* ==========================================================================
+   SMARTPHONE & MOBILE ADAPTIVE RESPONSIVENESS (< 992px & < 576px)
+   ========================================================================== */
+
+/* ── Mobile Sidebar Drawer (Slides in on menu tap) ── */
+@media (max-width: 991.98px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 290px;
+    max-width: 86vw;
+    height: 100vh;
+    height: 100dvh;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 1060;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 1050;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+  }
+
+  .sidebar-backdrop.show {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  body.sidebar-active {
+    overflow: hidden !important;
   }
 }
 
+/* ── Mobile Bottom App Navigation Bar ── */
+.mobile-bottom-nav {
+  height: 62px;
+  z-index: 1030;
+  padding-bottom: env(safe-area-inset-bottom, 4px);
+  background: #ffffff;
+  border-top: 1px solid var(--border-color);
+}
 
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  text-decoration: none;
+  font-size: 0.68rem;
+  font-weight: 500;
+  min-width: 52px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
 
+.mobile-nav-item i {
+  font-size: 1.25rem;
+  line-height: 1;
+  margin-bottom: 3px;
+}
 
+.mobile-nav-item.active,
+.mobile-nav-item:hover {
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+.mobile-nav-mitra-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0 4px;
+  cursor: pointer;
+  color: var(--primary-dark);
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-top: -18px;
+  text-decoration: none;
+}
+
+.mitra-btn-circle {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7 0%, #0d9488 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
+  margin-bottom: 2px;
+  border: 3px solid #ffffff;
+}
+
+/* ── Smartphone Touch & Layout Polish (< 768px) ── */
+@media (max-width: 767.98px) {
+  /* Prevent content hiding behind mobile bottom nav */
+  .content-area {
+    padding-bottom: 74px !important;
+  }
+
+  .container-fluid {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    padding-top: 12px !important;
+  }
+
+  /* Prevent iOS Safari auto-zoom on input focus */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="date"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Touch targets minimum height */
+  .btn, .btn-sm {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Floating voice assistant bubble above bottom nav */
+  #ai-assistant-fab {
+    bottom: 78px !important;
+    right: 14px !important;
+  }
+
+  /* Role switcher tab on edge: tuck away cleanly */
+  .role-switch-slide-tab {
+    bottom: 80px !important;
+  }
+
+  /* Clean horizontal scrolling for tables */
+  .table-responsive {
+    border: 0;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Compact card padding on phones */
+  .card-header, .card-body, .card-footer {
+    padding: 12px !important;
+  }
+
+  /* Topbar height */
+  .topbar {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+/* ── Ultra-Compact Screen Polish (< 576px) ── */
+@media (max-width: 575.98px) {
+  /* Teleconsult video chamber on smartphones */
+  #videoViewport {
+    height: 48vh !important;
+    min-height: 270px !important;
+    max-height: 360px !important;
+  }
+
+  #localVideoContainer {
+    width: 105px !important;
+    height: 75px !important;
+    bottom: 8px !important;
+    right: 8px !important;
+  }
+
+  /* Controls wrap smoothly */
+  .card-footer {
+    gap: 6px !important;
+  }
+
+  .card-footer .btn {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    font-size: 0.74rem !important;
+  }
+
+  /* Headings fluid scaling */
+  h1, .h1 { font-size: 1.45rem; }
+  h2, .h2 { font-size: 1.3rem; }
+  h3, .h3 { font-size: 1.2rem; }
+  h4, .h4 { font-size: 1.1rem; }
+  h5, .h5 { font-size: 1.0rem; }
+}
+
+/* Ensure both teleconsult columns display side-by-side on desktop */
+@media (min-width: 992px) {
+  #colVideo, #colRx {
+    display: block !important;
+  }
+}

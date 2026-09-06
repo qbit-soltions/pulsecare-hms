@@ -46,6 +46,9 @@
             <div class="brand-subtitle text-primary fw-semibold fs-8 text-uppercase tracking-wider">Public Health Network</div>
           </div>
         </a>
+        <button type="button" class="btn btn-sm btn-outline-secondary d-lg-none" id="sidebarCloseBtn" aria-label="Close navigation menu">
+          <i class="bi bi-x-lg"></i>
+        </button>
       </div>
 
       <!-- Current Facility Badge -->
@@ -277,15 +280,22 @@
       </div>
     </aside>
 
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div id="sidebarBackdrop" class="sidebar-backdrop d-lg-none" tabindex="-1"></div>
+
     <!-- 3. MAIN CONTENT CONTAINER -->
     <main class="content-area flex-grow-1 d-flex flex-column">
       
       <!-- Top Navigation Bar -->
       <header class="topbar bg-white border-bottom py-2 px-3 d-flex align-items-center justify-content-between sticky-top no-print">
         <div class="d-flex align-items-center gap-2">
-          <button class="btn btn-outline-secondary btn-sm d-md-none" id="sidebarToggle">
+          <button class="btn btn-outline-secondary btn-sm d-lg-none" id="sidebarToggle" aria-label="Toggle navigation menu">
             <i class="bi bi-list fs-5"></i>
           </button>
+          <a href="/" class="d-flex align-items-center text-decoration-none gap-1 d-sm-none">
+            <span class="badge bg-primary rounded-2 p-1"><i class="bi bi-hospital text-white"></i></span>
+            <span class="fw-bold text-dark fs-7">PulseCare</span>
+          </a>
           <div class="d-none d-sm-block">
             <h1 class="h6 mb-0 fw-bold text-dark">{% block header_title %}PulseCare Public Health Network{% endblock %}</h1>
             <small class="text-muted fs-8">{% block header_subtitle %}Connecting Primary Health to District Specialists{% endblock %}</small>
@@ -296,7 +306,7 @@
           
           <!-- 🌐 Multilingual Dropdown -->
           <div class="dropdown">
-            <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1 py-1 px-2" type="button" data-bs-toggle="dropdown">
               <i class="bi bi-translate text-primary"></i>
               <span class="d-none d-sm-inline">
                 {% for code, name in available_languages %}
@@ -318,27 +328,28 @@
             </ul>
           </div>
 
-          <!-- 🎙️ PulseCare Mitra Real-Time AI Voice Assistant Trigger -->
-          <button type="button" class="btn btn-sm btn-primary fw-bold d-flex align-items-center gap-1 shadow-sm rounded-pill px-2 px-sm-3" onclick="if(window.PulseCareAIAssistant){ window.PulseCareAIAssistant.openModal(); }" title="Ask PulseCare AI Voice Assistant">
+          <!-- 🎙️ PulseCare Mitra Real-Time AI Voice Assistant Trigger (Desktop) -->
+          <button type="button" class="btn btn-sm btn-primary fw-bold d-none d-md-flex align-items-center gap-1 shadow-sm rounded-pill px-2 px-sm-3" onclick="if(window.PulseCareAIAssistant){ window.PulseCareAIAssistant.openModal(); }" title="Ask PulseCare AI Voice Assistant">
             <i class="bi bi-stars text-warning"></i>
             <i class="bi bi-robot"></i>
-            <span class="d-none d-sm-inline">Ask AI</span>
+            <span>Ask AI</span>
           </button>
 
           <!-- 🚨 Emergency 108 Trigger Modal Button -->
-          <button type="button" class="btn btn-sm btn-danger fw-bold d-flex align-items-center gap-1 pulse-animation" data-bs-toggle="modal" data-bs-target="#emergencyModal">
+          <button type="button" class="btn btn-sm btn-danger fw-bold d-flex align-items-center gap-1 pulse-animation px-2 px-sm-3" data-bs-toggle="modal" data-bs-target="#emergencyModal" title="108 Emergency Ambulance Dispatch">
             <i class="bi bi-telephone-outbound-fill"></i>
-            <span class="d-none d-md-inline">108 Emergency</span>
+            <span class="d-none d-sm-inline">108 Emergency</span>
+            <span class="d-sm-none fs-9">108</span>
           </button>
 
           <!-- Low Connectivity Offline Indicator -->
-          <div class="badge bg-success-subtle text-success border border-success-subtle d-flex align-items-center gap-1 py-1 px-2 fs-8" id="onlineStatusBadge">
+          <div class="badge bg-success-subtle text-success border border-success-subtle d-none d-md-flex align-items-center gap-1 py-1 px-2 fs-8" id="onlineStatusBadge">
             <span class="status-dot bg-success rounded-circle d-inline-block" style="width: 8px; height: 8px;"></span>
-            <span class="d-none d-lg-inline">Network Online</span>
+            <span class="d-none d-lg-inline">Online</span>
           </div>
 
           <!-- OPD TV Board Link -->
-          <a href="{{ url_for('appointments_queue') }}" target="_blank" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" title="Live Waiting Room TV Display">
+          <a href="{{ url_for('appointments_queue') }}" target="_blank" class="btn btn-sm btn-outline-primary d-none d-md-flex align-items-center gap-1" title="Live Waiting Room TV Display">
             <i class="bi bi-tv"></i>
             <span class="d-none d-lg-inline">OPD TV</span>
           </a>
@@ -418,7 +429,7 @@
 
   <!-- EMERGENCY 108 ESCALATION MODAL -->
   <div class="modal fade" id="emergencyModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content border-danger">
         <form method="POST" action="{{ url_for('emergency_escalate') }}">
           <div class="modal-header bg-danger text-white">
@@ -528,7 +539,46 @@
       </div>
     </div>
   </div>
-  {% endif %}
+  <!-- ═══════════════════════════════════════════════════════════
+       4. MOBILE BOTTOM APP BAR (Smartphones & Handhelds < 768px)
+  ═══════════════════════════════════════════════════════════ -->
+  <nav class="mobile-bottom-nav d-flex d-md-none justify-content-around align-items-center fixed-bottom bg-white border-top shadow-lg py-1 px-2 no-print" id="mobileBottomNav">
+    <a href="{{ url_for('dashboard') }}" class="mobile-nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+      <i class="bi bi-house-door{% if request.endpoint == 'dashboard' %}-fill{% endif %}"></i>
+      <span>Home</span>
+    </a>
+    <a href="{{ url_for('teleconsult_index') }}" class="mobile-nav-item position-relative {% if 'teleconsult' in request.path %}active{% endif %}">
+      <i class="bi bi-camera-video{% if 'teleconsult' in request.path %}-fill{% endif %}"></i>
+      <span>Teleconsult</span>
+      {% if active_teleconsult_count > 0 %}
+      <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-danger" style="font-size: 0.55rem; padding: 2px 4px;">
+        {{ active_teleconsult_count }}
+      </span>
+      {% endif %}
+    </a>
+    <!-- Center PulseCare Mitra AI Voice Assistant Button -->
+    <button type="button" class="mobile-nav-mitra-btn" onclick="if(window.PulseCareAIAssistant){ window.PulseCareAIAssistant.openModal(); }" title="PulseCare Mitra AI Voice Assistant">
+      <div class="mitra-btn-circle pulse-animation">
+        <i class="bi bi-robot"></i>
+      </div>
+      <span>Mitra AI</span>
+    </button>
+    <a href="{{ url_for('appointments_index') }}" class="mobile-nav-item {% if 'appointments' in request.path %}active{% endif %}">
+      <i class="bi bi-calendar2-check{% if 'appointments' in request.path %}-fill{% endif %}"></i>
+      <span>Appts</span>
+    </a>
+    {% if current_user and current_user.role == 'patient' %}
+    <a href="{{ url_for('laboratory_index') }}" class="mobile-nav-item {% if 'laboratory' in request.path %}active{% endif %}">
+      <i class="bi bi-file-earmark-medical{% if 'laboratory' in request.path %}-fill{% endif %}"></i>
+      <span>Reports</span>
+    </a>
+    {% else %}
+    <a href="{{ url_for('patients_index') }}" class="mobile-nav-item {% if 'patients' in request.path %}active{% endif %}">
+      <i class="bi bi-people{% if 'patients' in request.path %}-fill{% endif %}"></i>
+      <span>Patients</span>
+    </a>
+    {% endif %}
+  </nav>
 
   <!-- Hidden Google Translate Element Container -->
   <div id="google_translate_element" style="display:none;"></div>

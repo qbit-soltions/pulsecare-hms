@@ -198,31 +198,69 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   }
+
   // -------------------------------------------------------------------
-  // 5. Teleconsultation Room & Call Timer
+  // 5. Mobile Sidebar Drawer & Backdrop Toggle
   // -------------------------------------------------------------------
-  const timerElem = document.getElementById("callTimer");
-  if (timerElem) {
-    let seconds = 522;
-    setInterval(function () {
-      seconds++;
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      timerElem.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }, 1000);
+  const sidebar = document.getElementById("sidebar");
+  const sidebarToggle = document.getElementById("sidebarToggle");
+  const sidebarCloseBtn = document.getElementById("sidebarCloseBtn");
+  const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+
+  function openSidebar() {
+    if (sidebar) sidebar.classList.add("sidebar-open");
+    if (sidebarBackdrop) sidebarBackdrop.classList.add("show");
+    document.body.classList.add("sidebar-active");
   }
 
-  const addRxBtn = document.getElementById("addRxItemBtn");
-  const rxContainer = document.getElementById("rxItemsContainer");
-  if (addRxBtn && rxContainer) {
-    addRxBtn.addEventListener("click", function () {
-      const sampleRow = rxContainer.querySelector(".rx-item-row");
-      if (sampleRow) {
-        const newRow = sampleRow.cloneNode(true);
-        newRow.querySelectorAll("input").forEach(i => i.value = "");
-        rxContainer.appendChild(newRow);
+  function closeSidebar() {
+    if (sidebar) sidebar.classList.remove("sidebar-open");
+    if (sidebarBackdrop) sidebarBackdrop.classList.remove("show");
+    document.body.classList.remove("sidebar-active");
+  }
+
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (sidebar && sidebar.classList.contains("sidebar-open")) {
+        closeSidebar();
+      } else {
+        openSidebar();
       }
     });
   }
+
+  if (sidebarCloseBtn) {
+    sidebarCloseBtn.addEventListener("click", closeSidebar);
+  }
+
+  if (sidebarBackdrop) {
+    sidebarBackdrop.addEventListener("click", closeSidebar);
+  }
+
+  // Close sidebar when clicking any navigation link on mobile
+  if (sidebar) {
+    sidebar.querySelectorAll(".nav-link").forEach(function (link) {
+      link.addEventListener("click", function () {
+        if (window.innerWidth < 992) {
+          closeSidebar();
+        }
+      });
+    });
+  }
+
+  // Close sidebar on Escape key
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && sidebar && sidebar.classList.contains("sidebar-open")) {
+      closeSidebar();
+    }
+  });
+
+  // Auto-close mobile drawer on window resize to desktop
+  window.addEventListener("resize", function () {
+    if (window.innerWidth >= 992 && sidebar && sidebar.classList.contains("sidebar-open")) {
+      closeSidebar();
+    }
+  });
 });
 
