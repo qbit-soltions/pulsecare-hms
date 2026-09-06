@@ -1748,6 +1748,137 @@ def teleconsult_create():
     flash(f"Assisted Teleconsultation request {session_uid} dispatched to District Specialists!", "success")
     return redirect(url_for("teleconsult_session", session_id=tele_id))
 
+# -----------------------------------------------------------------------------
+# WebRTC Signaling & Teleconsultation Room Management
+# -----------------------------------------------------------------------------
+_TELE_ROOMS = {}
+
+def _get_tele_room(session_id):
+    now = _time.time()
+    # Expire stale rooms older than 24 hours
+    for sid in list(_TELE_ROOMS.keys()):
+        if now - _TELE_ROOMS[sid].get("created_at", now) > 86400:
+            _TELE_ROOMS.pop(sid, None)
+    if session_id not in _TELE_ROOMS:
+        _TELE_ROOMS[session_id] = {
+            "peers": {},
+            "offer": None,
+            "answer": None,
+            "offer_from": None,
+            "answer_from": None,
+            "candidates_for_doctor": [],
+            "candidates_for_patient": [],
+            "ended": False,
+            "created_at": now
+        }
+    return _TELE_ROOMS[session_id]
+
+
+@app.route("/api/teleconsult/<int:session_id>/signal", methods=["GET", "POST"])
+@login_required
+def api_teleconsult_signal(session_id):
+    """
+    Direct WebRTC Signaling Exchange for PulseCare Teleconsultation Chambers.
+    Allows peer discovery, SDP offer/answer exchange, and ICE candidate distribution.
+    """
+    room = _get_tele_room(session_id)
+    user_role = session.get("user_role", "guest")
+    is_doctor = user_role in ["doctor", "specialist", "medical_officer"]
+    peer_side = "doctor" if is_doctor else "patient"
+    other_side = "patient" if is_doctor else "doctor"
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        sig_type = data.get("type")
+
+        if sig_type == "join":
+            room["peers"][peer_side] = {
+                "name": session.get("full_name") or ("Doctor" if is_doctor else "Patient / ASHA"),
+                "role": user_role,
+                "last_seen": _time.time()
+            }
+            if data.get("restart"):
+                room["ended"] = False
+                room["offer"] = None
+                room["answer"] = None
+                room["offer_from"] = None
+                room["answer_from"] = None
+                room[f"candidates_for_{peer_side}"] = []
+                room[f"candidates_for_{other_side}"] = []
+        elif sig_type == "offer":
+            room["offer"] = data.get("sdp")
+            room["offer_from"] = peer_side
+        elif sig_type == "answer":
+            room["answer"] = data.get("sdp")
+            room["answer_from"] = peer_side
+        elif sig_type == "candidate":
+            cand = data.get("candidate")
+            if cand:
+                room[f"candidates_for_{other_side}"].append(cand)
+        elif sig_type in ["leave", "end"]:
+            room["ended"] = True
+            room["peers"].pop(peer_side, None)
+
+    # Update heartbeat
+    if peer_side in room["peers"]:
+        room["peers"][peer_side]["last_seen"] = _time.time()
+
+    # Retrieve candidates meant for this peer and clear them
+    my_cand_key = f"candidates_for_{peer_side}"
+    my_candidates = list(room.get(my_cand_key, []))
+    room[my_cand_key] = []
+
+    return jsonify({
+        "success": True,
+        "peer_side": peer_side,
+        "other_side": other_side,
+        "peers": room["peers"],
+        "offer": room["offer"],
+        "offer_from": room.get("offer_from"),
+        "answer": room["answer"],
+        "answer_from": room.get("answer_from"),
+        "candidates": my_candidates,
+        "ended": room.get("ended", False)
+    })
+
+
+@app.route("/teleconsult/session/<int:session_id>/end", methods=["POST"])
+@login_required
+def teleconsult_end_call(session_id):
+    """
+    Explicitly ends the teleconsultation call, records completion in DB,
+    notifies connected peers via signaling, and updates audit trail.
+    """
+    room = _get_tele_room(session_id)
+    room["ended"] = True
+
+    execute_db(
+        """UPDATE teleconsultations 
+           SET status = 'Completed', completed_at = datetime('now')
+           WHERE id = ?""",
+        (session_id,)
+    )
+
+    log_audit(
+        session.get("user_id"),
+        "End Teleconsult Call",
+        "Teleconsultation",
+        f"Teleconsult #{session_id} marked Completed by {session.get('full_name')} ({session.get('user_role')})",
+        request.remote_addr
+    )
+
+    if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({
+            "success": True,
+            "status": "Completed",
+            "message": "Call concluded successfully.",
+            "redirect_url": url_for("teleconsult_index")
+        })
+
+    flash("Teleconsultation call ended. Status updated to Completed.", "info")
+    return redirect(url_for("teleconsult_session", session_id=session_id))
+
+
 @app.route("/teleconsult/session/<int:session_id>")
 @login_required
 def teleconsult_session(session_id):
@@ -1759,11 +1890,11 @@ def teleconsult_session(session_id):
                   f_from.name as from_facility_name, f_from.tier_type as from_facility_tier,
                   f_to.name as to_facility_name
            FROM teleconsultations t
-           JOIN patients p ON t.patient_id = p.id
-           JOIN users u_init ON t.initiator_user_id = u_init.id
+           LEFT JOIN patients p ON t.patient_id = p.id
+           LEFT JOIN users u_init ON t.initiator_user_id = u_init.id
            LEFT JOIN users u_spec ON t.specialist_id = u_spec.id
-           JOIN facilities f_from ON t.from_facility_id = f_from.id
-           JOIN facilities f_to ON t.target_facility_id = f_to.id
+           LEFT JOIN facilities f_from ON t.from_facility_id = f_from.id
+           LEFT JOIN facilities f_to ON t.target_facility_id = f_to.id
            WHERE t.id = ?""",
         (session_id,),
         one=True

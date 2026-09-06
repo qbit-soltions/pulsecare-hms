@@ -1,28 +1,23 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Teleconsultation Chamber - {{ tele.session_uid }}{% endblock %}
 {% block header_title %}Teleconsultation Room ({{ tele.session_uid }}){% endblock %}
-{% block header_subtitle %}Live Clinical Linkage: {{ tele.from_facility_name }} ⇄ {{ tele.to_facility_name }}{% endblock %}
-
-{# ── Jitsi IFrame API must load before our inline JS ── #}
-{% block extra_head %}
-<script src="https://meet.jit.si/external_api.js"></script>
-{% endblock %}
+{% block header_subtitle %}Live Clinical Linkage: {{ tele.from_facility_name or 'Peripheral Centre' }} ⇄ {{ tele.to_facility_name or 'District Hospital' }}{% endblock %}
 
 {% block content %}
 <div class="row g-3">
 
   <!-- ═══════════════════════════════════════════════════════════
-       LEFT COLUMN: JITSI LIVE VIDEO CALL + VITALS TELEMETRY
+       LEFT COLUMN: REAL-TIME WebRTC VIDEO CHAMBER & VITALS
   ═══════════════════════════════════════════════════════════ -->
   <div class="col-lg-7">
 
-    <!-- ── Call Header Card ── -->
+    <!-- ── Main Video Chamber Card ── -->
     <div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-3 bg-dark text-white">
       <div class="card-header bg-black bg-opacity-75 py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div class="d-flex align-items-center gap-2">
-          <span id="callStatusDot" class="status-dot bg-success rounded-circle d-inline-block pulse-animation" style="width:10px;height:10px;"></span>
-          <span class="fw-bold fs-7">ENCRYPTED TELEHEALTH LINK (Jitsi WebRTC • E2E Encrypted)</span>
+          <span id="callStatusDot" class="status-dot bg-warning rounded-circle d-inline-block pulse-animation" style="width:10px;height:10px;"></span>
+          <span class="fw-bold fs-7" id="linkageTitle">DIRECT WebRTC CLINICAL LINK (P2P Encrypted)</span>
         </div>
         <div class="d-flex align-items-center gap-2">
           <span class="badge bg-{{ 'danger' if tele.triage_level == 'Emergency' else 'warning text-dark' if tele.triage_level == 'High-Risk' else 'secondary' }}">
@@ -35,62 +30,125 @@
         </div>
       </div>
 
-      <!-- ── Wrapper holds both lobby overlay and Jitsi iframe ── -->
-      <div class="position-relative" style="height:440px;">
+      <!-- ── Viewport: Holds Remote Video, Waiting Overlay, Local PiP, and End Screen ── -->
+      <div class="position-relative bg-black overflow-hidden" style="height: 440px;">
 
-        <!-- Jitsi mount point (iframe renders here) -->
-        <div id="jitsi-meet-container" style="height:100%;width:100%;background:#0f172a;"></div>
+        <!-- 1. Remote Video Element (Main Screen) -->
+        <video id="remoteVideo" autoplay playsinline class="w-100 h-100" style="object-fit: cover; background: #0b0f19; display: none;"></video>
 
-        <!-- Pre-join Lobby Overlay (removed once Jitsi connects) -->
-        <div id="jitsi-lobby"
+        <!-- 2. Waiting / Standby Overlay (Visible when waiting for peer) -->
+        <div id="remoteWaitingOverlay"
              class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center text-center p-4"
-             style="background:radial-gradient(circle at center,#1e293b 0%,#0f172a 100%);z-index:10;">
-          <div class="mb-4">
-            <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;"></div>
-            <h5 class="text-white fw-bold mb-1">Connecting to Secure Room…</h5>
-            <p class="text-white-50 fs-8 mb-0">PulseCare-Tele-<strong class="text-info">{{ tele.session_uid }}</strong></p>
-            <p class="text-white-50 fs-9 mt-1">Your browser will ask for camera &amp; microphone permission.</p>
+             style="background: radial-gradient(circle at center, #1e293b 0%, #070b14 100%); z-index: 10;">
+          
+          <div class="position-relative mb-3">
+            <div class="spinner-grow text-primary" role="status" style="width: 4rem; height: 4rem; opacity: 0.25;"></div>
+            <div class="position-absolute top-50 start-50 translate-middle">
+              <div class="rounded-circle bg-primary bg-opacity-25 p-3 border border-primary border-opacity-50">
+                <i class="bi bi-person-video3 text-primary fs-3"></i>
+              </div>
+            </div>
           </div>
-          <div class="d-flex gap-3">
-            <div class="text-center">
-              <div class="rounded-circle bg-primary bg-opacity-25 p-3 mb-1 mx-auto" style="width:54px;height:54px;">
-                <i class="bi bi-shield-lock-fill text-primary fs-5"></i>
-              </div>
-              <div class="text-white-50 fs-9">End-to-End<br>Encrypted</div>
-            </div>
-            <div class="text-center">
-              <div class="rounded-circle bg-success bg-opacity-25 p-3 mb-1 mx-auto" style="width:54px;height:54px;">
-                <i class="bi bi-wifi text-success fs-5"></i>
-              </div>
-              <div class="text-white-50 fs-9">Adaptive<br>Bitrate</div>
-            </div>
-            <div class="text-center">
-              <div class="rounded-circle bg-warning bg-opacity-25 p-3 mb-1 mx-auto" style="width:54px;height:54px;">
-                <i class="bi bi-camera-video-fill text-warning fs-5"></i>
-              </div>
-              <div class="text-white-50 fs-9">HD Video<br>+ Audio</div>
-            </div>
+
+          <h5 class="text-white fw-bold mb-1" id="waitingHeading">Waiting for Remote Participant…</h5>
+          <p class="text-white-50 fs-8 mb-2" id="waitingSub">
+            {% if session.get('user_role') == 'doctor' %}
+              Connecting to peripheral facility: <strong class="text-info">{{ tele.from_facility_name }}</strong> (Patient: {{ tele.first_name }} {{ tele.last_name }})
+            {% else %}
+              Waiting for District Specialist <strong class="text-info">{{ tele.specialist_name or 'On-Call' }}</strong> to join the room.
+            {% endif %}
+          </p>
+
+          <div class="d-flex flex-wrap gap-2 justify-content-center align-items-center mb-3">
+            <span class="badge bg-secondary bg-opacity-50 border border-secondary text-light fs-9">
+              <i class="bi bi-fingerprint me-1 text-info"></i>Room: {{ tele.session_uid }}
+            </span>
+            <span class="badge bg-success bg-opacity-25 border border-success text-success fs-9">
+              <i class="bi bi-shield-check me-1"></i>Direct P2P Encrypted
+            </span>
+            <span id="peerCountBadge" class="badge bg-info bg-opacity-25 border border-info text-info fs-9">
+              <i class="bi bi-people me-1"></i>In Room: <span id="peerCount">1</span>
+            </span>
+          </div>
+
+          <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 fs-8" onclick="window.pcTele.copyRoomLink()">
+            <i class="bi bi-clipboard-check me-1"></i>Copy Invite Link for Specialist / Patient
+          </button>
+        </div>
+
+        <!-- 3. Local Self-View (Picture-in-Picture) -->
+        <div id="localVideoContainer"
+             class="position-absolute bottom-0 end-0 m-3 rounded-3 overflow-hidden shadow-lg border border-2 border-primary bg-black"
+             style="width: 170px; height: 120px; z-index: 20;">
+          <video id="localVideo" autoplay playsinline muted class="w-100 h-100" style="object-fit: cover; transform: scaleX(-1);"></video>
+          
+          <!-- Local user tag -->
+          <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 px-1 py-0 text-center text-white" style="font-size: 0.65rem;">
+            <i class="bi bi-person-fill text-primary me-1"></i>{{ session.get('full_name', 'You') }} ({{ session.get('user_role', 'user')|upper }})
+          </div>
+
+          <!-- Muted badge -->
+          <div id="localMuteBadge" class="position-absolute top-0 end-0 m-1 badge bg-danger p-1" style="display: none; font-size: 0.6rem;">
+            <i class="bi bi-mic-mute-fill"></i>
+          </div>
+
+          <!-- Cam off placeholder -->
+          <div id="localCamOffOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center bg-dark text-white-50">
+            <i class="bi bi-camera-video-off fs-4 mb-1"></i>
+            <span style="font-size: 0.65rem;">Camera Off</span>
+          </div>
+        </div>
+
+        <!-- 4. Call Concluded Overlay (Shown when Call is ended) -->
+        <div id="callEndedOverlay"
+             class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center text-center p-4"
+             style="background: rgba(11, 15, 25, 0.96); z-index: 30;">
+          <div class="rounded-circle bg-success bg-opacity-25 p-3 mb-3 border border-success border-opacity-50">
+            <i class="bi bi-check2-circle text-success fs-1"></i>
+          </div>
+          <h4 class="text-white fw-bold mb-1">Teleconsultation Completed</h4>
+          <p class="text-white-50 fs-8 mb-2">Session <strong class="text-info">{{ tele.session_uid }}</strong> has been officially closed and recorded in the clinical registry.</p>
+          <div class="badge bg-dark border border-secondary text-light py-2 px-3 fs-7 mb-4">
+            <i class="bi bi-clock-history text-warning me-1"></i> Total Call Time: <strong id="finalCallDuration">00:00</strong>
+          </div>
+          <div class="d-flex flex-wrap gap-2 justify-content-center">
+            <a href="#rxSection" class="btn btn-sm btn-primary fw-bold px-3">
+              <i class="bi bi-prescription2 me-1"></i>Complete &amp; Submit Prescription
+            </a>
+            <a href="{{ url_for('teleconsult_index') }}" class="btn btn-sm btn-outline-light px-3">
+              <i class="bi bi-arrow-left me-1"></i>Return to Registry
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-secondary px-2" onclick="window.pcTele.reconnectCall()">
+              <i class="bi bi-arrow-clockwise me-1"></i>Re-open Room
+            </button>
           </div>
         </div>
 
       </div><!-- /position-relative -->
 
-      <!-- ── Footer Controls ── -->
+      <!-- ── Hardware Controls & Actions Bar ── -->
       <div class="card-footer bg-black py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div class="d-flex align-items-center gap-2">
-          <span class="text-white-50 fs-9">Room:</span>
-          <code class="text-info fs-9">PulseCare-Tele-{{ tele.session_uid }}</code>
-          <button class="btn btn-xs btn-outline-secondary py-0 px-1 fs-9" onclick="window.pcTele.copyRoomLink()" title="Copy invite link">
-            <i class="bi bi-clipboard me-1"></i>Copy Link
+        <!-- Media Controls -->
+        <div class="d-flex gap-2 align-items-center">
+          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3" id="btnToggleMic" onclick="window.pcTele.toggleMic()" title="Toggle Microphone">
+            <i class="bi bi-mic-fill me-1" id="micIcon"></i><span id="micText">Mute</span>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3" id="btnToggleCam" onclick="window.pcTele.toggleCam()" title="Toggle Camera">
+            <i class="bi bi-camera-video-fill me-1" id="camIcon"></i><span id="camText">Camera</span>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 d-none d-sm-inline-flex" id="btnShareScreen" onclick="window.pcTele.toggleScreenShare()" title="Share Screen / ECG">
+            <i class="bi bi-display me-1"></i>Share Screen
           </button>
         </div>
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-sm btn-outline-light fw-bold" onclick="window.pcTele.endCall()">
-            <i class="bi bi-telephone-x-fill me-1 text-danger"></i>End Call
+
+        <!-- Call Termination & Emergency -->
+        <div class="d-flex gap-2 align-items-center">
+          <button type="button" class="btn btn-sm btn-danger fw-bold rounded-pill px-3" id="btnEndCall" onclick="window.pcTele.endCall()" title="End this teleconsultation">
+            <i class="bi bi-telephone-x-fill me-1"></i>End Call
           </button>
-          <a href="tel:108" class="btn btn-sm btn-danger fw-bold">
+          <button type="button" class="btn btn-sm btn-outline-danger fw-bold rounded-pill px-2" data-bs-toggle="modal" data-bs-target="#emergencyModal">
             <i class="bi bi-telephone-outbound-fill me-1"></i>108 Emergency
-          </a>
+          </button>
         </div>
       </div>
     </div><!-- /card bg-dark -->
@@ -107,7 +165,7 @@
             data-speak="Live Point of Care Vitals for patient {{ tele.first_name }} {{ tele.last_name }}. Blood Pressure {{ vitals.bp if vitals and vitals.bp else '162 by 105' }}, Pulse {{ vitals.pulse if vitals and vitals.pulse else '98' }} beats per minute, SpO2 {{ vitals.spo2 if vitals and vitals.spo2 else '97' }} percent, Temperature {{ vitals.temp if vitals and vitals.temp else '37' }} degrees Celsius.">
             <i class="bi bi-volume-up-fill me-1"></i>Listen Vitals
           </button>
-          <span class="badge bg-light text-dark border">Transmitted from {{ tele.from_facility_tier }}</span>
+          <span class="badge bg-light text-dark border">Transmitted from {{ tele.from_facility_tier or 'Facility' }}</span>
         </div>
       </div>
       <div class="card-body p-3">
@@ -191,15 +249,15 @@
         <div class="fw-bold text-dark mb-1">
           <i class="bi bi-share-fill text-info me-2"></i>Share This Teleconsult Room
         </div>
-        <p class="text-muted mb-2 fs-9">Send this URL to the specialist or patient — they join the same encrypted call with no login required:</p>
+        <p class="text-muted mb-2 fs-9">Send this URL to the specialist or patient — they join the same encrypted call directly in browser:</p>
         <div class="input-group input-group-sm">
           <input type="text" class="form-control bg-light" id="shareLink" readonly value="{{ request.url }}">
           <button class="btn btn-outline-primary" onclick="window.pcTele.copyShareLink()">
-            <i class="bi bi-clipboard"></i>
+            <i class="bi bi-clipboard me-1"></i>Copy
           </button>
         </div>
         <div class="text-muted fs-9 mt-1">
-          <i class="bi bi-lock-fill text-success me-1"></i>End-to-end encrypted via Jitsi WebRTC. No account or app required.
+          <i class="bi bi-lock-fill text-success me-1"></i>Native peer-to-peer encrypted stream. No external accounts or downloads needed.
         </div>
       </div>
     </div>
@@ -210,7 +268,7 @@
   <!-- ═══════════════════════════════════════════════════════════
        RIGHT COLUMN: PATIENT SUMMARY + E-PRESCRIPTION FORM
   ═══════════════════════════════════════════════════════════ -->
-  <div class="col-lg-5">
+  <div class="col-lg-5" id="rxSection">
 
     <!-- ── Patient Summary Card ── -->
     <div class="card border-0 shadow-sm rounded-3 mb-3">
@@ -224,7 +282,7 @@
           <div>
             <h6 class="fw-bold text-dark mb-0">{{ tele.first_name }} {{ tele.last_name }}</h6>
             <div class="text-muted fs-8">
-              <i class="bi bi-geo-alt me-1"></i>{{ tele.village }} &bull; {{ tele.gender }}, {{ tele.dob }}
+              <i class="bi bi-geo-alt me-1"></i>{{ tele.village or 'Rural Centre' }} &bull; {{ tele.gender }}, {{ tele.dob }}
             </div>
           </div>
           <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">
@@ -268,7 +326,7 @@
         </h6>
       </div>
       <div class="card-body p-3 fs-7">
-        <form method="POST" action="{{ url_for('teleconsult_update', session_id=tele.id) }}">
+        <form method="POST" action="{{ url_for('teleconsult_update', session_id=tele.id) }}" id="teleRxForm">
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Specialist Clinical Advice &amp; Directions <span class="text-danger">*</span></label>
@@ -317,7 +375,7 @@
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Update Teleconsult Status</label>
-            <select name="status" class="form-select form-select-sm">
+            <select name="status" class="form-select form-select-sm" id="selectCallStatus">
               <option value="Completed" {% if tele.status == 'Completed' %}selected{% endif %}>Completed &amp; Transmit E-Prescription</option>
               <option value="In-Call"   {% if tele.status == 'In-Call'   %}selected{% endif %}>Keep In-Call</option>
               <option value="Escalated" {% if tele.status == 'Escalated' %}selected{% endif %}>Escalated to District Hospital</option>
@@ -344,209 +402,550 @@
 
 
 {# ══════════════════════════════════════════════════════════════
-   JITSI MEET INTEGRATION  ─  initialised after all scripts load
+   PULSECARE NATIVE WebRTC ENGINE (100% P2P & RESILIENT)
 ══════════════════════════════════════════════════════════════ #}
 {% block page_scripts %}
 <script>
 (function () {
   "use strict";
 
-  /* ── Session metadata injected by Flask ─────────────────── */
-  var JITSI_DOMAIN = "meet.jit.si";
-  var ROOM_NAME    = "PulseCare-Tele-{{ tele.session_uid }}";
-  var DISPLAY_NAME = {{ session.get('full_name', 'Clinical Participant') | tojson }};
-  var USER_EMAIL   = {{ session.get('email', '') | tojson }};
+  const SESSION_ID  = {{ tele.id }};
+  const SESSION_UID = "{{ tele.session_uid }}";
+  const USER_ROLE   = "{{ session.get('user_role', 'guest') }}";
+  const USER_NAME   = {{ session.get('full_name', 'User') | tojson }};
+  const IS_DOCTOR   = ["doctor", "specialist", "medical_officer"].includes(USER_ROLE);
 
-  var jitsiApi      = null;
-  var callSeconds   = 0;
-  var timerInterval = null;
+  // WebRTC Configuration using Google's public STUN servers
+  const RTC_CONFIG = {
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" }
+    ]
+  };
 
-  /* ── Boot ───────────────────────────────────────────────── */
+  let localStream     = null;
+  let peerConnection  = null;
+  let pollInterval    = null;
+  let timerInterval   = null;
+  let callSeconds     = 0;
+  let isMuted         = false;
+  let isCamOff        = false;
+  let isSharingScreen = false;
+  let callActive      = false;
+  let hasMadeOffer    = false;
+  let iceQueue        = [];
+
   document.addEventListener("DOMContentLoaded", function () {
-    initJitsi();
+    initLocalMedia();
     initRxBuilder();
+    startSignaling();
   });
 
-  /* ── Initialise Jitsi Meet IFrame API ───────────────────── */
-  function initJitsi() {
-    var container = document.getElementById("jitsi-meet-container");
-    if (!container) return;
+  /* ─────────────────────────────────────────────────────────────
+     1. Local Media Stream Initialization with Safe Fallback
+  ───────────────────────────────────────────────────────────── */
+  async function initLocalMedia() {
+    try {
+      // 1. Try real video + audio
+      localStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: { echoCancellation: true, noiseSuppression: true }
+      });
+      attachLocalStream(localStream);
+    } catch (errVideo) {
+      console.warn("[Media] Video camera unavailable, trying audio-only...", errVideo);
+      try {
+        // 2. Try audio only
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const canvasStream = createVirtualCanvasStream("Diagnostic Audio Mode");
+        canvasStream.getVideoTracks().forEach(t => localStream.addTrack(t));
+        attachLocalStream(localStream);
+        showToast("<i class='bi bi-mic me-1'></i>Joined in Audio-Only Diagnostic Mode (Camera unavailable).", "info");
+      } catch (errAudio) {
+        console.warn("[Media] Audio hardware unavailable, generating clinical test stream...", errAudio);
+        // 3. Fallback to synthetic virtual stream so nothing ever crashes
+        localStream = createVirtualCanvasStream("Virtual Clinical Feed");
+        attachLocalStream(localStream);
+        showToast("<i class='bi bi-info-circle me-1'></i>Virtual Telehealth Preview Active (No webcam detected).", "info");
+      }
+    }
+  }
 
-    if (typeof JitsiMeetExternalAPI === "undefined") {
-      showLobbyError("Could not load the video-call library. Please refresh the page.");
-      return;
+  function attachLocalStream(stream) {
+    const vid = document.getElementById("localVideo");
+    if (vid) {
+      vid.srcObject = stream;
+      vid.play().catch(e => console.log("[Video play note]", e));
+    }
+  }
+
+  // Generates an interactive medical canvas stream when physical webcam is missing
+  function createVirtualCanvasStream(label) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 640;
+    canvas.height = 360;
+    const ctx = canvas.getContext("2d");
+    let step = 0;
+
+    function renderCanvas() {
+      step = (step + 1) % 360;
+      ctx.fillStyle = "#070b14";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // PulseCare grid lines
+      ctx.strokeStyle = "rgba(14, 165, 233, 0.15)";
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 40) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+
+      // ECG wave line
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let x = 0; x < canvas.width; x += 4) {
+        const offset = (x + step * 4) % canvas.width;
+        let y = 180;
+        if (offset > 240 && offset < 260) y = 180 - 60;
+        else if (offset >= 260 && offset < 280) y = 180 + 40;
+        else if (offset >= 280 && offset < 310) y = 180 - 20;
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Clinical Text Header
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 16px sans-serif";
+      ctx.fillText(USER_NAME + " (" + USER_ROLE.toUpperCase() + ")", 20, 35);
+
+      ctx.fillStyle = "#38bdf8";
+      ctx.font = "12px sans-serif";
+      ctx.fillText("PulseCare Telehealth • " + label, 20, 58);
+      ctx.fillText("Session: " + SESSION_UID, 20, 76);
+
+      requestAnimationFrame(renderCanvas);
+    }
+    renderCanvas();
+
+    const stream = canvas.captureStream(15);
+    // Add silent audio track
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const dst = audioCtx.createMediaStreamDestination();
+      const gain = audioCtx.createGain();
+      gain.gain.value = 0; // completely silent
+      osc.connect(gain);
+      gain.connect(dst);
+      osc.start();
+      dst.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+    } catch (e) {
+      console.log("[Synthetic audio note]", e);
+    }
+    return stream;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     2. WebRTC Peer Connection & Direct Signaling
+  ───────────────────────────────────────────────────────────── */
+  function getOrCreatePeerConnection() {
+    if (peerConnection) return peerConnection;
+
+    peerConnection = new RTCPeerConnection(RTC_CONFIG);
+
+    // Add local tracks
+    if (localStream) {
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
     }
 
-    var options = {
-      roomName   : ROOM_NAME,
-      width      : "100%",
-      height     : "100%",
-      parentNode : container,
-      userInfo   : { displayName: DISPLAY_NAME, email: USER_EMAIL },
-
-      configOverwrite: {
-        prejoinPageEnabled  : false,   /* skip lobby for clinical speed */
-        startWithAudioMuted : false,
-        startWithVideoMuted : false,
-        p2p                 : { enabled: true },
-        disableDeepLinking  : true,
-        subject             : "PulseCare Teleconsult — {{ tele.session_uid }}",
-        resolution          : 720,
-        toolbarButtons: [
-          "microphone", "camera", "desktop", "fullscreen",
-          "fodeviceselection", "hangup", "chat", "settings",
-          "raisehand", "tileview"
-        ]
-      },
-
-      interfaceConfigOverwrite: {
-        SHOW_JITSI_WATERMARK        : false,
-        SHOW_WATERMARK_FOR_GUESTS   : false,
-        SHOW_POWERED_BY             : false,
-        HIDE_INVITE_MORE_HEADER     : true,
-        DEFAULT_REMOTE_DISPLAY_NAME : "Clinical Participant",
-        APP_NAME                    : "PulseCare Telehealth",
-        LANG_DETECTION              : false
+    // ICE Candidate Generation
+    peerConnection.onicecandidate = function (evt) {
+      if (evt.candidate) {
+        sendSignal({ type: "candidate", candidate: evt.candidate });
       }
     };
 
+    // Remote Track Received
+    peerConnection.ontrack = function (evt) {
+      console.log("[WebRTC] Remote track received:", evt.track.kind);
+      const remoteVid = document.getElementById("remoteVideo");
+      const overlay   = document.getElementById("remoteWaitingOverlay");
+      if (remoteVid && evt.streams && evt.streams[0]) {
+        remoteVid.srcObject = evt.streams[0];
+        remoteVid.style.display = "block";
+        if (overlay) overlay.style.display = "none";
+      }
+      onCallConnected();
+    };
+
+    peerConnection.onconnectionstatechange = function () {
+      console.log("[WebRTC] Connection state:", peerConnection.connectionState);
+      if (peerConnection.connectionState === "connected") {
+        onCallConnected();
+      } else if (peerConnection.connectionState === "disconnected" || peerConnection.connectionState === "failed") {
+        document.getElementById("callStatusDot").className = "status-dot bg-danger rounded-circle d-inline-block";
+        document.getElementById("linkageTitle").textContent = "RECONNECTING CLINICAL LINK…";
+      }
+    };
+
+    return peerConnection;
+  }
+
+  function onCallConnected() {
+    callActive = true;
+    document.getElementById("callStatusDot").className = "status-dot bg-success rounded-circle d-inline-block pulse-animation";
+    document.getElementById("linkageTitle").textContent = "TWO-WAY AUDIO/VIDEO LINK ACTIVE (WebRTC HD)";
+    startCallTimer();
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     3. Signaling Loop via Flask Endpoint
+  ───────────────────────────────────────────────────────────── */
+  function startSignaling() {
+    // Join room
+    sendSignal({ type: "join", name: USER_NAME, restart: false });
+
+    // Poll every 1.5 seconds
+    pollInterval = setInterval(pollSignal, 1500);
+  }
+
+  async function pollSignal() {
     try {
-      jitsiApi = new JitsiMeetExternalAPI(JITSI_DOMAIN, options);
-    } catch (err) {
-      showLobbyError("Video call could not be started. Please check camera/microphone permissions.");
-      return;
-    }
+      const resp = await fetch("/api/teleconsult/" + SESSION_ID + "/signal");
+      if (!resp.ok) return;
+      const data = await resp.json();
 
-    /* ── Jitsi event bindings ───────────────────────────────── */
-    jitsiApi.addEventListeners({
+      // If call was marked ended on backend
+      if (data.ended && callActive) {
+        handleCallEndedByRemote();
+        return;
+      }
 
-      videoConferenceJoined: function (data) {
-        hideLobby();
-        startTimer();
-      },
+      // Update peer count in waiting screen
+      const peerKeys = Object.keys(data.peers || {});
+      const peerEl = document.getElementById("peerCount");
+      if (peerEl) peerEl.textContent = peerKeys.length;
 
-      participantJoined: function (data) {
-        showToast(
-          "<i class='bi bi-person-check-fill text-success me-1'></i>" +
-          "<strong>" + esc(data.displayName || "Participant") + "</strong> joined the call.",
-          "success"
-        );
-      },
+      const pc = getOrCreatePeerConnection();
 
-      participantLeft: function (data) {
-        showToast(
-          "<i class='bi bi-person-dash-fill text-warning me-1'></i>" +
-          "<strong>" + esc(data.displayName || "Participant") + "</strong> left the call.",
-          "warning"
-        );
-      },
+      // Process Offer
+      if (data.offer && data.offer_from !== data.peer_side && pc.signalingState === "stable" && !pc.remoteDescription) {
+        console.log("[WebRTC] Received remote offer, creating answer...");
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        // Flush any queued ICE candidates
+        while (iceQueue.length > 0) {
+          await pc.addIceCandidate(iceQueue.shift()).catch(e => console.log(e));
+        }
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        sendSignal({ type: "answer", sdp: answer });
+      }
 
-      videoConferenceLeft: function () {
-        stopTimer();
-      },
-
-      errorOccurred: function (err) {
-        if (err && err.error && String(err.error.name).indexOf("gum") > -1) {
-          showLobbyError("No camera or microphone detected. You can still join for audio-only — please refresh.");
+      // Process Answer
+      if (data.answer && data.answer_from !== data.peer_side && pc.signalingState === "have-local-offer") {
+        console.log("[WebRTC] Received remote answer, setting remote description...");
+        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        while (iceQueue.length > 0) {
+          await pc.addIceCandidate(iceQueue.shift()).catch(e => console.log(e));
         }
       }
-    });
+
+      // Process ICE Candidates
+      if (data.candidates && data.candidates.length > 0) {
+        for (const cand of data.candidates) {
+          const rtcCand = new RTCIceCandidate(cand);
+          if (pc.remoteDescription && pc.remoteDescription.type) {
+            await pc.addIceCandidate(rtcCand).catch(e => console.log(e));
+          } else {
+            iceQueue.push(rtcCand);
+          }
+        }
+      }
+
+      // Doctor initiates the offer once both peers are in the room
+      if (IS_DOCTOR && peerKeys.length >= 2 && !hasMadeOffer && pc.signalingState === "stable") {
+        console.log("[WebRTC] Both participants present. Creating offer...");
+        hasMadeOffer = true;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        sendSignal({ type: "offer", sdp: offer });
+      }
+
+    } catch (err) {
+      console.warn("[Signaling error]", err);
+    }
   }
 
-  /* ── UI helpers ─────────────────────────────────────────── */
-  function hideLobby() {
-    var lobby = document.getElementById("jitsi-lobby");
-    if (lobby) lobby.remove();
+  async function sendSignal(payload) {
+    try {
+      await fetch("/api/teleconsult/" + SESSION_ID + "/signal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      console.warn("[Send signal error]", err);
+    }
   }
 
-  function showLobbyError(msg) {
-    var lobby = document.getElementById("jitsi-lobby");
-    if (!lobby) return;
-    lobby.innerHTML =
-      "<div class='text-center p-4'>" +
-        "<i class='bi bi-exclamation-triangle-fill text-warning fs-1 mb-3 d-block'></i>" +
-        "<h5 class='text-white fw-bold mb-2'>Connection Issue</h5>" +
-        "<p class='text-white-50 fs-8 mb-3'>" + esc(msg) + "</p>" +
-        "<button class='btn btn-primary' onclick='location.reload()'>" +
-          "<i class='bi bi-arrow-clockwise me-1'></i>Retry" +
-        "</button>" +
-      "</div>";
+  /* ─────────────────────────────────────────────────────────────
+     4. Media Controls (Mic, Camera, Screen Share)
+  ───────────────────────────────────────────────────────────── */
+  function toggleMic() {
+    if (!localStream) return;
+    const audioTracks = localStream.getAudioTracks();
+    if (audioTracks.length === 0) return;
+
+    isMuted = !isMuted;
+    audioTracks.forEach(t => { t.enabled = !isMuted; });
+
+    const btn     = document.getElementById("btnToggleMic");
+    const icon    = document.getElementById("micIcon");
+    const text    = document.getElementById("micText");
+    const badge   = document.getElementById("localMuteBadge");
+
+    if (isMuted) {
+      btn.className  = "btn btn-sm btn-danger rounded-pill px-3";
+      icon.className = "bi bi-mic-mute-fill me-1";
+      text.textContent = "Unmute";
+      if (badge) badge.style.display = "block";
+      showToast("<i class='bi bi-mic-mute-fill me-1 text-danger'></i>Microphone muted.", "warning");
+    } else {
+      btn.className  = "btn btn-sm btn-outline-light rounded-pill px-3";
+      icon.className = "bi bi-mic-fill me-1";
+      text.textContent = "Mute";
+      if (badge) badge.style.display = "none";
+      showToast("<i class='bi bi-mic-fill me-1 text-success'></i>Microphone active.", "success");
+    }
   }
 
-  function startTimer() {
-    callSeconds = 0;
-    var el = document.getElementById("callTimer");
+  function toggleCam() {
+    if (!localStream) return;
+    const videoTracks = localStream.getVideoTracks();
+    if (videoTracks.length === 0) return;
+
+    isCamOff = !isCamOff;
+    videoTracks.forEach(t => { t.enabled = !isCamOff; });
+
+    const btn     = document.getElementById("btnToggleCam");
+    const icon    = document.getElementById("camIcon");
+    const text    = document.getElementById("camText");
+    const overlay = document.getElementById("localCamOffOverlay");
+
+    if (isCamOff) {
+      btn.className  = "btn btn-sm btn-danger rounded-pill px-3";
+      icon.className = "bi bi-camera-video-off-fill me-1";
+      text.textContent = "Cam Off";
+      if (overlay) overlay.classList.remove("d-none");
+    } else {
+      btn.className  = "btn btn-sm btn-outline-light rounded-pill px-3";
+      icon.className = "bi bi-camera-video-fill me-1";
+      text.textContent = "Camera";
+      if (overlay) overlay.classList.add("d-none");
+    }
+  }
+
+  async function toggleScreenShare() {
+    if (!navigator.mediaDevices.getDisplayMedia) {
+      showToast("Screen sharing is not supported in this browser.", "warning");
+      return;
+    }
+    const pc = getOrCreatePeerConnection();
+    const senders = pc.getSenders();
+    const videoSender = senders.find(s => s.track && s.track.kind === "video");
+
+    if (!isSharingScreen) {
+      try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const screenTrack = screenStream.getVideoTracks()[0];
+        if (videoSender) videoSender.replaceTrack(screenTrack);
+
+        const localVid = document.getElementById("localVideo");
+        if (localVid) localVid.srcObject = screenStream;
+
+        isSharingScreen = true;
+        document.getElementById("btnShareScreen").className = "btn btn-sm btn-info rounded-pill px-3";
+
+        screenTrack.onended = function () {
+          stopScreenShare(videoSender);
+        };
+        showToast("<i class='bi bi-display me-1'></i>Screen sharing started.", "info");
+      } catch (e) {
+        console.log("[Screen share cancelled]", e);
+      }
+    } else {
+      stopScreenShare(videoSender);
+    }
+  }
+
+  function stopScreenShare(videoSender) {
+    if (!isSharingScreen) return;
+    isSharingScreen = false;
+    document.getElementById("btnShareScreen").className = "btn btn-sm btn-outline-light rounded-pill px-3";
+
+    if (localStream) {
+      const origVideoTrack = localStream.getVideoTracks()[0];
+      if (videoSender && origVideoTrack) videoSender.replaceTrack(origVideoTrack);
+      const localVid = document.getElementById("localVideo");
+      if (localVid) localVid.srcObject = localStream;
+    }
+    showToast("Screen sharing ended.", "info");
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     5. End Call Lifecycle & Backend Synchronization
+  ───────────────────────────────────────────────────────────── */
+  async function endCall() {
+    // 1. Post to backend to update DB status to Completed & notify signaling
+    try {
+      await fetch("/teleconsult/session/" + SESSION_ID + "/end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" }
+      });
+    } catch (e) {
+      console.log("[End call backend notification]", e);
+    }
+
+    // 2. Local Cleanup
+    performCallCleanup("You ended the teleconsultation call.");
+  }
+
+  function handleCallEndedByRemote() {
+    performCallCleanup("The teleconsultation was concluded by the other participant.");
+  }
+
+  function performCallCleanup(msg) {
+    callActive = false;
+    stopCallTimer();
+
+    // Release hardware tracks (LED turns off)
+    if (localStream) {
+      localStream.getTracks().forEach(t => t.stop());
+    }
+
+    // Close peer connection
+    if (peerConnection) {
+      peerConnection.close();
+      peerConnection = null;
+    }
+
+    // Stop signaling poll
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+
+    // Show Call Ended overlay
+    const endedOverlay = document.getElementById("callEndedOverlay");
+    const durationEl   = document.getElementById("finalCallDuration");
+    const currentTimer = document.getElementById("callTimer");
+
+    if (durationEl && currentTimer) durationEl.textContent = currentTimer.textContent;
+    if (endedOverlay) endedOverlay.classList.remove("d-none");
+
+    // Update status dot and title
+    document.getElementById("callStatusDot").className = "status-dot bg-secondary rounded-circle d-inline-block";
+    document.getElementById("linkageTitle").textContent = "TELECONSULTATION CONCLUDED";
+
+    // Auto-select Completed in status dropdown
+    const statusSelect = document.getElementById("selectCallStatus");
+    if (statusSelect) statusSelect.value = "Completed";
+
+    showToast("<i class='bi bi-telephone-x-fill text-danger me-1'></i>" + msg, "warning");
+  }
+
+  function reconnectCall() {
+    const endedOverlay = document.getElementById("callEndedOverlay");
+    if (endedOverlay) endedOverlay.classList.add("d-none");
+    initLocalMedia();
+    startSignaling();
+    hasMadeOffer = false;
+    showToast("Reconnecting to room...", "info");
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     6. Timer & Helper Utilities
+  ───────────────────────────────────────────────────────────── */
+  function startCallTimer() {
+    if (timerInterval) return; // already running
+    const timerEl = document.getElementById("callTimer");
     timerInterval = setInterval(function () {
       callSeconds++;
-      var m = String(Math.floor(callSeconds / 60)).padStart(2, "0");
-      var s = String(callSeconds % 60).padStart(2, "0");
-      if (el) el.textContent = m + ":" + s;
+      const m = String(Math.floor(callSeconds / 60)).padStart(2, "0");
+      const s = String(callSeconds % 60).padStart(2, "0");
+      if (timerEl) timerEl.textContent = m + ":" + s;
     }, 1000);
   }
 
-  function stopTimer() {
-    if (timerInterval) clearInterval(timerInterval);
+  function stopCallTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  function copyRoomLink() {
+    navigator.clipboard.writeText(window.location.href).then(function () {
+      showToast("<i class='bi bi-clipboard-check-fill text-success me-1'></i>Room URL copied! Send to doctor or patient.", "success");
+    });
+  }
+
+  function copyShareLink() {
+    const el = document.getElementById("shareLink");
+    if (!el) return;
+    navigator.clipboard.writeText(el.value).then(function () {
+      showToast("<i class='bi bi-clipboard-check-fill text-success me-1'></i>Invite link copied to clipboard!", "success");
+    });
   }
 
   function showToast(htmlMsg, type) {
-    var box = document.getElementById("pc-toast-box");
+    let box = document.getElementById("pc-tele-toast-box");
     if (!box) {
       box = document.createElement("div");
-      box.id = "pc-toast-box";
-      box.style.cssText = "position:fixed;bottom:90px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:320px;";
+      box.id = "pc-tele-toast-box";
+      box.style.cssText = "position:fixed;bottom:90px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:340px;";
       document.body.appendChild(box);
     }
-    var toast = document.createElement("div");
-    toast.className = "alert alert-" + (type === "success" ? "success" : "warning") +
-                      " border-0 shadow py-2 px-3 fs-8 rounded-3 mb-0";
+    const toast = document.createElement("div");
+    toast.className = "alert alert-" + (type === "success" ? "success" : type === "info" ? "info" : "warning") + " border-0 shadow py-2 px-3 fs-8 rounded-3 mb-0";
     toast.innerHTML = htmlMsg;
     box.appendChild(toast);
-    setTimeout(function () { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 4000);
+    setTimeout(function () { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 4500);
   }
 
-  function esc(str) {
-    return String(str || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
-
-  /* ── Public API ─────────────────────────────────────────── */
-  window.pcTele = {
-    endCall: function () {
-      if (jitsiApi) jitsiApi.executeCommand("hangup");
-      stopTimer();
-      showToast("<i class='bi bi-telephone-x-fill me-1'></i>Call ended.", "warning");
-    },
-    copyRoomLink: function () {
-      navigator.clipboard.writeText(window.location.href).then(function () {
-        showToast("<i class='bi bi-clipboard-check-fill me-1'></i>Room link copied!", "success");
-      });
-    },
-    copyShareLink: function () {
-      var el = document.getElementById("shareLink");
-      if (!el) return;
-      navigator.clipboard.writeText(el.value).then(function () {
-        showToast("<i class='bi bi-clipboard-check-fill me-1'></i>Link copied to clipboard!", "success");
-      });
-    }
-  };
-
-  /* ── Dynamic E-Prescription row cloning ─────────────────── */
+  /* ─────────────────────────────────────────────────────────────
+     7. E-Prescription Dynamic Row Builder
+  ───────────────────────────────────────────────────────────── */
   function initRxBuilder() {
-    var btn = document.getElementById("addRxItemBtn");
+    const btn = document.getElementById("addRxItemBtn");
     if (!btn) return;
     btn.addEventListener("click", function () {
-      var container = document.getElementById("rxItemsContainer");
-      var first = container && container.querySelector(".rx-item-row");
+      const container = document.getElementById("rxItemsContainer");
+      const first = container && container.querySelector(".rx-item-row");
       if (!first) return;
-      var clone = first.cloneNode(true);
+      const clone = first.cloneNode(true);
       clone.querySelectorAll("input").forEach(function (inp) { inp.value = ""; });
       clone.querySelectorAll("select").forEach(function (sel) { sel.selectedIndex = 0; });
       container.appendChild(clone);
     });
   }
+
+  // Export public methods on window.pcTele
+  window.pcTele = {
+    toggleMic: toggleMic,
+    toggleCam: toggleCam,
+    toggleScreenShare: toggleScreenShare,
+    endCall: endCall,
+    reconnectCall: reconnectCall,
+    copyRoomLink: copyRoomLink,
+    copyShareLink: copyShareLink
+  };
 
 })();
 </script>
