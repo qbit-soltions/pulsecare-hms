@@ -1761,11 +1761,14 @@ def _get_tele_room(session_id):
             _TELE_ROOMS.pop(sid, None)
     if session_id not in _TELE_ROOMS:
         _TELE_ROOMS[session_id] = {
-            "peers": {},       # client_id -> { id, name, role, last_seen }
+            "peers": {},       # client_id -> { id, name, role, last_seen, cam_on, mic_on }
             "inboxes": {},     # client_id -> [ incoming messages ]
+            "chat": [],        # [ { id, sender_id, sender_name, sender_role, text, timestamp } ]
             "ended": False,
             "created_at": now
         }
+    if "chat" not in _TELE_ROOMS[session_id]:
+        _TELE_ROOMS[session_id]["chat"] = []
     return _TELE_ROOMS[session_id]
 
 
@@ -1774,7 +1777,7 @@ def _get_tele_room(session_id):
 def api_teleconsult_signal(session_id):
     """
     Robust Client-ID-Based WebRTC Signaling for PulseCare Teleconsultation Chambers.
-    Guarantees peer discovery and direct message delivery between ASHA workers and doctors.
+    Guarantees peer discovery, direct message delivery, camera/mic status, and real-time chat.
     """
     room = _get_tele_room(session_id)
     now = _time.time()
@@ -1790,13 +1793,17 @@ def api_teleconsult_signal(session_id):
 
     user_role = data.get("role") or session.get("user_role", "guest")
     user_name = data.get("name") or session.get("full_name") or "Participant"
+    cam_on = data.get("cam_on", True) if "cam_on" in data else True
+    mic_on = data.get("mic_on", True) if "mic_on" in data else True
 
-    # Register/refresh peer heartbeat
+    # Register/refresh peer heartbeat with camera and mic status
     room["peers"][client_id] = {
         "id": client_id,
         "name": user_name,
         "role": user_role,
-        "last_seen": now
+        "last_seen": now,
+        "cam_on": bool(cam_on),
+        "mic_on": bool(mic_on)
     }
 
     # Clean up stale peers (> 12 seconds with no heartbeat)
@@ -1830,6 +1837,28 @@ def api_teleconsult_signal(session_id):
                             room["inboxes"][cid] = []
                         room["inboxes"][cid].append(msg)
 
+        elif sig_type == "chat":
+            msg_text = ""
+            if isinstance(payload, dict):
+                msg_text = payload.get("text", "").strip()
+            elif isinstance(payload, str):
+                msg_text = payload.strip()
+            if not msg_text and data.get("text"):
+                msg_text = str(data.get("text")).strip()
+
+            if msg_text:
+                chat_msg = {
+                    "id": f"msg_{int(now*1000)}_{client_id[-4:]}",
+                    "sender_id": client_id,
+                    "sender_name": user_name,
+                    "sender_role": user_role,
+                    "text": msg_text,
+                    "timestamp": datetime.now().strftime("%I:%M %p")
+                }
+                room["chat"].append(chat_msg)
+                if len(room["chat"]) > 150:
+                    room["chat"] = room["chat"][-150:]
+
         elif sig_type == "join" and data.get("restart"):
             room["ended"] = False
             room["inboxes"][client_id] = []
@@ -1851,8 +1880,39 @@ def api_teleconsult_signal(session_id):
         "peers": room["peers"],
         "other_peers": other_peers,
         "messages": client_inbox,
+        "chat": room.get("chat", []),
         "ended": room.get("ended", False)
     })
+
+
+@app.route("/api/teleconsult/<int:session_id>/chat", methods=["POST"])
+@login_required
+def api_teleconsult_chat(session_id):
+    """Send an in-call message directly to the teleconsultation chamber."""
+    room = _get_tele_room(session_id)
+    data = request.get_json(silent=True) or request.form.to_dict()
+    text = data.get("text", "").strip()
+    if not text:
+        return jsonify({"success": False, "error": "Message content cannot be empty"}), 400
+
+    client_id = data.get("client_id") or f"user_{session.get('user_id', 0)}"
+    user_name = data.get("name") or session.get("full_name") or "Participant"
+    user_role = data.get("role") or session.get("user_role", "guest")
+    now = _time.time()
+
+    chat_msg = {
+        "id": f"msg_{int(now*1000)}_{client_id[-4:]}",
+        "sender_id": client_id,
+        "sender_name": user_name,
+        "sender_role": user_role,
+        "text": text,
+        "timestamp": datetime.now().strftime("%I:%M %p")
+    }
+    room["chat"].append(chat_msg)
+    if len(room["chat"]) > 150:
+        room["chat"] = room["chat"][-150:]
+
+    return jsonify({"success": True, "message": chat_msg, "chat": room["chat"]})
 
 
 @app.route("/teleconsult/session/<int:session_id>/end", methods=["POST"])
@@ -1983,6 +2043,118 @@ def teleconsult_update(session_id):
     log_audit(session.get("user_id"), "Complete Teleconsult", "Teleconsultation", f"Updated Teleconsult #{session_id} to {status}", request.remote_addr)
     flash(f"Teleconsultation updated successfully! Digital prescription & advice saved.", "success")
     return redirect(url_for("teleconsult_session", session_id=session_id))
+
+
+@app.route("/consultations/new", methods=["GET", "POST"])
+@login_required
+def consultation_create():
+    patient_id = request.args.get("patient_id") or request.form.get("patient_id")
+    if not patient_id:
+        flash("Patient ID required to begin clinical consultation.", "warning")
+        return redirect(url_for("patients_index"))
+
+    patient = query_db("SELECT * FROM patients WHERE id = ?", (patient_id,), one=True)
+    if not patient:
+        flash("Patient record not found.", "danger")
+        return redirect(url_for("patients_index"))
+
+    if request.method == "POST":
+        symptoms = request.form.get("symptoms", "").strip()
+        diagnosis = request.form.get("diagnosis", "").strip()
+        icd_code = request.form.get("icd_code", "").strip() or None
+        examination_notes = request.form.get("examination_notes", "").strip() or None
+        treatment_plan = request.form.get("treatment_plan", "").strip() or None
+        follow_up_date = request.form.get("follow_up_date") or None
+        doctor_id = session.get("user_id")
+        facility_id = session.get("facility_id") or patient.get("facility_id")
+
+        consult_id = execute_db(
+            """INSERT INTO consultations (patient_id, doctor_id, facility_id, symptoms, diagnosis, icd_code, examination_notes, treatment_plan, follow_up_date, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
+            (patient_id, doctor_id, facility_id, symptoms, diagnosis, icd_code, examination_notes, treatment_plan, follow_up_date)
+        )
+
+        # Prescription Handling
+        med_ids = request.form.getlist("med_id[]")
+        if med_ids and any(med_ids):
+            count_rx = query_db("SELECT COUNT(*) as c FROM prescriptions", one=True)["c"]
+            rx_num = f"RX-{date.today().year}-{(count_rx + 1):04d}"
+            special_instructions = request.form.get("special_instructions", "").strip() or None
+
+            rx_id = execute_db(
+                """INSERT INTO prescriptions (prescription_number, consultation_id, patient_id, doctor_id, facility_id, status, special_instructions, created_at)
+                   VALUES (?, ?, ?, ?, ?, 'Pending', ?, datetime('now'))""",
+                (rx_num, consult_id, patient_id, doctor_id, facility_id, special_instructions)
+            )
+
+            dosages = request.form.getlist("dosage[]")
+            frequencies = request.form.getlist("frequency[]")
+            durations = request.form.getlist("duration_days[]")
+            instructions = request.form.getlist("instructions[]")
+            quantities = request.form.getlist("quantity_prescribed[]")
+
+            for i in range(len(med_ids)):
+                if med_ids[i]:
+                    try:
+                        m_id = int(med_ids[i])
+                        dos = dosages[i] if i < len(dosages) else "1 Tab"
+                        freq = frequencies[i] if i < len(frequencies) else "1-0-1"
+                        dur = int(durations[i]) if (i < len(durations) and durations[i]) else 5
+                        inst = instructions[i] if i < len(instructions) else ""
+                        qty = int(quantities[i]) if (i < len(quantities) and quantities[i]) else (dur * 2)
+                        execute_db(
+                            """INSERT INTO prescription_items (prescription_id, medicine_id, dosage, frequency, duration_days, instructions, quantity_prescribed)
+                               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                            (rx_id, m_id, dos, freq, dur, inst, qty)
+                        )
+                    except Exception as e:
+                        print(f"Error adding prescription item: {e}")
+
+        # Lab Orders Handling
+        lab_test_ids = request.form.getlist("lab_test_ids[]")
+        lab_clinical_notes = request.form.get("lab_clinical_notes", "").strip()
+        if lab_test_ids and any(lab_test_ids):
+            count_lab = query_db("SELECT COUNT(*) as c FROM lab_orders", one=True)["c"]
+            order_num = f"LAB-{date.today().year}-{(count_lab + 1):04d}"
+
+            order_id = execute_db(
+                """INSERT INTO lab_orders (order_number, consultation_id, patient_id, doctor_id, facility_id, clinical_notes, status, ordered_at)
+                   VALUES (?, ?, ?, ?, ?, ?, 'Ordered', datetime('now'))""",
+                (order_num, consult_id, patient_id, doctor_id, facility_id, lab_clinical_notes)
+            )
+
+            for tid in lab_test_ids:
+                if tid:
+                    execute_db(
+                        """INSERT INTO lab_order_items (lab_order_id, test_id, status)
+                           VALUES (?, ?, 'Pending')""",
+                        (order_id, int(tid))
+                    )
+
+        log_audit(doctor_id, "Create Consultation", "Clinical", f"Consultation #{consult_id} recorded for patient #{patient_id}", request.remote_addr, facility_id)
+        flash("Clinical consultation, digital prescription, and lab orders saved successfully.", "success")
+        return redirect(url_for("patient_view", patient_id=patient_id))
+
+    latest_vitals = query_db("SELECT * FROM vitals WHERE patient_id = ? ORDER BY recorded_at DESC LIMIT 1", (patient_id,), one=True)
+    past_consultations = query_db(
+        """SELECT c.*, u.full_name as doctor_name 
+           FROM consultations c 
+           JOIN users u ON c.doctor_id = u.id 
+           WHERE c.patient_id = ? 
+           ORDER BY c.created_at DESC""",
+        (patient_id,)
+    )
+    medicines = query_db("SELECT * FROM medicines WHERE stock_quantity > 0 ORDER BY brand_name ASC")
+    lab_tests = query_db("SELECT * FROM lab_tests_catalog ORDER BY name ASC")
+
+    return render_template(
+        "consultations/form.html",
+        patient=patient,
+        latest_vitals=latest_vitals,
+        past_consultations=past_consultations,
+        medicines=medicines,
+        lab_tests=lab_tests
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -2636,6 +2808,7 @@ def patient_view(patient_id):
     )
 
 @app.route("/patients/<int:patient_id>/vitals", methods=["POST"])
+@app.route("/patients/<int:patient_id>/vitals/new", methods=["POST"])
 @login_required
 def vitals_create(patient_id):
     temp = float(request.form.get("temperature_c") or 37.0)
@@ -3140,6 +3313,7 @@ def lab_sample_collect(order_id):
     return redirect(url_for("laboratory_index"))
 
 @app.route("/laboratory/item/<int:item_id>/results", methods=["POST"])
+@app.route("/laboratory/item/<int:item_id>/result", methods=["POST"])
 @login_required
 def lab_result_entry(item_id):
     param_names = request.form.getlist("param_name[]")
@@ -3282,16 +3456,18 @@ def billing_create_invoice():
 
     import uuid
     invoice_number = f"INV-{uuid.uuid4().hex[:8].upper()}"
-    facility_id = g.user.get("facility_id") if g.user else None
+    facility_id = session.get("facility_id")
 
-    execute_db(
+    invoice_id = execute_db(
         """INSERT INTO invoices (invoice_number, patient_id, facility_id, subtotal, tax_percent, tax_amount,
            discount_amount, total_amount, amount_paid, status, payment_method, notes, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
         (invoice_number, patient_id, facility_id, subtotal, tax_percent, tax_amount,
          discount_amount, total_amount, amount_paid, status, payment_method, notes)
     )
-    invoice_id = query_db("SELECT last_insert_rowid() as id", one=True)["id"]
+    if not invoice_id:
+        invoice_row = query_db("SELECT id FROM invoices WHERE invoice_number = ?", (invoice_number,), one=True)
+        invoice_id = invoice_row["id"] if invoice_row else None
 
     for i_type, desc, qty, price in zip(item_types, descriptions, quantities, unit_prices):
         if desc and qty and price:

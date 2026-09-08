@@ -12,6 +12,7 @@ from models import get_db_connection, init_db, DB_PATH
 import os
 
 def seed_database():
+    os.environ["USE_LOCAL_DB"] = "true"
     print(f"Initializing Public Health Network Database at {DB_PATH}...")
     db_file = DB_PATH
     if os.path.exists(db_file):
@@ -189,7 +190,10 @@ def seed_database():
         ("MED-009", "Metformin 500mg", "Metformin Hydrochloride", "Chronic NCD (Diabetes)", "Tablet", "500 mg", 0.00, 1600, 120, "MET-2025-774", "2027-12-05", "Cadila Health", "Rack B-02", 1),
         ("MED-010", "Amoxicillin 500mg", "Amoxicillin Trihydrate", "Essential Antibiotics", "Capsule", "500 mg", 0.00, 850, 90, "AMX-2025-112", "2027-05-18", "Alkem Labs", "Rack C-01", 1),
         ("MED-011", "Salbutamol Respirator Solution", "Salbutamol Sulfate", "Emergency Respiratory", "Respules", "2.5 mg / 2.5 ml", 0.00, 220, 30, "SAL-2025-48", "2027-03-22", "Cipla", "Emergency Bay", 1),
-        ("MED-012", "Paracetamol 500mg", "Paracetamol IP", "Analgesic & Antipyretic", "Tablet", "500 mg", 0.00, 3000, 300, "PCM-2025-001", "2028-12-31", "GSK", "Rack A-04", 1)
+        ("MED-012", "Paracetamol 500mg", "Paracetamol IP", "Analgesic & Antipyretic", "Tablet", "500 mg", 0.00, 3000, 300, "PCM-2025-001", "2028-12-31", "GSK", "Rack A-04", 1),
+        ("MED-013", "Ciprofloxacin 500mg", "Ciprofloxacin Hydrochloride", "Essential Antibiotics", "Tablet", "500 mg", 0.00, 1100, 100, "CIP-2025-014", "2027-09-12", "Cipla", "Rack C-02", 1),
+        ("MED-014", "Atorvastatin 10mg", "Atorvastatin Calcium", "Chronic NCD (Cardiovascular)", "Tablet", "10 mg", 0.00, 1300, 150, "ATO-2025-110", "2028-02-28", "Sun Pharma", "Rack B-03", 1),
+        ("MED-015", "Azithromycin 500mg", "Azithromycin Dihydrate", "Essential Antibiotics", "Tablet", "500 mg", 0.00, 950, 80, "AZI-2025-223", "2027-11-15", "Lupin", "Rack C-03", 1)
     ]
     cur.executemany(
         """INSERT INTO medicines (code, brand_name, generic_name, category, form, strength, unit_price, stock_quantity, reorder_level, batch_number, expiry_date, manufacturer, location_rack, is_essential_life_saving)
@@ -240,7 +244,9 @@ def seed_database():
         ("LAB-LIPID", "Comprehensive Lipid Profile", "Biochemistry", 0.00, 4, "Serum", json.dumps([{"name": "Total Cholesterol", "unit": "mg/dL", "ref_range": "< 200"}, {"name": "Triglycerides", "unit": "mg/dL", "ref_range": "< 150"}, {"name": "HDL", "unit": "mg/dL", "ref_range": "> 40"}]), "Cardiovascular risk evaluation."),
         ("LAB-USG-OBS", "Obstetric Ultrasound (Fetal Wellbeing & Dating)", "Radiology", 0.00, 1, "Radiological Sonogram", json.dumps([{"name": "Gestational Age", "unit": "Weeks", "ref_range": "By LMP"}, {"name": "Fetal Heart Rate", "unit": "bpm", "ref_range": "120 - 160"}, {"name": "Placental Location", "unit": "Position", "ref_range": "Fundal / Posterior (No Previa)"}]), "Critical maternal antenatal ultrasound scan."),
         ("LAB-ECG", "12-Lead Electrocardiogram (ECG)", "Cardiology", 0.00, 1, "Surface Bio-potential", json.dumps([{"name": "Cardiac Rhythm", "unit": "Observation", "ref_range": "Normal Sinus Rhythm"}, {"name": "ST Segment", "unit": "Observation", "ref_range": "Isoelectric, No Elevation"}]), "Point-of-care tele-ECG transmitted to District Cardiologist."),
-        ("LAB-CXR", "Digital Chest X-Ray (PA View)", "Radiology", 0.00, 2, "Radiograph", json.dumps([{"name": "Lung Parenchyma", "unit": "Observation", "ref_range": "Clear, No Infiltrate / TB Cavitation"}]), "Diagnostic screening for TB and respiratory infections.")
+        ("LAB-CXR", "Digital Chest X-Ray (PA View)", "Radiology", 0.00, 2, "Radiograph", json.dumps([{"name": "Lung Parenchyma", "unit": "Observation", "ref_range": "Clear, No Infiltrate / TB Cavitation"}]), "Diagnostic screening for TB and respiratory infections."),
+        ("LAB-RBS", "Random Blood Sugar (RBS)", "Biochemistry", 0.00, 1, "Capillary Blood", json.dumps([{"name": "Blood Glucose", "unit": "mg/dL", "ref_range": "70 - 140 mg/dL"}]), "Point-of-care rapid glucose screening for rural clinics."),
+        ("LAB-MALARIA", "Rapid Malaria Antigen Test (Pf/Pv)", "Microbiology", 0.00, 1, "Whole Blood", json.dumps([{"name": "P. falciparum", "unit": "Result", "ref_range": "Negative"}, {"name": "P. vivax", "unit": "Result", "ref_range": "Negative"}]), "Field rapid diagnostic test (RDT) for rural endemic zones.")
     ]
     cur.executemany(
         """INSERT INTO lab_tests_catalog (code, name, category, cost, turnaround_hours, specimen_type, parameters_json, description)

@@ -53,8 +53,11 @@ import sqlite3
 
 
 def is_postgres():
-    """Returns True if a PostgreSQL / Supabase connection URL is configured."""
-    return bool(DATABASE_URL and (DATABASE_URL.startswith("postgres://") or DATABASE_URL.startswith("postgresql://")))
+    """Returns True if a PostgreSQL / Supabase connection URL is configured and local DB is not forced."""
+    if os.environ.get("USE_LOCAL_DB", "").lower() in ("true", "1", "yes"):
+        return False
+    url = os.environ.get("DATABASE_URL") or os.environ.get("SUPABASE_DB_URL") or os.environ.get("POSTGRES_URL")
+    return bool(url and (url.startswith("postgres://") or url.startswith("postgresql://")))
 
 
 def get_supabase_client():
@@ -81,6 +84,9 @@ def get_db_path():
         if os.path.exists(tmp_db) or not os.path.exists(bundled_db):
             return tmp_db
     return bundled_db
+
+
+DB_PATH = get_db_path()
 
 
 def _clean_pg_url(url):
@@ -323,28 +329,24 @@ def set_setting(key, value):
 
 def init_db(schema_file="schema.sql"):
     """Initializes the database schema (works for SQLite and PostgreSQL)."""
-    if is_postgres():
-        pg_schema = "supabase_schema.sql"
-        schema_path = os.path.join(os.path.dirname(__file__), pg_schema)
-        if not os.path.exists(schema_path):
-            schema_path = os.path.join(os.path.dirname(__file__), schema_file)
-        with open(schema_path, "r", encoding="utf-8") as f:
-            sql_script = f.read()
-        conn = get_db_connection()
-        try:
-            cur = conn.cursor()
-            cur.execute(sql_script)
-            conn.commit()
-            print("Successfully initialized Supabase PostgreSQL database schema!")
-        finally:
-            conn.close()
-    else:
-        conn = get_db_connection()
-        try:
-            with open(os.path.join(os.path.dirname(__file__), schema_file), "r", encoding="utf-8") as f:
+    conn = get_db_connection()
+    try:
+        if isinstance(conn, sqlite3.Connection):
+            schema_path = os.path.join(os.path.dirname(__file__), "schema.sql")
+            with open(schema_path, "r", encoding="utf-8") as f:
                 schema_sql = f.read()
             conn.executescript(schema_sql)
             conn.commit()
             print("Successfully initialized SQLite database schema!")
-        finally:
-            conn.close()
+        else:
+            schema_path = os.path.join(os.path.dirname(__file__), "supabase_schema.sql")
+            if not os.path.exists(schema_path):
+                schema_path = os.path.join(os.path.dirname(__file__), schema_file)
+            with open(schema_path, "r", encoding="utf-8") as f:
+                sql_script = f.read()
+            cur = conn.cursor()
+            cur.execute(sql_script)
+            conn.commit()
+            print("Successfully initialized Supabase PostgreSQL database schema!")
+    finally:
+        conn.close()
