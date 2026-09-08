@@ -40,6 +40,46 @@
     backdrop-filter: blur(16px) !important;
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
   }
+
+  /* Specific Camera Fullscreen Mode */
+  .tele-cam-card:fullscreen, .tele-cam-card:-webkit-full-screen,
+  #remoteVideo:fullscreen, #remoteVideo:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 9999999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #000000 !important;
+    border: none !important;
+  }
+  .tele-cam-card:fullscreen video, .tele-cam-card:-webkit-full-screen video,
+  #remoteVideo:fullscreen, #remoteVideo:-webkit-full-screen {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    background: #000000 !important;
+  }
+  .tele-cam-card:fullscreen .tele-card-actions, .tele-cam-card:-webkit-full-screen .tele-card-actions {
+    top: 16px !important;
+    right: 16px !important;
+    opacity: 1 !important;
+    gap: 8px !important;
+  }
+  .tele-cam-card:fullscreen .tele-cam-label, .tele-cam-card:-webkit-full-screen .tele-cam-label {
+    bottom: 20px !important;
+    left: 20px !important;
+    font-size: 0.9rem !important;
+    padding: 6px 14px !important;
+  }
   
   /* Grid of All Participants Cameras */
   .tele-grid-container {
@@ -261,7 +301,7 @@
       <div class="card-header bg-black bg-opacity-75 py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2 border-bottom border-secondary border-opacity-25">
         <div class="d-flex align-items-center gap-2">
           <span id="callStatusDot" class="status-dot bg-warning rounded-circle d-inline-block pulse-animation" style="width:10px;height:10px;"></span>
-          <span class="fw-bold fs-7" id="linkageTitle">DIRECT WebRTC CLINICAL LINK</span>
+          <span class="fw-bold fs-7 text-truncate" id="linkageTitle" style="max-width: 175px;">DIRECT CLINICAL LINK</span>
           <span class="badge bg-{{ 'danger' if tele.triage_level == 'Emergency' else 'warning text-dark' if tele.triage_level == 'High-Risk' else 'secondary' }} fs-9">
             {{ tele.triage_level }}
           </span>
@@ -303,7 +343,7 @@
         <div id="participantsGridView" class="tele-grid-container tele-grid-2 w-100 h-100">
           
           <!-- Tile 1: Local User Cam (Self-View) -->
-          <div class="tele-cam-card" id="gridTileLocal">
+          <div class="tele-cam-card" id="gridTileLocal" ondblclick="window.pcTele.fullscreenCam('local')" title="Double-click to toggle Fullscreen">
             <video id="gridLocalVideo" autoplay playsinline muted style="transform: scaleX(-1);"></video>
             
             <!-- Cam Off Fallback Overlay -->
@@ -320,6 +360,9 @@
               <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.switchCamera()" title="Flip Front/Rear Camera">
                 <i class="bi bi-camera-reverse text-warning"></i>
               </button>
+              <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.fullscreenCam('local')" title="Fullscreen this Camera">
+                <i class="bi bi-arrows-fullscreen text-info"></i>
+              </button>
             </div>
 
             <!-- Participant Identity Badge -->
@@ -331,7 +374,7 @@
           </div>
 
           <!-- Tile 2: Primary Remote Peer (Doctor / Specialist / ASHA) -->
-          <div class="tele-cam-card" id="gridTileRemote">
+          <div class="tele-cam-card" id="gridTileRemote" ondblclick="window.pcTele.fullscreenCam('remote')" title="Double-click to toggle Fullscreen">
             <video id="gridRemoteVideo" autoplay playsinline></video>
             
             <!-- Peer Standby / Cam-off Overlay -->
@@ -357,6 +400,9 @@
             <div class="tele-card-actions">
               <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.pinParticipant('remote')" title="Pin this camera to Main Screen">
                 <i class="bi bi-pin-angle-fill text-info"></i>
+              </button>
+              <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.fullscreenCam('remote')" title="Fullscreen this Camera">
+                <i class="bi bi-arrows-fullscreen text-info"></i>
               </button>
             </div>
 
@@ -384,7 +430,14 @@
         ═════════════════════════════════════════════════════════ -->
         <div id="focusView" class="w-100 h-100 position-relative" style="display: none;">
           <!-- Main Dominant Stream -->
-          <video id="remoteVideo" autoplay playsinline class="w-100 h-100" style="object-fit: contain; background: #070b14;"></video>
+          <video id="remoteVideo" autoplay playsinline class="w-100 h-100" style="object-fit: contain; background: #070b14;" ondblclick="window.pcTele.fullscreenCam('mainFocus')" title="Double-click to toggle Fullscreen"></video>
+
+          <div class="position-absolute top-0 end-0 m-3 z-3">
+            <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-pill px-2 py-1 shadow" onclick="window.pcTele.fullscreenCam('mainFocus')" title="Fullscreen Video Stream">
+              <i class="bi bi-arrows-fullscreen text-info me-1"></i><span class="fs-9">Fullscreen</span>
+            </button>
+          </div>
+
 
           <!-- Floating Local PiP Window -->
           <div id="localVideoContainer"
@@ -597,8 +650,9 @@
         <div class="d-flex gap-2 align-items-center flex-wrap">
           <!-- All Cams Grid Toggle -->
           <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3" id="btnToggleLayout" onclick="window.pcTele.toggleLayout()" title="Switch to All Cams Grid / Focus Mode (G)">
-            <i class="bi bi-grid-3x3-gap-fill me-1" id="layoutIcon"></i><span id="layoutText">All Cams</span>
+            <i class="bi bi-grid-3x3-gap-fill me-1" id="layoutIcon"></i><span id="layoutText" class="d-none d-sm-inline">All Cams</span>
           </button>
+
 
           <!-- Fullscreen Button -->
           <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3" id="btnToggleFullscreen" onclick="window.pcTele.toggleFullscreen()" title="Toggle Fullscreen (F)">
@@ -1414,7 +1468,7 @@
   }
 
   /* ─────────────────────────────────────────────────────────────
-     6. Fullscreen Mode (Google Meet Experience)
+     6. Fullscreen Mode (Google Meet Experience & Specific Cameras)
   ───────────────────────────────────────────────────────────── */
   function toggleFullscreen() {
     const stage = document.getElementById("teleMeetStage");
@@ -1438,6 +1492,50 @@
     }
   }
 
+  function fullscreenCam(target) {
+    let el = null;
+    let camName = "Camera";
+    if (target === "local") {
+      el = document.getElementById("gridTileLocal");
+      camName = "Your Camera";
+    } else if (target === "remote") {
+      el = document.getElementById("gridTileRemote");
+      camName = "Remote Clinical Camera";
+    } else if (target === "mainFocus") {
+      el = document.getElementById("remoteVideo");
+      camName = "Main Video Stream";
+    } else if (typeof target === "string") {
+      el = document.getElementById(target);
+      camName = "Camera Feed";
+    } else if (target instanceof HTMLElement) {
+      el = target;
+      camName = "Camera Feed";
+    }
+
+    if (!el) return;
+
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+      return;
+    }
+
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (req) {
+      req.call(el).then(() => {
+        showToast("<i class='bi bi-arrows-fullscreen text-info me-1'></i>" + camName + " is now Fullscreen. Press [Esc] to exit.", "info");
+      }).catch(err => {
+        console.warn("[Camera Fullscreen error]", err);
+        showToast("Fullscreen restricted: " + err.message, "warning");
+      });
+    } else {
+      showToast("Fullscreen is not supported on this browser.", "warning");
+    }
+  }
+
   function initFullscreenListeners() {
     function onFsChange() {
       const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
@@ -1451,7 +1549,6 @@
         if (topFsIcon) topFsIcon.className = "bi bi-fullscreen-exit";
         if (fsLabel) fsLabel.textContent = "Exit Fullscreen";
         if (stage) stage.classList.add("in-fullscreen");
-        showToast("<i class='bi bi-arrows-fullscreen text-info me-1'></i>Entered Fullscreen Mode. Press [Esc] to exit.", "info");
       } else {
         if (fsIcon) fsIcon.className = "bi bi-fullscreen me-1";
         if (topFsIcon) topFsIcon.className = "bi bi-fullscreen";
@@ -1463,6 +1560,7 @@
     document.addEventListener("fullscreenchange", onFsChange);
     document.addEventListener("webkitfullscreenchange", onFsChange);
   }
+
 
   /* ─────────────────────────────────────────────────────────────
      7. In-Call Chat Box (Google Meet Experience)
@@ -1740,6 +1838,14 @@
         right.appendChild(micIcon);
         right.appendChild(camIcon);
         right.appendChild(pinBtn);
+
+        const fsBtn = document.createElement("button");
+        fsBtn.type = "button";
+        fsBtn.className = "btn btn-xs btn-outline-light rounded-circle p-1";
+        fsBtn.title = "Fullscreen this Camera";
+        fsBtn.innerHTML = "<i class='bi bi-arrows-fullscreen'></i>";
+        fsBtn.onclick = () => fullscreenCam("remote");
+        right.appendChild(fsBtn);
 
         item.appendChild(left);
         item.appendChild(right);
@@ -2053,6 +2159,7 @@
     toggleScreenShare: toggleScreenShare,
     toggleLayout: toggleLayout,
     toggleFullscreen: toggleFullscreen,
+    fullscreenCam: fullscreenCam,
     toggleChat: toggleChat,
     toggleParticipants: toggleParticipants,
     submitChatForm: submitChatForm,

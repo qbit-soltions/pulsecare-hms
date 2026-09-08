@@ -53,21 +53,14 @@ import sqlite3
 
 
 def is_postgres():
-    """Returns True if a PostgreSQL / Supabase connection URL is configured and local DB is not forced."""
-    if os.environ.get("USE_LOCAL_DB", "").lower() in ("true", "1", "yes"):
-        return False
-    url = os.environ.get("DATABASE_URL") or os.environ.get("SUPABASE_DB_URL") or os.environ.get("POSTGRES_URL")
-    return bool(url and (url.startswith("postgres://") or url.startswith("postgresql://")))
+    """Returns False to unlink from remote Supabase and enforce local SQLite for maximum speed."""
+    return False
 
 
 def get_supabase_client():
-    """Returns an authenticated Supabase SDK Client if SUPABASE_URL and SUPABASE_KEY are provided."""
-    if _HAS_SUPABASE and SUPABASE_URL and SUPABASE_KEY:
-        try:
-            return create_client(SUPABASE_URL, SUPABASE_KEY)
-        except Exception as e:
-            print(f"Supabase client initialization warning: {e}")
+    """Unlinked from Supabase - returns None to ensure local-only execution."""
     return None
+
 
 
 def get_db_path():
@@ -154,28 +147,20 @@ def _connect_postgres_resilient(db_url):
 
 def get_db_connection():
     """
-    Returns an active database connection:
-    - PostgreSQL connection to Supabase if DATABASE_URL is configured and reachable.
-    - Local SQLite connection if DATABASE_URL is not set or remote connection fails.
+    Returns a high-performance local SQLite connection.
+    Configured with WAL mode, 32MB cache, and 256MB memory mapping for instantaneous queries.
     """
-    if is_postgres():
-        try:
-            db_url = _clean_pg_url(DATABASE_URL)
-            return _connect_postgres_resilient(db_url)
-        except Exception as exc:
-            pass
-
-    # SQLite fallback – WAL mode + larger cache for much faster concurrent reads
     db_file = get_db_path()
     conn = sqlite3.connect(db_file, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = WAL")       # Much faster concurrent reads/writes
-    conn.execute("PRAGMA synchronous = NORMAL")     # Safe with WAL, faster than FULL
-    conn.execute("PRAGMA cache_size = -16000")      # 16MB page cache
-    conn.execute("PRAGMA temp_store = MEMORY")      # Temp tables in RAM
-    conn.execute("PRAGMA mmap_size = 134217728")    # 128MB memory-mapped I/O
+    conn.execute("PRAGMA journal_mode = WAL")       # Ultra-fast concurrent reads/writes
+    conn.execute("PRAGMA synchronous = NORMAL")     # Safe with WAL, maximum throughput
+    conn.execute("PRAGMA cache_size = -32000")      # 32MB in-memory page cache
+    conn.execute("PRAGMA temp_store = MEMORY")      # Temporary tables and indices in RAM
+    conn.execute("PRAGMA mmap_size = 268435456")    # 256MB memory-mapped file I/O for instant reads
     return conn
+
 
 
 def _normalize_query_for_postgres(query):

@@ -611,46 +611,6 @@ body.tap-to-speak-active button:hover {
   40%, 80% { transform: translateX(6px); }
 }
 
-/* Floating Role Switcher Slide Tab on Right Edge */
-.role-switch-slide-tab {
-  position: fixed;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1040;
-  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: 24px 0 0 24px;
-  padding: 11px 16px 11px 14px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  box-shadow: -4px 0 16px rgba(2, 132, 199, 0.35);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.role-switch-slide-tab:hover {
-  transform: translateY(-50%) translateX(-4px);
-  background: linear-gradient(135deg, #0369a1 0%, #0c4a6e 100%);
-  box-shadow: -6px 0 22px rgba(2, 132, 199, 0.5);
-  color: #ffffff;
-}
-
-.role-drawer-item {
-  transition: all 0.2s ease;
-  background: #ffffff;
-}
-
-.role-drawer-item:hover {
-  background: #f0f9ff;
-  border-color: #0284c7 !important;
-  transform: translateX(-3px);
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15) !important;
-}
 
 .role-select-card {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -955,23 +915,65 @@ body.tap-to-speak-active button:hover {
     font-size: 16px !important;
   }
 
-  /* Touch targets minimum height */
-  .btn, .btn-sm {
+  /* Touch targets minimum height (exempt compact action pills, circular buttons, and badges) */
+  .btn:not(.btn-xs):not(.rounded-circle):not(.btn-close):not(.tele-card-actions .btn),
+  .btn-sm:not(.btn-xs):not(.rounded-circle):not(.btn-close):not(.tele-card-actions .btn) {
     min-height: 38px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
   }
 
+  .btn-xs {
+    min-height: 28px !important;
+    padding: 2px 8px !important;
+    font-size: 0.75rem !important;
+    line-height: 1.2 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .rounded-circle.btn,
+  .tele-card-actions .btn,
+  .btn-close {
+    min-height: unset !important;
+  }
+
+  /* Equal height stat cards in mobile 2-col grids */
+  .col-6 > .card,
+  .col-6 > .card-custom {
+    height: 100% !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .col-6 .card .fs-3 {
+    font-size: 1.35rem !important;
+  }
+  .col-6 .card .fs-8 {
+    font-size: 0.72rem !important;
+  }
+
+  /* Responsive Search & Filter Toolbars (Prevents horizontal mobile overflow) */
+  .card-header-custom form,
+  .card-header form {
+    width: 100%;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .card-header-custom form .input-group,
+  .card-header form .input-group,
+  .card-header-custom form select,
+  .card-header form select {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
   /* Floating voice assistant bubble above bottom nav */
   #ai-assistant-fab {
     bottom: 78px !important;
     right: 14px !important;
-  }
-
-  /* Role switcher tab on edge: tuck away cleanly */
-  .role-switch-slide-tab {
-    bottom: 80px !important;
   }
 
   /* Clean horizontal scrolling for tables */
@@ -986,12 +988,16 @@ body.tap-to-speak-active button:hover {
     padding: 12px !important;
   }
 
-  /* Topbar height */
+  /* Topbar height and wrap prevention */
   .topbar {
     padding-top: 8px !important;
     padding-bottom: 8px !important;
     padding-left: 12px !important;
     padding-right: 12px !important;
+    min-height: 52px;
+  }
+  .topbar .btn-danger {
+    white-space: nowrap;
   }
 }
 
@@ -999,14 +1005,14 @@ body.tap-to-speak-active button:hover {
 @media (max-width: 575.98px) {
   /* Teleconsult video chamber on smartphones */
   #videoViewport {
-    height: 48vh !important;
-    min-height: 270px !important;
+    height: 46vh !important;
+    min-height: 260px !important;
     max-height: 360px !important;
   }
 
   #localVideoContainer {
-    width: 105px !important;
-    height: 75px !important;
+    width: 100px !important;
+    height: 72px !important;
     bottom: 8px !important;
     right: 8px !important;
   }
@@ -1014,6 +1020,7 @@ body.tap-to-speak-active button:hover {
   /* Controls wrap smoothly */
   .card-footer {
     gap: 6px !important;
+    padding: 8px 10px !important;
   }
 
   .card-footer .btn {
@@ -1028,6 +1035,7 @@ body.tap-to-speak-active button:hover {
   h3, .h3 { font-size: 1.2rem; }
   h4, .h4 { font-size: 1.1rem; }
   h5, .h5 { font-size: 1.0rem; }
+
 }
 
 /* Ensure both teleconsult columns display side-by-side on desktop */

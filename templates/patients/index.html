@@ -13,13 +13,13 @@
 
     <!-- Search & Filter Controls -->
     <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
-      <form method="GET" action="{{ url_for('patients_index') }}" class="d-flex align-items-center gap-2">
-        <div class="input-group input-group-sm" style="width: 260px;">
+      <form method="GET" action="{{ url_for('patients_index') }}" class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="input-group input-group-sm" style="min-width: 180px; flex: 1;">
           <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
           <input type="text" name="q" class="form-control" placeholder="Search Name, UID, Phone..." value="{{ query }}">
         </div>
 
-        <select name="status" class="form-select form-select-sm" style="width: 140px;" onchange="this.form.submit()">
+        <select name="status" class="form-select form-select-sm" style="min-width: 130px; flex: 1;" onchange="this.form.submit()">
           <option value="">All Statuses</option>
           <option value="Outpatient" {% if status_filter == 'Outpatient' %}selected{% endif %}>Outpatient</option>
           <option value="Inpatient" {% if status_filter == 'Inpatient' %}selected{% endif %}>Inpatient</option>
