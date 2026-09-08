@@ -462,7 +462,7 @@ font[style] {
 /* 🔊 Speak Aloud & Voice Accessibility Widget */
 .voice-assist-container {
   position: fixed;
-  bottom: 24px;
+  bottom: 38px;
   right: 24px;
   z-index: 1060;
   font-family: 'Inter', sans-serif;
@@ -564,8 +564,8 @@ body.tap-to-speak-active button:hover {
 
 @media (max-width: 576px) {
   .voice-assist-container {
-    bottom: 16px;
-    right: 16px;
+    bottom: 78px !important;
+    right: 14px !important;
   }
   .voice-panel {
     width: 270px;
@@ -970,8 +970,8 @@ body.tap-to-speak-active button:hover {
     max-width: 100% !important;
   }
 
-  /* Floating voice assistant bubble above bottom nav */
-  #ai-assistant-fab {
+  /* Floating voice accessibility widget above mobile bottom nav */
+  .voice-assist-container {
     bottom: 78px !important;
     right: 14px !important;
   }

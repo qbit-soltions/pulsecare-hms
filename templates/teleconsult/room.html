@@ -41,9 +41,10 @@
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
   }
 
-  /* Specific Camera Fullscreen Mode */
+  /* Specific Camera Fullscreen Mode & CSS Maximize Fallback */
   .tele-cam-card:fullscreen, .tele-cam-card:-webkit-full-screen,
-  #remoteVideo:fullscreen, #remoteVideo:-webkit-full-screen {
+  #remoteVideo:fullscreen, #remoteVideo:-webkit-full-screen,
+  .is-cam-fullscreen {
     width: 100vw !important;
     height: 100vh !important;
     max-width: 100vw !important;
@@ -62,23 +63,52 @@
     border: none !important;
   }
   .tele-cam-card:fullscreen video, .tele-cam-card:-webkit-full-screen video,
-  #remoteVideo:fullscreen, #remoteVideo:-webkit-full-screen {
+  #remoteVideo:fullscreen, #remoteVideo:-webkit-full-screen,
+  .is-cam-fullscreen video {
     width: 100% !important;
     height: 100% !important;
     object-fit: contain !important;
     background: #000000 !important;
   }
-  .tele-cam-card:fullscreen .tele-card-actions, .tele-cam-card:-webkit-full-screen .tele-card-actions {
+  .tele-cam-card:fullscreen .tele-card-actions, .tele-cam-card:-webkit-full-screen .tele-card-actions,
+  .is-cam-fullscreen .tele-card-actions {
     top: 16px !important;
     right: 16px !important;
     opacity: 1 !important;
     gap: 8px !important;
   }
-  .tele-cam-card:fullscreen .tele-cam-label, .tele-cam-card:-webkit-full-screen .tele-cam-label {
+  .tele-cam-card:fullscreen .tele-cam-label, .tele-cam-card:-webkit-full-screen .tele-cam-label,
+  .is-cam-fullscreen .tele-cam-label {
     bottom: 20px !important;
     left: 20px !important;
     font-size: 0.9rem !important;
     padding: 6px 14px !important;
+  }
+  .cam-fullscreen-exit-btn {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    z-index: 10000000;
+    background: rgba(15, 23, 42, 0.9);
+    color: #ffffff;
+    border: 1.5px solid rgba(255, 255, 255, 0.35);
+    border-radius: 30px;
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+  }
+  .cam-fullscreen-exit-btn:hover {
+    background: rgba(220, 38, 38, 0.95);
+    border-color: #ef4444;
+    color: #ffffff;
+    transform: scale(1.04);
   }
   
   /* Grid of All Participants Cameras */
@@ -360,6 +390,9 @@
               <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.switchCamera()" title="Flip Front/Rear Camera">
                 <i class="bi bi-camera-reverse text-warning"></i>
               </button>
+              <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.pinParticipant('local')" title="Pin your camera to Main Screen">
+                <i class="bi bi-pin-angle-fill text-info"></i>
+              </button>
               <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.fullscreenCam('local')" title="Fullscreen this Camera">
                 <i class="bi bi-arrows-fullscreen text-info"></i>
               </button>
@@ -432,7 +465,38 @@
           <!-- Main Dominant Stream -->
           <video id="remoteVideo" autoplay playsinline class="w-100 h-100" style="object-fit: contain; background: #070b14;" ondblclick="window.pcTele.fullscreenCam('mainFocus')" title="Double-click to toggle Fullscreen"></video>
 
-          <div class="position-absolute top-0 end-0 m-3 z-3">
+          <!-- Focus View Peer Cam Off Overlay -->
+          <div id="focusRemoteCamOff" class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center bg-dark text-white text-center p-4" style="background: radial-gradient(circle at center, #1e293b 0%, #070b14 100%); z-index: 2;">
+            <div class="tele-avatar-ring bg-info bg-opacity-25 border-info mb-3" style="width: 80px; height: 80px; font-size: 1.8rem;" id="focusRemoteAvatarInitial">
+              {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
+                {{ (tele.initiator_name or 'A')[0].upper() }}
+              {% else %}
+                {{ (tele.specialist_name or 'D')[0].upper() }}
+              {% endif %}
+            </div>
+            <h6 class="fw-bold text-white mb-1" id="focusRemoteNameDisplay">
+              {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
+                {{ tele.initiator_name or 'Peripheral Health Worker' }}
+              {% else %}
+                {{ tele.specialist_name or 'District Hospital Specialist' }}
+              {% endif %}
+            </h6>
+            <span class="badge bg-warning bg-opacity-25 text-warning border border-warning fs-8 px-3 py-1">
+              <i class="bi bi-camera-video-off me-1"></i>Remote Camera Turned Off
+            </span>
+          </div>
+
+          <!-- Top Action Badges for Focus Mode -->
+          <div class="position-absolute top-0 start-0 m-3 z-3 d-flex align-items-center gap-2">
+            <button type="button" id="btnFocusUnpin" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-pill px-2 py-1 shadow d-none" onclick="window.pcTele.unpinParticipant()" title="Unpin Camera & Return to Multi-Cam Grid">
+              <i class="bi bi-pin-angle me-1 text-warning"></i><span class="fs-9">Unpin</span>
+            </button>
+            <span id="focusPinnedBadge" class="badge bg-primary bg-opacity-75 text-white d-none align-items-center gap-1 fs-9 rounded-pill px-2 py-1 shadow">
+              <i class="bi bi-pin-fill"></i><span id="focusPinnedLabel">Pinned</span>
+            </span>
+          </div>
+
+          <div class="position-absolute top-0 end-0 m-3 z-3 d-flex gap-2">
             <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-pill px-2 py-1 shadow" onclick="window.pcTele.fullscreenCam('mainFocus')" title="Fullscreen Video Stream">
               <i class="bi bi-arrows-fullscreen text-info me-1"></i><span class="fs-9">Fullscreen</span>
             </button>
@@ -505,7 +569,10 @@
               <i class="bi bi-people me-1"></i>Participants: <span id="peerCount">1</span>
             </span>
           </div>
-          <div class="d-flex gap-2">
+          <div class="d-flex flex-wrap gap-2 justify-content-center align-items-center">
+            <button type="button" class="btn btn-sm btn-info rounded-pill px-3 fs-8 fw-bold shadow-sm" onclick="window.pcTele.dismissWaitingOverlay()">
+              <i class="bi bi-camera-video-fill me-1"></i>Enter Chamber View
+            </button>
             <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 fs-8" onclick="window.pcTele.copyRoomLink()">
               <i class="bi bi-clipboard-check me-1"></i>Copy Room Link
             </button>
@@ -631,52 +698,51 @@
       <!-- ── Floating Google Meet Bottom Control Toolbar ── -->
       <div class="card-footer bg-black py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <!-- Media Controls -->
-        <div class="d-flex gap-2 align-items-center flex-wrap">
-          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3" id="btnToggleMic" onclick="window.pcTele.toggleMic()" title="Toggle Microphone (M)">
-            <i class="bi bi-mic-fill me-1" id="micIcon"></i><span id="micText" class="d-none d-sm-inline">Mute</span>
+        <div class="d-flex gap-1 gap-sm-2 align-items-center flex-wrap">
+          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 px-sm-3 d-inline-flex align-items-center justify-content-center" id="btnToggleMic" onclick="window.pcTele.toggleMic()" title="Toggle Microphone (M)">
+            <i class="bi bi-mic-fill" id="micIcon"></i><span id="micText" class="d-none d-sm-inline ms-1">Mute</span>
           </button>
-          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3" id="btnToggleCam" onclick="window.pcTele.toggleCam()" title="Toggle Camera (V)">
-            <i class="bi bi-camera-video-fill me-1" id="camIcon"></i><span id="camText" class="d-none d-sm-inline">Camera</span>
+          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 px-sm-3 d-inline-flex align-items-center justify-content-center" id="btnToggleCam" onclick="window.pcTele.toggleCam()" title="Toggle Camera (V)">
+            <i class="bi bi-camera-video-fill" id="camIcon"></i><span id="camText" class="d-none d-sm-inline ms-1">Camera</span>
           </button>
-          <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-3 text-white" id="btnSwitchCam" onclick="window.pcTele.switchCamera()" title="Switch Front/Rear Camera (Useful for examining patients)">
-            <i class="bi bi-camera-reverse me-1 text-warning"></i><span id="switchCamText" class="d-none d-md-inline">Flip Cam</span>
+          <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-2 px-sm-3 text-white d-inline-flex align-items-center justify-content-center" style="min-width: 38px;" id="btnSwitchCam" onclick="window.pcTele.switchCamera()" title="Switch Front/Rear Camera (Useful for examining patients)">
+            <i class="bi bi-arrow-repeat text-warning" id="switchCamIcon"></i><span id="switchCamText" class="d-none d-md-inline ms-1">Flip Cam</span>
           </button>
-          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 d-none d-lg-inline-flex" id="btnShareScreen" onclick="window.pcTele.toggleScreenShare()" title="Share Screen / ECG">
-            <i class="bi bi-display me-1"></i><span class="d-none d-xl-inline">Share Screen</span>
+          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 px-sm-3 d-none d-lg-inline-flex align-items-center justify-content-center" id="btnShareScreen" onclick="window.pcTele.toggleScreenShare()" title="Share Screen / ECG">
+            <i class="bi bi-display" id="shareScreenIcon"></i><span class="d-none d-xl-inline ms-1">Share Screen</span>
           </button>
         </div>
 
         <!-- Meet View & Feature Controls -->
-        <div class="d-flex gap-2 align-items-center flex-wrap">
+        <div class="d-flex gap-1 gap-sm-2 align-items-center flex-wrap">
           <!-- All Cams Grid Toggle -->
-          <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3" id="btnToggleLayout" onclick="window.pcTele.toggleLayout()" title="Switch to All Cams Grid / Focus Mode (G)">
-            <i class="bi bi-grid-3x3-gap-fill me-1" id="layoutIcon"></i><span id="layoutText" class="d-none d-sm-inline">All Cams</span>
+          <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 px-sm-3 d-inline-flex align-items-center justify-content-center" id="btnToggleLayout" onclick="window.pcTele.toggleLayout()" title="Switch to All Cams Grid / Focus Mode (G)">
+            <i class="bi bi-grid-3x3-gap-fill" id="layoutIcon"></i><span id="layoutText" class="d-none d-sm-inline ms-1">All Cams</span>
           </button>
 
-
           <!-- Fullscreen Button -->
-          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3" id="btnToggleFullscreen" onclick="window.pcTele.toggleFullscreen()" title="Toggle Fullscreen (F)">
-            <i class="bi bi-fullscreen me-1" id="fullscreenIcon"></i><span class="d-none d-md-inline" id="fullscreenLabel">Fullscreen</span>
+          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 px-sm-3 d-inline-flex align-items-center justify-content-center" id="btnToggleFullscreen" onclick="window.pcTele.toggleFullscreen()" title="Toggle Fullscreen (F)">
+            <i class="bi bi-fullscreen" id="fullscreenIcon"></i><span class="d-none d-md-inline ms-1" id="fullscreenLabel">Fullscreen</span>
           </button>
 
           <!-- In-Call Chat Drawer Toggle -->
-          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 position-relative" id="btnToggleChat" onclick="window.pcTele.toggleChat()" title="In-Call Chat (C)">
-            <i class="bi bi-chat-dots-fill me-1"></i><span class="d-none d-md-inline">Chat</span>
+          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 px-sm-3 position-relative d-inline-flex align-items-center justify-content-center" id="btnToggleChat" onclick="window.pcTele.toggleChat()" title="In-Call Chat (C)">
+            <i class="bi bi-chat-dots-fill" id="chatIcon"></i><span class="d-none d-md-inline ms-1">Chat</span>
             <span id="chatBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size:0.65rem;">0</span>
           </button>
 
           <!-- Participants Drawer Toggle -->
-          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3" id="btnToggleParticipants" onclick="window.pcTele.toggleParticipants()" title="Participants List (P)">
-            <i class="bi bi-people-fill me-1"></i><span class="d-none d-md-inline">People</span> (<span id="peopleCountBadge">1</span>)
+          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 px-sm-3 d-inline-flex align-items-center justify-content-center" id="btnToggleParticipants" onclick="window.pcTele.toggleParticipants()" title="Participants List (P)">
+            <i class="bi bi-people-fill" id="peopleIcon"></i><span class="d-none d-md-inline ms-1">People</span><span class="ms-1 fs-9">(<span id="peopleCountBadge">1</span>)</span>
           </button>
         </div>
 
         <!-- Call Termination & Emergency -->
-        <div class="d-flex gap-2 align-items-center">
-          <button type="button" class="btn btn-sm btn-danger fw-bold rounded-pill px-3" id="btnEndCall" onclick="window.pcTele.endCall()" title="End this teleconsultation">
-            <i class="bi bi-telephone-x-fill me-1"></i><span class="d-none d-sm-inline">End Call</span>
+        <div class="d-flex gap-1 gap-sm-2 align-items-center">
+          <button type="button" class="btn btn-sm btn-danger fw-bold rounded-pill px-2 px-sm-3 d-inline-flex align-items-center justify-content-center" id="btnEndCall" onclick="window.pcTele.endCall()" title="End this teleconsultation">
+            <i class="bi bi-telephone-x-fill" id="endCallIcon"></i><span class="d-none d-sm-inline ms-1">End Call</span>
           </button>
-          <button type="button" class="btn btn-sm btn-outline-danger fw-bold rounded-pill px-2" data-bs-toggle="modal" data-bs-target="#emergencyModal" title="Escalate to 108 Emergency Ambulance">
+          <button type="button" class="btn btn-sm btn-outline-danger fw-bold rounded-pill px-2 d-inline-flex align-items-center justify-content-center" data-bs-toggle="modal" data-bs-target="#emergencyModal" title="Escalate to 108 Emergency Ambulance">
             <i class="bi bi-telephone-outbound-fill me-1"></i>108
           </button>
         </div>
@@ -1273,9 +1339,19 @@
 
   function onCallConnected() {
     callActive = true;
+    dismissWaitingOverlay();
     document.getElementById("callStatusDot").className = "status-dot bg-success rounded-circle d-inline-block pulse-animation";
     document.getElementById("linkageTitle").textContent = "TWO-WAY AUDIO/VIDEO LINK ACTIVE (HD)";
     startCallTimer();
+  }
+
+  function dismissWaitingOverlay() {
+    const overlay = document.getElementById("remoteWaitingOverlay");
+    if (overlay) {
+      overlay.classList.add("d-none");
+      overlay.classList.remove("d-flex");
+      overlay.style.setProperty("display", "none", "important");
+    }
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -1306,6 +1382,9 @@
       // Update Participant Count & UI
       const otherPeers = data.other_peers || [];
       updateParticipantsUI(data.peers || {}, otherPeers);
+      if (otherPeers.length > 0) {
+        dismissWaitingOverlay();
+      }
 
       // Process In-Call Chat Messages
       if (data.chat && data.chat.length > 0) {
@@ -1431,6 +1510,7 @@
     const topIcon = document.getElementById("topLayoutIcon");
 
     if (currentLayout === "grid") {
+      dismissWaitingOverlay();
       if (gridEl)  gridEl.style.display = "grid";
       if (focusEl) focusEl.style.display = "none";
       if (btnText) btnText.textContent = "Focus View";
@@ -1449,22 +1529,128 @@
     }
   }
 
+  let pinnedTarget = null; // null, 'local', 'remote', or peer id
+
   function pinParticipant(target) {
+    if (pinnedTarget === target) {
+      unpinParticipant();
+      return;
+    }
+
+    pinnedTarget = target;
+    dismissWaitingOverlay();
     toggleLayout("focus");
+
     const mainRemote = document.getElementById("remoteVideo");
+    const pipVideo = document.getElementById("localVideo");
+    const pipContainer = document.getElementById("localVideoContainer");
+    const pipLabel = pipContainer ? pipContainer.querySelector("div") : null;
+    const focusCamOff = document.getElementById("focusRemoteCamOff");
+    const focusPinnedBadge = document.getElementById("focusPinnedBadge");
+    const focusPinnedLabel = document.getElementById("focusPinnedLabel");
+    const btnFocusUnpin = document.getElementById("btnFocusUnpin");
+
+    if (btnFocusUnpin) btnFocusUnpin.classList.remove("d-none");
+    if (focusPinnedBadge) {
+      focusPinnedBadge.classList.remove("d-none");
+      focusPinnedBadge.classList.add("d-inline-flex");
+    }
+
+    // Reset pin highlight on grid cards
+    document.querySelectorAll(".tele-cam-card").forEach(c => c.classList.remove("is-pinned"));
+
     if (target === "local") {
+      const tileLocal = document.getElementById("gridTileLocal");
+      if (tileLocal) tileLocal.classList.add("is-pinned");
+      if (focusPinnedLabel) focusPinnedLabel.textContent = "You (Pinned)";
+
       if (mainRemote && localStream) {
         mainRemote.srcObject = localStream;
         mainRemote.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
       }
-      showToast("Pinned your camera feed to main screen.", "info");
+      if (pipVideo) {
+        if (remoteStream) {
+          pipVideo.srcObject = remoteStream;
+          pipVideo.style.transform = "none";
+        }
+      }
+      if (pipLabel) pipLabel.innerHTML = `<i class="bi bi-person-video3 text-info me-1"></i>Remote Peer`;
+      if (focusCamOff) {
+        focusCamOff.classList.add("d-none");
+        focusCamOff.classList.remove("d-flex");
+      }
+      showToast("<i class='bi bi-pin-fill text-warning me-1'></i>Pinned your camera to main screen.", "info");
+
+    } else if (target === "remote") {
+      const tileRemote = document.getElementById("gridTileRemote");
+      if (tileRemote) tileRemote.classList.add("is-pinned");
+      if (focusPinnedLabel) focusPinnedLabel.textContent = "Remote Peer (Pinned)";
+
+      if (mainRemote) {
+        if (remoteStream) {
+          mainRemote.srcObject = remoteStream;
+          mainRemote.style.transform = "none";
+        }
+      }
+      if (pipVideo && localStream) {
+        pipVideo.srcObject = localStream;
+        pipVideo.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
+      }
+      if (pipLabel) pipLabel.innerHTML = `<i class="bi bi-person-fill text-primary me-1"></i>${USER_NAME} (You)`;
+      showToast("<i class='bi bi-pin-fill text-warning me-1'></i>Pinned remote participant to main screen.", "info");
+
     } else {
-      if (mainRemote && remoteStream) {
+      // Dynamic extra peer
+      const tileDyn = document.getElementById("gridTile_" + target);
+      if (tileDyn) tileDyn.classList.add("is-pinned");
+      if (focusPinnedLabel) focusPinnedLabel.textContent = "Attendee (Pinned)";
+
+      const dynVid = document.getElementById("dynVid_" + target);
+      if (mainRemote && dynVid && dynVid.srcObject) {
+        mainRemote.srcObject = dynVid.srcObject;
+        mainRemote.style.transform = "none";
+      } else if (mainRemote && remoteStream) {
         mainRemote.srcObject = remoteStream;
         mainRemote.style.transform = "none";
       }
-      showToast("Pinned remote participant to main screen.", "info");
+      if (pipVideo && localStream) {
+        pipVideo.srcObject = localStream;
+        pipVideo.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
+      }
+      if (pipLabel) pipLabel.innerHTML = `<i class="bi bi-person-fill text-primary me-1"></i>${USER_NAME} (You)`;
+      showToast("<i class='bi bi-pin-fill text-warning me-1'></i>Pinned attendee to main screen.", "info");
     }
+  }
+
+  function unpinParticipant() {
+    pinnedTarget = null;
+    document.querySelectorAll(".tele-cam-card").forEach(c => c.classList.remove("is-pinned"));
+
+    const btnFocusUnpin = document.getElementById("btnFocusUnpin");
+    const focusPinnedBadge = document.getElementById("focusPinnedBadge");
+    if (btnFocusUnpin) btnFocusUnpin.classList.add("d-none");
+    if (focusPinnedBadge) {
+      focusPinnedBadge.classList.add("d-none");
+      focusPinnedBadge.classList.remove("d-inline-flex");
+    }
+
+    // Restore standard focus view streams
+    const mainRemote = document.getElementById("remoteVideo");
+    const pipVideo = document.getElementById("localVideo");
+    const pipContainer = document.getElementById("localVideoContainer");
+    const pipLabel = pipContainer ? pipContainer.querySelector("div") : null;
+
+    if (mainRemote && remoteStream) {
+      mainRemote.srcObject = remoteStream;
+      mainRemote.style.transform = "none";
+    }
+    if (pipVideo && localStream) {
+      pipVideo.srcObject = localStream;
+      pipVideo.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
+    }
+    if (pipLabel) pipLabel.innerHTML = `<i class="bi bi-person-fill text-primary me-1"></i>${USER_NAME} (You)`;
+
+    showToast("<i class='bi bi-pin-angle me-1'></i>Unpinned camera. Default view restored.", "info");
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -1495,14 +1681,29 @@
   function fullscreenCam(target) {
     let el = null;
     let camName = "Camera";
+
+    // If already in fullscreen, exit
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.querySelector(".is-cam-fullscreen")) {
+      exitCamFullscreen();
+      return;
+    }
+
     if (target === "local") {
-      el = document.getElementById("gridTileLocal");
+      if (currentLayout === "focus") {
+        el = document.getElementById("localVideoContainer");
+      } else {
+        el = document.getElementById("gridTileLocal");
+      }
       camName = "Your Camera";
     } else if (target === "remote") {
-      el = document.getElementById("gridTileRemote");
+      if (currentLayout === "focus") {
+        el = document.getElementById("focusView") || document.getElementById("remoteVideo");
+      } else {
+        el = document.getElementById("gridTileRemote");
+      }
       camName = "Remote Clinical Camera";
     } else if (target === "mainFocus") {
-      el = document.getElementById("remoteVideo");
+      el = document.getElementById("focusView") || document.getElementById("remoteVideo");
       camName = "Main Video Stream";
     } else if (typeof target === "string") {
       el = document.getElementById(target);
@@ -1514,26 +1715,52 @@
 
     if (!el) return;
 
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      } else if (document.webkitExitFullscreen) {
-        document.webkitExitFullscreen();
-      }
-      return;
+    function applyCssFullscreen() {
+      el.classList.add("is-cam-fullscreen");
+      ensureFullscreenExitBtn(el);
+      showToast("<i class='bi bi-arrows-fullscreen text-info me-1'></i>" + camName + " is now Fullscreen.", "info");
     }
 
     const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
     if (req) {
       req.call(el).then(() => {
+        ensureFullscreenExitBtn(el);
         showToast("<i class='bi bi-arrows-fullscreen text-info me-1'></i>" + camName + " is now Fullscreen. Press [Esc] to exit.", "info");
       }).catch(err => {
-        console.warn("[Camera Fullscreen error]", err);
-        showToast("Fullscreen restricted: " + err.message, "warning");
+        console.warn("[Native Fullscreen rejected, falling back to CSS maximize]", err);
+        applyCssFullscreen();
       });
     } else {
-      showToast("Fullscreen is not supported on this browser.", "warning");
+      applyCssFullscreen();
     }
+  }
+
+  function ensureFullscreenExitBtn(parentEl) {
+    let btn = document.getElementById("camFullscreenExitBtn");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.id = "camFullscreenExitBtn";
+      btn.type = "button";
+      btn.className = "cam-fullscreen-exit-btn";
+      btn.innerHTML = "<i class=\"bi bi-fullscreen-exit me-1\"></i><span>Exit Fullscreen</span>";
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        exitCamFullscreen();
+      };
+    }
+    parentEl.appendChild(btn);
+  }
+
+  function exitCamFullscreen() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      try {
+        if (document.exitFullscreen) document.exitFullscreen().catch(e => console.log(e));
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      } catch (e) {}
+    }
+    document.querySelectorAll(".is-cam-fullscreen").forEach(el => el.classList.remove("is-cam-fullscreen"));
+    const btn = document.getElementById("camFullscreenExitBtn");
+    if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
   }
 
   function initFullscreenListeners() {
@@ -1554,11 +1781,22 @@
         if (topFsIcon) topFsIcon.className = "bi bi-fullscreen";
         if (fsLabel) fsLabel.textContent = "Fullscreen";
         if (stage) stage.classList.remove("in-fullscreen");
+
+        // Clean up camera fullscreen exit button if native FS closed
+        const btn = document.getElementById("camFullscreenExitBtn");
+        if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
+        document.querySelectorAll(".is-cam-fullscreen").forEach(el => el.classList.remove("is-cam-fullscreen"));
       }
     }
 
     document.addEventListener("fullscreenchange", onFsChange);
     document.addEventListener("webkitfullscreenchange", onFsChange);
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && document.querySelector(".is-cam-fullscreen")) {
+        exitCamFullscreen();
+      }
+    });
   }
 
 
@@ -1776,6 +2014,11 @@
          totalCount <= 4  ? "tele-grid-4" : "tele-grid-6");
     }
 
+    // Dismiss waiting overlay when peers connect
+    if (otherPeers.length > 0) {
+      dismissWaitingOverlay();
+    }
+
     // Update Primary Remote Peer Status in Grid
     if (otherPeers.length > 0) {
       const primaryPeer = otherPeers[0];
@@ -1785,13 +2028,78 @@
       const statusTx = document.getElementById("gridRemoteStatusText");
 
       if (nameDisp) nameDisp.textContent = primaryPeer.name;
-      if (labelEl)  labelEl.textContent = primaryPeer.name + " (" + primaryPeer.role.toUpperCase() + ")";
+      if (labelEl)  labelEl.textContent = primaryPeer.name + " (" + (primaryPeer.role || "").toUpperCase() + ")";
       if (statusTx && callActive) statusTx.textContent = "Live Encrypted Feed Active";
 
       if (micDot) {
         micDot.className = (primaryPeer.mic_on === false) ? "text-danger" : "text-success";
         micDot.innerHTML = (primaryPeer.mic_on === false) ? "<i class='bi bi-mic-mute-fill'></i>" : "<i class='bi bi-mic-fill'></i>";
       }
+
+      // Sync Remote Cam Off Overlays
+      const focusCamOff = document.getElementById("focusRemoteCamOff");
+      const focusName   = document.getElementById("focusRemoteNameDisplay");
+      const focusAvatar = document.getElementById("focusRemoteAvatarInitial");
+      const gridCamOff  = document.getElementById("gridRemoteCamOff");
+
+      if (focusName) focusName.textContent = primaryPeer.name;
+      if (focusAvatar) focusAvatar.textContent = (primaryPeer.name || "U")[0].toUpperCase();
+
+      if (primaryPeer.cam_on === false) {
+        if (focusCamOff) focusCamOff.classList.remove("d-none");
+        if (gridCamOff) gridCamOff.classList.remove("d-none");
+      } else {
+        if (focusCamOff) focusCamOff.classList.add("d-none");
+        if (gridCamOff && remoteStream) gridCamOff.classList.add("d-none");
+      }
+    }
+
+    // Update Dynamic Grid Tiles for extra peers (>1 remote)
+    const dynamicGrid = document.getElementById("dynamicGridTiles");
+    if (dynamicGrid) {
+      dynamicGrid.innerHTML = "";
+      otherPeers.slice(1).forEach((p, idx) => {
+        const tileId = `gridTile-peer-${p.user_id || idx}`;
+        const card = document.createElement("div");
+        card.className = "tele-cam-card";
+        card.id = tileId;
+        card.innerHTML = `
+          <div class="tele-cam-placeholder ${p.cam_on === false ? '' : 'd-none'}" id="camOff-${tileId}">
+            <div class="tele-avatar-ring bg-info bg-opacity-25 border-info mb-2">${(p.name || 'U')[0].toUpperCase()}</div>
+            <span class="fs-8 fw-bold text-white">${p.name}</span>
+            <span class="text-warning fs-9">Camera Off</span>
+          </div>
+          <div class="tele-card-actions">
+            <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.fullscreenCam('${tileId}')" title="Fullscreen this Camera">
+              <i class="bi bi-arrows-fullscreen text-info"></i>
+            </button>
+          </div>
+          <div class="tele-cam-label">
+            <span class="${p.mic_on === false ? 'text-danger' : 'text-success'}"><i class="bi ${p.mic_on === false ? 'bi-mic-mute-fill' : 'bi-mic-fill'}"></i></span>
+            <span class="fw-bold">${p.name}</span>
+            <span class="badge bg-secondary text-white fs-9 py-0 text-uppercase">${p.role || 'Peer'}</span>
+          </div>
+        `;
+        dynamicGrid.appendChild(card);
+      });
+    }
+
+    // Update Dynamic Filmstrip Thumbnails
+    const dynamicFilmstrip = document.getElementById("dynamicFilmstripItems");
+    if (dynamicFilmstrip) {
+      dynamicFilmstrip.innerHTML = "";
+      otherPeers.slice(1).forEach((p, idx) => {
+        const item = document.createElement("div");
+        item.className = "tele-filmstrip-item";
+        item.title = `Focus ${p.name}`;
+        item.innerHTML = `
+          <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-white fw-bold fs-8">
+            ${(p.name || 'U')[0].toUpperCase()}
+          </div>
+          <span class="position-absolute bottom-0 start-0 bg-dark bg-opacity-75 text-white px-1" style="font-size: 0.6rem;">${p.name.split(' ')[0]}</span>
+        `;
+        dynamicFilmstrip.appendChild(item);
+      });
     }
 
     // Update Drawer Peers List
@@ -2153,6 +2461,9 @@
 
   // Export public methods on window.pcTele
   window.pcTele = {
+    getClientId: () => CLIENT_ID,
+    getKnownPeers: () => knownPeers,
+    getPollInterval: () => !!pollInterval,
     toggleMic: toggleMic,
     toggleCam: toggleCam,
     switchCamera: switchCamera,
@@ -2160,11 +2471,14 @@
     toggleLayout: toggleLayout,
     toggleFullscreen: toggleFullscreen,
     fullscreenCam: fullscreenCam,
+    exitCamFullscreen: exitCamFullscreen,
     toggleChat: toggleChat,
     toggleParticipants: toggleParticipants,
     submitChatForm: submitChatForm,
     sendQuickChat: sendQuickChat,
     pinParticipant: pinParticipant,
+    unpinParticipant: unpinParticipant,
+    dismissWaitingOverlay: dismissWaitingOverlay,
     endCall: endCall,
     reconnectCall: reconnectCall,
     retryConnection: retryConnection,

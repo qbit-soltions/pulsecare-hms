@@ -563,25 +563,7 @@
   }
 
   function injectFloatingFab() {
-    if (document.getElementById("ai-assistant-fab")) return;
-
-    const fab = document.createElement("div");
-    fab.id = "ai-assistant-fab";
-    fab.className = "no-print";
-    fab.style.cssText = "position: fixed; bottom: 85px; right: 24px; z-index: 1050;";
-
-    fab.innerHTML = `
-      <button type="button" class="ai-voice-floating-btn shadow-lg d-flex align-items-center gap-2" onclick="window.PulseCareAIAssistant.openModal()" title="Ask PulseCare AI Voice Assistant">
-        <div class="ai-fab-icon-box">
-          <i class="bi bi-robot fs-5"></i>
-        </div>
-        <div class="ai-fab-label d-none d-sm-block">
-          <span class="fw-bold fs-8">PulseCare AI</span>
-          <span class="d-block text-white-50 fs-9">Real-Time Voice</span>
-        </div>
-      </button>
-    `;
-    document.body.appendChild(fab);
+    // Floating FAB removed - AI assistant is accessible via topbar and mobile nav
     injectAIModal();
   }
 
@@ -610,7 +592,7 @@
   };
 
   document.addEventListener("DOMContentLoaded", function () {
-    injectFloatingFab();
+    injectAIModal();
   });
 
 })();
