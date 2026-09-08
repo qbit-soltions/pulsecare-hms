@@ -1,257 +1,544 @@
 {% extends "base.html" %}
 
 {% block title %}Teleconsultation Chamber - {{ tele.session_uid }}{% endblock %}
-{% block header_title %}Teleconsultation Room ({{ tele.session_uid }}){% endblock %}
+{% block header_title %}Google Meet Telehealth Chamber ({{ tele.session_uid }}){% endblock %}
 {% block header_subtitle %}Live Clinical Linkage: {{ tele.from_facility_name or 'Peripheral Centre' }} ⇄ {{ tele.to_facility_name or 'District Hospital' }}{% endblock %}
 
 {% block extra_head %}
 <style>
-  /* Google Meet Clinical Styling */
-  #teleMeetStage {
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    background: #090d16 !important;
-  }
-  
-  /* Native Fullscreen Mode */
-  #teleMeetStage:fullscreen, #teleMeetStage:-webkit-full-screen {
-    width: 100vw !important;
-    height: 100vh !important;
-    max-width: 100vw !important;
-    max-height: 100vh !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    z-index: 999999 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    background: #060911 !important;
-  }
-  #teleMeetStage:fullscreen #videoViewport, #teleMeetStage:-webkit-full-screen #videoViewport {
-    flex: 1 1 auto !important;
-    height: calc(100vh - 76px) !important;
-    max-height: none !important;
-  }
-  #teleMeetStage:fullscreen .card-footer, #teleMeetStage:-webkit-full-screen .card-footer {
-    padding: 14px 24px !important;
-    background: rgba(15, 23, 42, 0.96) !important;
-    backdrop-filter: blur(16px) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  /* ══════════════════════════════════════════════════════════════
+     GOOGLE MEET UI DESIGN SYSTEM (Matches Figma Community Node 6-127)
+     Theme: #202124 (Canvas), #3c4043 (Surfaces), #8ab4f8 (Blue), #ea4335 (Red)
+  ══════════════════════════════════════════════════════════════ */
+  :root {
+    --gm-bg: #202124;
+    --gm-surface: #292a2d;
+    --gm-surface-variant: #3c4043;
+    --gm-surface-hover: #474a4d;
+    --gm-text-primary: #ffffff;
+    --gm-text-secondary: #bdc1c6;
+    --gm-accent-blue: #8ab4f8;
+    --gm-accent-blue-bg: rgba(138, 180, 248, 0.18);
+    --gm-danger-red: #ea4335;
+    --gm-danger-hover: #d93025;
+    --gm-success-green: #34a853;
+    --gm-warning-yellow: #fbbc04;
+    --gm-radius-lg: 16px;
+    --gm-radius-md: 12px;
+    --gm-radius-sm: 8px;
+    --gm-font: 'Google Sans', Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
-  /* Specific Camera Fullscreen Mode & CSS Maximize Fallback */
-  .tele-cam-card:fullscreen, .tele-cam-card:-webkit-full-screen,
-  #remoteVideo:fullscreen, #remoteVideo:-webkit-full-screen,
-  .is-cam-fullscreen {
-    width: 100vw !important;
-    height: 100vh !important;
-    max-width: 100vw !important;
-    max-height: 100vh !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    z-index: 9999999 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: #000000 !important;
-    border: none !important;
+  /* Chamber Outer Frame */
+  .google-meet-container {
+    background: var(--gm-bg);
+    color: var(--gm-text-primary);
+    border-radius: var(--gm-radius-lg);
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    position: relative;
+    font-family: var(--gm-font);
+    display: flex;
+    flex-direction: column;
+    min-height: 580px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
-  .tele-cam-card:fullscreen video, .tele-cam-card:-webkit-full-screen video,
-  #remoteVideo:fullscreen, #remoteVideo:-webkit-full-screen,
-  .is-cam-fullscreen video {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: contain !important;
-    background: #000000 !important;
-  }
-  .tele-cam-card:fullscreen .tele-card-actions, .tele-cam-card:-webkit-full-screen .tele-card-actions,
-  .is-cam-fullscreen .tele-card-actions {
-    top: 16px !important;
-    right: 16px !important;
-    opacity: 1 !important;
-    gap: 8px !important;
-  }
-  .tele-cam-card:fullscreen .tele-cam-label, .tele-cam-card:-webkit-full-screen .tele-cam-label,
-  .is-cam-fullscreen .tele-cam-label {
-    bottom: 20px !important;
-    left: 20px !important;
-    font-size: 0.9rem !important;
-    padding: 6px 14px !important;
-  }
-  .cam-fullscreen-exit-btn {
-    position: absolute;
-    top: 18px;
-    right: 18px;
-    z-index: 10000000;
-    background: rgba(15, 23, 42, 0.9);
-    color: #ffffff;
-    border: 1.5px solid rgba(255, 255, 255, 0.35);
-    border-radius: 30px;
-    padding: 8px 18px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    cursor: pointer;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+
+  /* Top Presentation / Status Bar */
+  .meet-top-banner {
+    background: var(--gm-surface-variant);
+    height: 48px;
     display: flex;
     align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
+    justify-content: space-between;
+    padding: 0 16px;
+    color: var(--gm-text-primary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+    z-index: 10;
   }
-  .cam-fullscreen-exit-btn:hover {
-    background: rgba(220, 38, 38, 0.95);
-    border-color: #ef4444;
-    color: #ffffff;
-    transform: scale(1.04);
+  .meet-presenter-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
   }
-  
-  /* Grid of All Participants Cameras */
-  .tele-grid-container {
-    display: grid;
-    gap: 12px;
-    width: 100%;
-    height: 100%;
-    padding: 12px;
-    box-sizing: border-box;
-    overflow-y: auto;
-  }
-  .tele-grid-1 { grid-template-columns: 1fr; }
-  .tele-grid-2 { grid-template-columns: repeat(2, 1fr); }
-  .tele-grid-3, .tele-grid-4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
-  .tele-grid-5, .tele-grid-6 { grid-template-columns: repeat(3, 1fr); }
-
-  @media (max-width: 768px) {
-    .tele-grid-2, .tele-grid-3, .tele-grid-4, .tele-grid-5, .tele-grid-6 {
-      grid-template-columns: 1fr !important;
-      grid-template-rows: auto !important;
-    }
-  }
-
-  .tele-cam-card {
-    position: relative;
-    background: #111827;
-    border-radius: 12px;
-    overflow: hidden;
-    border: 1.5px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  .meet-presenter-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #0f9d58;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.8rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 170px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  /* Main Video Canvas Area */
+  .meet-stage-canvas {
+    background: var(--gm-bg);
+    flex: 1 1 auto;
+    position: relative;
+    padding: 12px;
+    display: flex;
+    gap: 12px;
+    height: 490px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  /* Stage Left: Main Dominant Spotlight (~68% on desktop) */
+  .meet-spotlight-card {
+    flex: 2.15 1 0%;
     height: 100%;
-    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    background: #111315;
+    border-radius: var(--gm-radius-lg);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.25s ease;
   }
-  .tele-cam-card:hover {
-    border-color: rgba(14, 165, 233, 0.5);
-  }
-  .tele-cam-card.is-speaking {
-    border-color: #10b981 !important;
-    box-shadow: 0 0 16px rgba(16, 185, 129, 0.5) !important;
-  }
-  .tele-cam-card.is-pinned {
-    border-color: #38bdf8 !important;
-    box-shadow: 0 0 16px rgba(56, 189, 248, 0.45) !important;
-  }
-  .tele-cam-card video {
+  .meet-spotlight-card video {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    background: #070b14;
+    background: #0d0e11;
   }
-  .tele-cam-label {
+
+  /* Stage Right: 2-Column Attendees Grid (~32% on desktop) */
+  .meet-attendees-grid {
+    flex: 1 1 0%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-gap: 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 2px;
+  }
+  .meet-attendees-grid::-webkit-scrollbar {
+    width: 6px;
+  }
+  .meet-attendees-grid::-webkit-scrollbar-thumb {
+    background: var(--gm-surface-variant);
+    border-radius: 4px;
+  }
+
+  /* Individual Meet Video Tile */
+  .meet-tile-card {
+    background: var(--gm-surface);
+    border-radius: var(--gm-radius-md);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 110px;
+    height: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+  }
+  .meet-tile-card:hover {
+    border-color: rgba(138, 180, 248, 0.6);
+  }
+  .meet-tile-card.is-active-speaker {
+    border-color: var(--gm-accent-blue) !important;
+    box-shadow: 0 0 0 2px var(--gm-accent-blue) !important;
+  }
+  .meet-tile-card.is-pinned {
+    border-color: var(--gm-warning-yellow) !important;
+    box-shadow: 0 0 0 2px var(--gm-warning-yellow) !important;
+  }
+  .meet-tile-card video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #18191c;
+  }
+
+  /* Google Meet White Name Pill (Bottom Left) */
+  .meet-tile-name-pill {
     position: absolute;
     bottom: 8px;
     left: 8px;
-    background: rgba(15, 23, 42, 0.85);
+    background: rgba(32, 33, 36, 0.85);
     backdrop-filter: blur(8px);
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 500;
     padding: 3px 8px;
     border-radius: 20px;
-    font-size: 0.72rem;
-    color: #f8fafc;
     display: flex;
     align-items: center;
     gap: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
     max-width: calc(100% - 16px);
     z-index: 5;
+    pointer-events: none;
   }
-  .tele-card-actions {
+  .meet-tile-name-pill .mic-dot {
+    font-size: 0.75rem;
+  }
+
+  /* Tile Hover Quick Actions (Pin, Fullscreen, Flip) */
+  .meet-tile-actions {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 6px;
+    right: 6px;
     display: flex;
     gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
     z-index: 6;
-    opacity: 0.85;
-    transition: opacity 0.2s;
   }
-  .tele-cam-card:hover .tele-card-actions {
+  .meet-tile-card:hover .meet-tile-actions,
+  .meet-spotlight-card:hover .meet-tile-actions {
     opacity: 1;
   }
-  .tele-avatar-ring {
-    width: 68px;
-    height: 68px;
+  .meet-action-btn-xs {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(32, 33, 36, 0.85);
+    color: #ffffff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+  }
+  .meet-action-btn-xs:hover {
+    background: var(--gm-surface-variant);
+    transform: scale(1.08);
+  }
+
+  /* Cam Off Avatar Circle */
+  .meet-avatar-circle {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #1a73e8;
+    color: #ffffff;
+    font-size: 1.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    margin-bottom: 8px;
+  }
+  .meet-avatar-circle-sm {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+  }
+
+  /* Closed Captions / Subtitles Live Bar */
+  .meet-captions-bar {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(32, 33, 36, 0.9);
+    backdrop-filter: blur(10px);
+    color: #ffffff;
+    border-radius: 24px;
+    padding: 6px 18px;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 8;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    max-width: 80%;
+    text-align: center;
+  }
+
+  /* Raised Hand Floating Badge */
+  .meet-raised-hand-badge {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    background: var(--gm-accent-blue);
+    color: #202124;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 8;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     EXACT GOOGLE MEET FLOATING BOTTOM DOCK (76px Height)
+  ══════════════════════════════════════════════════════════════ */
+  .meet-bottom-dock {
+    height: 76px;
+    background: var(--gm-bg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    position: relative;
+    z-index: 20;
+  }
+
+  /* Left: Time and Meeting Code */
+  .meet-dock-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 180px;
+  }
+  .meet-dock-time {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #ffffff;
+  }
+  .meet-dock-code {
+    font-size: 0.8rem;
+    color: var(--gm-text-secondary);
+    letter-spacing: 0.3px;
+  }
+
+  /* Center: The 7 Action Buttons */
+  .meet-dock-center {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .meet-round-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--gm-surface-variant);
+    color: #ffffff;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    position: relative;
+  }
+  .meet-round-btn:hover {
+    background: var(--gm-surface-hover);
+    transform: scale(1.04);
+  }
+  .meet-round-btn.is-active-blue {
+    background: var(--gm-accent-blue);
+    color: #202124;
+  }
+  .meet-round-btn.is-muted-red {
+    background: var(--gm-danger-red);
+    color: #ffffff;
+  }
+  .meet-round-btn.is-muted-red:hover {
+    background: var(--gm-danger-hover);
+  }
+  .meet-end-call-pill {
+    min-width: 58px;
+    height: 44px;
+    border-radius: 24px;
+    background: var(--gm-danger-red);
+    color: #ffffff;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    padding: 0 16px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .meet-end-call-pill:hover {
+    background: var(--gm-danger-hover);
+    transform: scale(1.04);
+  }
+
+  /* Right: The 4 Side Panel Buttons */
+  .meet-dock-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 180px;
+    justify-content: flex-end;
+  }
+  .meet-panel-icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--gm-text-secondary);
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    position: relative;
+  }
+  .meet-panel-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+  }
+  .meet-panel-icon-btn.is-panel-open {
+    color: var(--gm-accent-blue);
+    background: var(--gm-accent-blue-bg);
+  }
+  .meet-badge-count {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: var(--gm-accent-blue);
+    color: #202124;
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 1px 5px;
+    line-height: 1;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     GOOGLE MEET SLIDING RIGHT DRAWER (Tabs: Details, People, Chat, Activities)
+  ══════════════════════════════════════════════════════════════ */
+  .meet-right-drawer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 380px;
+    max-width: 90%;
+    background: var(--gm-surface);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: -8px 0 28px rgba(0, 0, 0, 0.6);
+  }
+  .meet-right-drawer.drawer-active {
+    transform: translateX(0);
+  }
+
+  .meet-drawer-header {
+    height: 56px;
+    padding: 0 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .meet-drawer-title {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #ffffff;
+    margin: 0;
+  }
+  .meet-drawer-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--gm-text-secondary);
+    font-size: 1.1rem;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 1.4rem;
-    color: white;
-    border: 2px solid rgba(255, 255, 255, 0.25);
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+  }
+  .meet-drawer-close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
   }
 
-  /* Side Drawers (Chat & Participants) */
-  .tele-drawer {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 360px;
-    max-width: 90%;
-    height: 100%;
-    z-index: 45;
-    background: rgba(15, 23, 42, 0.97) !important;
-    backdrop-filter: blur(18px);
-    border-left: 1px solid rgba(255, 255, 255, 0.12);
+  /* Drawer Tab Bar */
+  .meet-drawer-nav {
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.15);
+  }
+  .meet-drawer-tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--gm-text-secondary);
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 10px 4px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .meet-drawer-tab-btn:hover {
+    color: #ffffff;
+  }
+  .meet-drawer-tab-btn.tab-active {
+    color: var(--gm-accent-blue);
+    border-bottom-color: var(--gm-accent-blue);
+  }
+
+  /* Drawer Body Tab Panes */
+  .meet-drawer-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.6);
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s;
-    transform: translateX(105%);
-    opacity: 0;
-    pointer-events: none;
   }
-  .tele-drawer.drawer-open {
-    transform: translateX(0);
-    opacity: 1;
-    pointer-events: auto;
+  .meet-tab-pane {
+    display: none;
+    padding: 16px;
+    flex: 1 1 auto;
+    flex-direction: column;
   }
+  .meet-tab-pane.pane-active {
+    display: flex;
+  }
+
+  /* Chat Bubbles in Drawer */
   .chat-bubble-self {
-    background: #0284c7;
+    background: #1a73e8;
     color: #ffffff;
     border-radius: 14px 14px 2px 14px;
     padding: 8px 12px;
     font-size: 0.82rem;
     max-width: 82%;
     word-break: break-word;
-    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   }
   .chat-bubble-peer {
-    background: rgba(255, 255, 255, 0.08);
-    color: #f1f5f9;
+    background: var(--gm-surface-variant);
+    color: #ffffff;
     border-radius: 14px 14px 14px 2px;
     padding: 8px 12px;
     font-size: 0.82rem;
     max-width: 82%;
     word-break: break-word;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.06);
   }
   .chat-chip {
     background: rgba(255, 255, 255, 0.08);
@@ -265,740 +552,794 @@
     transition: all 0.15s;
   }
   .chat-chip:hover {
-    background: rgba(14, 165, 233, 0.25);
-    border-color: #38bdf8;
-    color: #38bdf8;
+    background: var(--gm-accent-blue-bg);
+    border-color: var(--gm-accent-blue);
+    color: var(--gm-accent-blue);
   }
-  
-  /* Focus View Filmstrip */
-  .tele-filmstrip {
+
+  /* Native Fullscreen Mode */
+  .google-meet-container:fullscreen, .google-meet-container:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 999999 !important;
+  }
+  .google-meet-container:fullscreen .meet-stage-canvas, .google-meet-container:-webkit-full-screen .meet-stage-canvas {
+    height: calc(100vh - 124px) !important;
+  }
+
+  /* Specific Camera Fullscreen Mode & Fallback */
+  .meet-tile-card:fullscreen, .meet-tile-card:-webkit-full-screen,
+  .meet-spotlight-card:fullscreen, .meet-spotlight-card:-webkit-full-screen,
+  .is-cam-fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 9999999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #000000 !important;
+    border: none !important;
+  }
+  .meet-tile-card:fullscreen video, .meet-spotlight-card:fullscreen video,
+  .is-cam-fullscreen video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+  }
+  .cam-fullscreen-exit-btn {
     position: absolute;
-    bottom: 10px;
-    left: 12px;
-    right: 185px; /* leaves room for PiP if visible */
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding: 6px;
-    background: rgba(15, 23, 42, 0.8);
-    backdrop-filter: blur(8px);
-    border-radius: 10px;
-    z-index: 15;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  .tele-filmstrip-item {
-    width: 110px;
-    height: 70px;
-    flex-shrink: 0;
-    border-radius: 8px;
-    overflow: hidden;
+    top: 18px;
+    right: 18px;
+    z-index: 10000000;
+    background: rgba(32, 33, 36, 0.9);
+    color: #ffffff;
+    border: 1.5px solid rgba(255, 255, 255, 0.35);
+    border-radius: 30px;
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    font-weight: 700;
     cursor: pointer;
-    position: relative;
-    border: 1.5px solid rgba(255, 255, 255, 0.2);
-    background: #1e293b;
-    transition: transform 0.15s, border-color 0.15s;
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
   }
-  .tele-filmstrip-item:hover {
-    transform: scale(1.05);
-    border-color: #38bdf8;
+  .cam-fullscreen-exit-btn:hover {
+    background: var(--gm-danger-red);
+    border-color: #ef4444;
+  }
+
+  /* Responsive Adjustments */
+  @media (max-width: 992px) {
+    .meet-stage-canvas {
+      flex-direction: column;
+      height: auto;
+      min-height: 420px;
+    }
+    .meet-spotlight-card {
+      min-height: 250px;
+      height: 250px;
+      flex: none;
+    }
+    .meet-attendees-grid {
+      grid-template-columns: repeat(2, 1fr);
+      max-height: 150px;
+      height: 150px;
+      flex: none;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .meet-bottom-dock {
+      height: auto;
+      min-height: 60px;
+      padding: 8px 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+    .meet-dock-left {
+      display: none;
+    }
+    .meet-dock-center {
+      gap: 6px;
+    }
+    .meet-dock-right {
+      min-width: auto;
+      justify-content: center;
+      gap: 6px;
+    }
+    .meet-round-btn {
+      width: 38px;
+      height: 38px;
+      font-size: 0.95rem;
+    }
+    .meet-end-call-pill {
+      min-width: 46px;
+      height: 38px;
+      font-size: 1.05rem;
+      padding: 0 10px;
+    }
+    .meet-panel-icon-btn {
+      width: 34px;
+      height: 34px;
+      font-size: 0.95rem;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .meet-top-banner {
+      font-size: 0.74rem;
+      padding: 0 8px;
+    }
+    .meet-presenter-badge {
+      gap: 6px;
+      max-width: 70%;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    #meetPresenterText {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .meet-attendees-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 </style>
 {% endblock %}
 
 {% block content %}
 {% set vitals = (tele.vitals_snapshot_json | fromjson) if tele.vitals_snapshot_json else {} %}
-<!-- Mobile Segment Switcher (< 992px) -->
-<div class="d-flex d-lg-none nav nav-pills bg-white p-1 rounded-3 shadow-sm mb-3 border w-100 no-print" id="mobileTeleTabs">
-  <button type="button" class="nav-link active flex-fill py-2 fs-8 fw-bold text-center" id="tabBtnVideo" onclick="window.pcTele.showTab('video')">
-    <i class="bi bi-camera-video-fill me-1 text-primary"></i>Video &amp; Vitals
-  </button>
-  <button type="button" class="nav-link flex-fill py-2 fs-8 fw-bold text-center text-muted" id="tabBtnRx" onclick="window.pcTele.showTab('rx')">
-    <i class="bi bi-prescription2 me-1 text-success"></i>Prescription &amp; Notes
-  </button>
-</div>
 
-<div class="row g-3">
+<!-- ══════════════════════════════════════════════════════════════
+     EXACT GOOGLE MEET CONTAINER (Figma Design Implementation)
+══════════════════════════════════════════════════════════════ -->
+<div class="google-meet-container mb-4" id="teleMeetStage">
 
-  <!-- ═══════════════════════════════════════════════════════════
-       LEFT COLUMN: REAL-TIME WebRTC VIDEO CHAMBER & VITALS
-  ═══════════════════════════════════════════════════════════ -->
-  <div class="col-lg-7" id="colVideo">
+  <!-- ── 1. Top Presentation Bar ── -->
+  <div class="meet-top-banner" id="meetPresentationBanner">
+    <div class="meet-presenter-badge">
+      <div class="meet-presenter-avatar" id="meetPresenterAvatar">
+        {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
+          {{ (tele.specialist_name or 'D')[0].upper() }}
+        {% else %}
+          {{ (tele.initiator_name or 'P')[0].upper() }}
+        {% endif %}
+      </div>
+      <span id="meetPresenterText">
+        <strong id="presenterNameDisplay">
+          {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
+            {{ tele.specialist_name or 'District Hospital Specialist' }}
+          {% else %}
+            {{ tele.initiator_name or 'Peripheral Health Chamber' }}
+          {% endif %}
+        </strong> is presenting
+      </span>
+      <span class="badge bg-{{ 'danger' if tele.triage_level == 'Emergency' else 'warning text-dark' if tele.triage_level == 'High-Risk' else 'secondary' }} ms-2 fs-9">
+        {{ tele.triage_level }}
+      </span>
+    </div>
 
-    <!-- ── Main Video Chamber Stage (Google Meet Experience) ── -->
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-3 bg-dark text-white position-relative" id="teleMeetStage">
-      
-      <!-- ── Top HUD / Header Bar ── -->
-      <div class="card-header bg-black bg-opacity-75 py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2 border-bottom border-secondary border-opacity-25">
-        <div class="d-flex align-items-center gap-2">
-          <span id="callStatusDot" class="status-dot bg-warning rounded-circle d-inline-block pulse-animation" style="width:10px;height:10px;"></span>
-          <span class="fw-bold fs-7 text-truncate" id="linkageTitle" style="max-width: 175px;">DIRECT CLINICAL LINK</span>
-          <span class="badge bg-{{ 'danger' if tele.triage_level == 'Emergency' else 'warning text-dark' if tele.triage_level == 'High-Risk' else 'secondary' }} fs-9">
-            {{ tele.triage_level }}
-          </span>
+    <div class="d-flex align-items-center gap-2">
+      <span id="callStatusDot" class="status-dot bg-success rounded-circle d-inline-block pulse-animation" style="width:9px;height:9px;"></span>
+      <span class="badge bg-dark border border-secondary text-light fs-9 d-none d-sm-inline-flex">
+        <i class="bi bi-shield-check text-success me-1"></i>P2P Encrypted
+      </span>
+      <button type="button" class="btn btn-xs btn-outline-light rounded-circle p-1" style="width:28px;height:28px;" onclick="window.pcTele.toggleFullscreen()" title="Toggle Fullscreen">
+        <i class="bi bi-fullscreen" id="topFullscreenIcon"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── 2. Main Video Canvas (Left Spotlight ~68% + Right Attendee Grid ~32%) ── -->
+  <div class="meet-stage-canvas" id="videoViewport">
+
+    <!-- ── Stage Left: Spotlight Video Card ── -->
+    <div class="meet-spotlight-card" id="meetSpotlightCard" ondblclick="window.pcTele.fullscreenCam('spotlight')" title="Double click to fullscreen spotlight">
+      <!-- Main Dominant Stream (Presenter / Remote / Focused Peer) -->
+      <video id="remoteVideo" autoplay playsinline></video>
+
+      <!-- Spotlight Cam Off Fallback Overlay -->
+      <div id="focusRemoteCamOff" class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center bg-dark text-white text-center p-4" style="background: radial-gradient(circle at center, #2d3035 0%, #151719 100%); z-index: 2;">
+        <div class="meet-avatar-circle" id="focusRemoteAvatarInitial">
+          {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
+            {{ (tele.initiator_name or 'P')[0].upper() }}
+          {% else %}
+            {{ (tele.specialist_name or 'D')[0].upper() }}
+          {% endif %}
+        </div>
+        <h5 class="fw-bold text-white mb-1" id="focusRemoteNameDisplay">
+          {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
+            {{ tele.initiator_name or 'Peripheral Health Worker' }}
+          {% else %}
+            {{ tele.specialist_name or 'District Hospital Specialist' }}
+          {% endif %}
+        </h5>
+        <span class="badge bg-warning bg-opacity-25 text-warning border border-warning fs-8 px-3 py-1">
+          <i class="bi bi-camera-video-off me-1"></i>Camera Turned Off
+        </span>
+      </div>
+
+      <!-- Spotlight Floating Name Pill -->
+      <div class="meet-tile-name-pill" id="spotlightNamePill">
+        <span class="mic-dot text-success" id="spotlightMicDot"><i class="bi bi-mic-fill"></i></span>
+        <span class="fw-bold" id="spotlightNameLabel">
+          {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
+            {{ tele.initiator_name or 'Patient Chamber' }}
+          {% else %}
+            {{ tele.specialist_name or 'Doctor Specialist' }}
+          {% endif %}
+        </span>
+      </div>
+
+      <!-- Spotlight Card Actions -->
+      <div class="meet-tile-actions">
+        <button type="button" class="meet-action-btn-xs" onclick="window.pcTele.unpinParticipant()" title="Unpin spotlight" id="btnSpotlightUnpin" style="display:none;">
+          <i class="bi bi-pin-angle text-warning"></i>
+        </button>
+        <button type="button" class="meet-action-btn-xs" onclick="window.pcTele.fullscreenCam('spotlight')" title="Fullscreen spotlight">
+          <i class="bi bi-arrows-fullscreen"></i>
+        </button>
+      </div>
+
+      <!-- Closed Captions / Telemetry Subtitles Bar (Toggled via CC button) -->
+      <div id="meetCaptionsBar" class="meet-captions-bar d-none">
+        <i class="bi bi-badge-cc-fill text-info"></i>
+        <span id="meetCaptionsText">🩺 Live Vitals: BP {{ vitals.bp or '120/80' }} | Pulse {{ vitals.pulse or '98' }} bpm | SpO2 {{ vitals.spo2 or '97' }}%</span>
+      </div>
+
+      <!-- Raised Hand Indicator (Toggled via Hand button) -->
+      <div id="meetRaisedHandBadge" class="meet-raised-hand-badge d-none">
+        <i class="bi bi-hand-index-thumb-fill"></i>
+        <span>Hand Raised</span>
+      </div>
+    </div>
+
+    <!-- ── Stage Right: 2-Column Attendees Grid (Matches Figma Community Layout) ── -->
+    <div class="meet-attendees-grid" id="meetAttendeesGrid">
+
+      <!-- Tile 1: Local User Cam (Self View) -->
+      <div class="meet-tile-card" id="gridTileLocal" ondblclick="window.pcTele.fullscreenCam('local')" title="Double click to fullscreen">
+        <video id="gridLocalVideo" autoplay playsinline muted style="transform: scaleX(-1);"></video>
+
+        <!-- Cam Off Fallback -->
+        <div id="gridLocalCamOff" class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center bg-dark text-white text-center p-2">
+          <div class="meet-avatar-circle meet-avatar-circle-sm bg-primary">
+            {{ session.get('full_name', 'U')[0].upper() }}
+          </div>
+          <span class="fs-9 fw-semibold">{{ session.get('full_name', 'You') }}</span>
+          <span class="text-white-50" style="font-size:0.65rem;">Camera Off</span>
         </div>
 
-        <div class="d-flex align-items-center gap-2">
-          <span class="badge bg-dark border border-secondary text-light fs-9">
-            <i class="bi bi-stopwatch text-warning me-1"></i>
-            <span id="callTimer">00:00</span>
-          </span>
-          <span class="badge bg-success bg-opacity-25 border border-success text-success fs-9 d-none d-sm-inline-flex">
-            <i class="bi bi-shield-check me-1"></i>P2P Encrypted
-          </span>
-          <!-- Top Quick Action Buttons -->
-          <div class="btn-group btn-group-sm">
-            <button type="button" class="btn btn-xs btn-outline-info" id="btnTopLayoutToggle" onclick="window.pcTele.toggleLayout()" title="Switch Layout: All Cams Grid vs Focus View">
-              <i class="bi bi-grid-3x3-gap-fill me-1" id="topLayoutIcon"></i><span id="topLayoutText" class="d-none d-md-inline">Grid</span>
-            </button>
-            <button type="button" class="btn btn-xs btn-outline-light" id="btnTopFullscreenToggle" onclick="window.pcTele.toggleFullscreen()" title="Toggle Fullscreen">
-              <i class="bi bi-fullscreen" id="topFullscreenIcon"></i>
-            </button>
-            <button type="button" class="btn btn-xs btn-outline-light position-relative" id="btnTopChatToggle" onclick="window.pcTele.toggleChat()" title="In-Call Chat">
-              <i class="bi bi-chat-dots-fill"></i>
-              <span id="topChatBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size:0.6rem;">0</span>
-            </button>
-            <button type="button" class="btn btn-xs btn-outline-light" id="btnTopPeopleToggle" onclick="window.pcTele.toggleParticipants()" title="Participants">
-              <i class="bi bi-people-fill me-1"></i><span id="topPeerCount">1</span>
-            </button>
-          </div>
+        <div class="meet-tile-name-pill">
+          <span class="mic-dot text-success" id="gridLocalMicDot"><i class="bi bi-mic-fill"></i></span>
+          <span>{{ session.get('full_name', 'You') }} (You)</span>
+        </div>
+
+        <div class="meet-tile-actions">
+          <button type="button" class="meet-action-btn-xs" onclick="window.pcTele.switchCamera()" title="Flip Camera">
+            <i class="bi bi-camera-reverse text-warning"></i>
+          </button>
+          <button type="button" class="meet-action-btn-xs" onclick="window.pcTele.pinParticipant('local')" title="Pin to spotlight">
+            <i class="bi bi-pin-angle-fill text-info"></i>
+          </button>
+          <button type="button" class="meet-action-btn-xs" onclick="window.pcTele.fullscreenCam('local')" title="Fullscreen">
+            <i class="bi bi-arrows-fullscreen"></i>
+          </button>
         </div>
       </div>
 
-      <!-- ── Viewport: Holds All-Cams Grid, Focus Screen, Standby Overlay, and Drawers ── -->
-      <div class="position-relative bg-black overflow-hidden" style="height: 470px;" id="videoViewport">
+      <!-- Tile 2: Primary Remote Peer Tile -->
+      <div class="meet-tile-card" id="gridTileRemote" ondblclick="window.pcTele.fullscreenCam('remote')" title="Double click to fullscreen">
+        <video id="gridRemoteVideo" autoplay playsinline></video>
 
-        <!-- ═════════════════════════════════════════════════════════
-             VIEW MODE A: ALL PARTICIPANTS CAMERAS GRID (Google Meet)
-        ═════════════════════════════════════════════════════════ -->
-        <div id="participantsGridView" class="tele-grid-container tele-grid-2 w-100 h-100">
-          
-          <!-- Tile 1: Local User Cam (Self-View) -->
-          <div class="tele-cam-card" id="gridTileLocal" ondblclick="window.pcTele.fullscreenCam('local')" title="Double-click to toggle Fullscreen">
-            <video id="gridLocalVideo" autoplay playsinline muted style="transform: scaleX(-1);"></video>
-            
-            <!-- Cam Off Fallback Overlay -->
-            <div id="gridLocalCamOff" class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center bg-dark text-white text-center p-3">
-              <div class="tele-avatar-ring bg-primary bg-opacity-25 border-primary mb-2">
-                {{ session.get('full_name', 'U')[0].upper() }}
-              </div>
-              <span class="fs-8 fw-semibold">{{ session.get('full_name', 'You') }}</span>
-              <span class="text-white-50 fs-9">Camera Turned Off</span>
-            </div>
-
-            <!-- Tile Actions -->
-            <div class="tele-card-actions">
-              <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.switchCamera()" title="Flip Front/Rear Camera">
-                <i class="bi bi-camera-reverse text-warning"></i>
-              </button>
-              <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.pinParticipant('local')" title="Pin your camera to Main Screen">
-                <i class="bi bi-pin-angle-fill text-info"></i>
-              </button>
-              <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.fullscreenCam('local')" title="Fullscreen this Camera">
-                <i class="bi bi-arrows-fullscreen text-info"></i>
-              </button>
-            </div>
-
-            <!-- Participant Identity Badge -->
-            <div class="tele-cam-label">
-              <span id="gridLocalMicDot" class="text-success"><i class="bi bi-mic-fill"></i></span>
-              <span class="fw-bold">{{ session.get('full_name', 'You') }}</span>
-              <span class="badge bg-primary bg-opacity-50 text-white fs-9 py-0">You</span>
-            </div>
-          </div>
-
-          <!-- Tile 2: Primary Remote Peer (Doctor / Specialist / ASHA) -->
-          <div class="tele-cam-card" id="gridTileRemote" ondblclick="window.pcTele.fullscreenCam('remote')" title="Double-click to toggle Fullscreen">
-            <video id="gridRemoteVideo" autoplay playsinline></video>
-            
-            <!-- Peer Standby / Cam-off Overlay -->
-            <div id="gridRemoteCamOff" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-dark text-white text-center p-3" style="background: radial-gradient(circle at center, #1e293b 0%, #070b14 100%);">
-              <div class="tele-avatar-ring bg-info bg-opacity-25 border-info mb-2" id="gridRemoteAvatarInitial">
-                {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
-                  {{ (tele.initiator_name or 'A')[0].upper() }}
-                {% else %}
-                  {{ (tele.specialist_name or 'D')[0].upper() }}
-                {% endif %}
-              </div>
-              <span class="fs-8 fw-bold" id="gridRemoteNameDisplay">
-                {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
-                  {{ tele.initiator_name or 'Peripheral Health Worker' }}
-                {% else %}
-                  {{ tele.specialist_name or 'District Hospital Specialist' }}
-                {% endif %}
-              </span>
-              <span class="text-info fs-9" id="gridRemoteStatusText">Waiting for peer stream...</span>
-            </div>
-
-            <!-- Tile Actions -->
-            <div class="tele-card-actions">
-              <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.pinParticipant('remote')" title="Pin this camera to Main Screen">
-                <i class="bi bi-pin-angle-fill text-info"></i>
-              </button>
-              <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.fullscreenCam('remote')" title="Fullscreen this Camera">
-                <i class="bi bi-arrows-fullscreen text-info"></i>
-              </button>
-            </div>
-
-            <!-- Participant Identity Badge -->
-            <div class="tele-cam-label">
-              <span id="gridRemoteMicDot" class="text-success"><i class="bi bi-mic-fill"></i></span>
-              <span class="fw-bold" id="gridRemoteLabel">
-                {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
-                  {{ tele.initiator_name or 'ASHA Worker' }}
-                {% else %}
-                  {{ tele.specialist_name or 'District Specialist' }}
-                {% endif %}
-              </span>
-              <span class="badge bg-info bg-opacity-50 text-white fs-9 py-0">Remote</span>
-            </div>
-          </div>
-
-          <!-- Dynamic Tiles Container for Extra Connected Peers -->
-          <div id="dynamicGridTiles" class="d-contents"></div>
-
-        </div><!-- /participantsGridView -->
-
-        <!-- ═════════════════════════════════════════════════════════
-             VIEW MODE B: FOCUS / SPOTLIGHT VIEW (Classic Meet View)
-        ═════════════════════════════════════════════════════════ -->
-        <div id="focusView" class="w-100 h-100 position-relative" style="display: none;">
-          <!-- Main Dominant Stream -->
-          <video id="remoteVideo" autoplay playsinline class="w-100 h-100" style="object-fit: contain; background: #070b14;" ondblclick="window.pcTele.fullscreenCam('mainFocus')" title="Double-click to toggle Fullscreen"></video>
-
-          <!-- Focus View Peer Cam Off Overlay -->
-          <div id="focusRemoteCamOff" class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center bg-dark text-white text-center p-4" style="background: radial-gradient(circle at center, #1e293b 0%, #070b14 100%); z-index: 2;">
-            <div class="tele-avatar-ring bg-info bg-opacity-25 border-info mb-3" style="width: 80px; height: 80px; font-size: 1.8rem;" id="focusRemoteAvatarInitial">
-              {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
-                {{ (tele.initiator_name or 'A')[0].upper() }}
-              {% else %}
-                {{ (tele.specialist_name or 'D')[0].upper() }}
-              {% endif %}
-            </div>
-            <h6 class="fw-bold text-white mb-1" id="focusRemoteNameDisplay">
-              {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
-                {{ tele.initiator_name or 'Peripheral Health Worker' }}
-              {% else %}
-                {{ tele.specialist_name or 'District Hospital Specialist' }}
-              {% endif %}
-            </h6>
-            <span class="badge bg-warning bg-opacity-25 text-warning border border-warning fs-8 px-3 py-1">
-              <i class="bi bi-camera-video-off me-1"></i>Remote Camera Turned Off
-            </span>
-          </div>
-
-          <!-- Top Action Badges for Focus Mode -->
-          <div class="position-absolute top-0 start-0 m-3 z-3 d-flex align-items-center gap-2">
-            <button type="button" id="btnFocusUnpin" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-pill px-2 py-1 shadow d-none" onclick="window.pcTele.unpinParticipant()" title="Unpin Camera & Return to Multi-Cam Grid">
-              <i class="bi bi-pin-angle me-1 text-warning"></i><span class="fs-9">Unpin</span>
-            </button>
-            <span id="focusPinnedBadge" class="badge bg-primary bg-opacity-75 text-white d-none align-items-center gap-1 fs-9 rounded-pill px-2 py-1 shadow">
-              <i class="bi bi-pin-fill"></i><span id="focusPinnedLabel">Pinned</span>
-            </span>
-          </div>
-
-          <div class="position-absolute top-0 end-0 m-3 z-3 d-flex gap-2">
-            <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-pill px-2 py-1 shadow" onclick="window.pcTele.fullscreenCam('mainFocus')" title="Fullscreen Video Stream">
-              <i class="bi bi-arrows-fullscreen text-info me-1"></i><span class="fs-9">Fullscreen</span>
-            </button>
-          </div>
-
-
-          <!-- Floating Local PiP Window -->
-          <div id="localVideoContainer"
-               class="position-absolute bottom-0 end-0 m-3 rounded-3 overflow-hidden shadow-lg border border-2 border-primary bg-black"
-               style="width: 160px; height: 110px; z-index: 20;">
-            <video id="localVideo" autoplay playsinline muted class="w-100 h-100" style="object-fit: cover; transform: scaleX(-1);"></video>
-            
-            <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 px-1 py-0 text-center text-white" style="font-size: 0.65rem;">
-              <i class="bi bi-person-fill text-primary me-1"></i>{{ session.get('full_name', 'You') }}
-            </div>
-            <div id="localMuteBadge" class="position-absolute top-0 end-0 m-1 badge bg-danger p-1" style="display: none; font-size: 0.6rem;">
-              <i class="bi bi-mic-mute-fill"></i>
-            </div>
-            <div id="cameraModeBadge" class="position-absolute top-0 start-0 m-1 badge bg-dark bg-opacity-75 border border-secondary text-white p-1" style="font-size: 0.55rem;">
-              FRONT
-            </div>
-            <div id="localCamOffOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center bg-dark text-white-50">
-              <i class="bi bi-camera-video-off fs-4 mb-1"></i>
-              <span style="font-size: 0.65rem;">Camera Off</span>
-            </div>
-          </div>
-
-          <!-- Bottom Filmstrip Thumbnails -->
-          <div class="tele-filmstrip" id="focusFilmstrip">
-            <div class="tele-filmstrip-item" onclick="window.pcTele.pinParticipant('local')" title="Click to Focus You">
-              <video id="filmstripLocalVid" autoplay playsinline muted class="w-100 h-100" style="object-fit: cover; transform: scaleX(-1);"></video>
-              <span class="position-absolute bottom-0 start-0 bg-dark bg-opacity-75 text-white px-1" style="font-size: 0.6rem;">You</span>
-            </div>
-            <div class="tele-filmstrip-item" onclick="window.pcTele.pinParticipant('remote')" title="Click to Focus Remote Peer">
-              <video id="filmstripRemoteVid" autoplay playsinline class="w-100 h-100" style="object-fit: cover;"></video>
-              <span class="position-absolute bottom-0 start-0 bg-dark bg-opacity-75 text-white px-1" style="font-size: 0.6rem;">Peer</span>
-            </div>
-            <div id="dynamicFilmstripItems" class="d-flex gap-2"></div>
-          </div>
-        </div><!-- /focusView -->
-
-        <!-- Standby Waiting Overlay (Shown when connecting) -->
-        <div id="remoteWaitingOverlay"
-             class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center text-center p-4"
-             style="background: radial-gradient(circle at center, #1e293b 0%, #070b14 100%); z-index: 10;">
-          <div class="position-relative mb-3">
-            <div class="spinner-grow text-primary" role="status" style="width: 4rem; height: 4rem; opacity: 0.25;"></div>
-            <div class="position-absolute top-50 start-50 translate-middle">
-              <div class="rounded-circle bg-primary bg-opacity-25 p-3 border border-primary border-opacity-50">
-                <i class="bi bi-person-video3 text-primary fs-3"></i>
-              </div>
-            </div>
-          </div>
-          <h5 class="text-white fw-bold mb-1" id="waitingHeading">Connecting to Telehealth Chamber…</h5>
-          <p class="text-white-50 fs-8 mb-2" id="waitingSub">
+        <!-- Peer Standby / Cam-off Overlay -->
+        <div id="gridRemoteCamOff" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-dark text-white text-center p-2">
+          <div class="meet-avatar-circle meet-avatar-circle-sm bg-info text-dark" id="gridRemoteAvatarInitial">
             {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
-              Waiting for Peripheral Facility <strong class="text-info">{{ tele.from_facility_name }}</strong> (ASHA: {{ tele.initiator_name or 'Worker' }} with {{ tele.first_name }} {{ tele.last_name }}) to connect.
+              {{ (tele.initiator_name or 'A')[0].upper() }}
             {% else %}
-              Waiting for District Specialist <strong class="text-info">{{ tele.specialist_name or 'On-Call Specialist' }}</strong> ({{ tele.to_facility_name }}) to join room.
+              {{ (tele.specialist_name or 'D')[0].upper() }}
             {% endif %}
-          </p>
-          <div class="d-flex flex-wrap gap-2 justify-content-center align-items-center mb-3">
-            <span class="badge bg-secondary bg-opacity-50 border border-secondary text-light fs-9">
-              <i class="bi bi-fingerprint me-1 text-info"></i>Room: {{ tele.session_uid }}
-            </span>
-            <span class="badge bg-success bg-opacity-25 border border-success text-success fs-9">
-              <i class="bi bi-shield-check me-1"></i>Direct P2P Encrypted
-            </span>
-            <span id="peerStatusBadge" class="badge bg-info bg-opacity-25 border border-info text-info fs-9">
-              <i class="bi bi-people me-1"></i>Participants: <span id="peerCount">1</span>
-            </span>
           </div>
-          <div class="d-flex flex-wrap gap-2 justify-content-center align-items-center">
-            <button type="button" class="btn btn-sm btn-info rounded-pill px-3 fs-8 fw-bold shadow-sm" onclick="window.pcTele.dismissWaitingOverlay()">
-              <i class="bi bi-camera-video-fill me-1"></i>Enter Chamber View
+          <span class="fs-9 fw-bold text-truncate" style="max-width:90%;" id="gridRemoteNameDisplay">
+            {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
+              {{ tele.initiator_name or 'Peripheral Health Worker' }}
+            {% else %}
+              {{ tele.specialist_name or 'District Hospital Specialist' }}
+            {% endif %}
+          </span>
+          <span class="text-info" style="font-size:0.65rem;" id="gridRemoteStatusText">Live Link</span>
+        </div>
+
+        <div class="meet-tile-name-pill">
+          <span class="mic-dot text-success" id="gridRemoteMicDot"><i class="bi bi-mic-fill"></i></span>
+          <span id="gridRemoteLabel">
+            {% if session.get('user_role') in ['doctor', 'specialist', 'medical_officer'] %}
+              {{ tele.initiator_name or 'Peripheral Peer' }}
+            {% else %}
+              {{ tele.specialist_name or 'Specialist' }}
+            {% endif %}
+          </span>
+        </div>
+
+        <div class="meet-tile-actions">
+          <button type="button" class="meet-action-btn-xs" onclick="window.pcTele.pinParticipant('remote')" title="Pin to spotlight">
+            <i class="bi bi-pin-angle-fill text-info"></i>
+          </button>
+          <button type="button" class="meet-action-btn-xs" onclick="window.pcTele.fullscreenCam('remote')" title="Fullscreen">
+            <i class="bi bi-arrows-fullscreen"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tile 3 & Dynamic Tiles for Attendee Peers -->
+      <div id="dynamicGridTiles" class="d-contents"></div>
+
+    </div><!-- /meet-attendees-grid -->
+
+    <!-- Standby Waiting Overlay (Shown when connecting) -->
+    <div id="remoteWaitingOverlay"
+         class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center text-center p-4"
+         style="background: radial-gradient(circle at center, #2d3035 0%, #151719 100%); z-index: 15;">
+      <div class="spinner-grow text-primary mb-3" role="status" style="width: 3.5rem; height: 3.5rem; opacity: 0.3;"></div>
+      <h5 class="text-white fw-bold mb-1" id="waitingHeading">Connecting to Telehealth Chamber…</h5>
+      <p class="text-white-50 fs-8 mb-3" id="waitingSub">
+        Connecting clinical linkage between {{ tele.from_facility_name }} and {{ tele.to_facility_name }}.
+      </p>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-info rounded-pill px-3 fs-8 fw-bold" onclick="window.pcTele.dismissWaitingOverlay()">
+          <i class="bi bi-camera-video-fill me-1"></i>Enter Chamber
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 fs-8" onclick="window.pcTele.retryConnection()">
+          <i class="bi bi-arrow-clockwise me-1"></i>Force Connect
+        </button>
+      </div>
+    </div>
+
+    <!-- ── 3. Google Meet Sliding Right Drawer (Details, People, Chat, Activities) ── -->
+    <div class="meet-right-drawer" id="meetRightDrawer">
+      <!-- Drawer Header -->
+      <div class="meet-drawer-header">
+        <h6 class="meet-drawer-title" id="drawerHeaderTitle">Meeting details</h6>
+        <button type="button" class="meet-drawer-close-btn" onclick="window.pcTele.closeRightDrawer()" title="Close">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <!-- Drawer Tab Switcher Navigation -->
+      <div class="meet-drawer-nav">
+        <button type="button" class="meet-drawer-tab-btn tab-active" id="tabBtnDetails" onclick="window.pcTele.switchDrawerTab('details')">
+          <i class="bi bi-info-circle"></i>Details
+        </button>
+        <button type="button" class="meet-drawer-tab-btn" id="tabBtnPeople" onclick="window.pcTele.switchDrawerTab('people')">
+          <i class="bi bi-people"></i>People (<span id="drawerPeopleCount">1</span>)
+        </button>
+        <button type="button" class="meet-drawer-tab-btn" id="tabBtnChat" onclick="window.pcTele.switchDrawerTab('chat')">
+          <i class="bi bi-chat-text"></i>Chat
+        </button>
+        <button type="button" class="meet-drawer-tab-btn" id="tabBtnActivities" onclick="window.pcTele.switchDrawerTab('activities')">
+          <i class="bi bi-prescription2"></i>Clinical Rx
+        </button>
+      </div>
+
+      <!-- Drawer Body Panes -->
+      <div class="meet-drawer-body">
+
+        <!-- TAB 1: DETAILS PANE -->
+        <div class="meet-tab-pane pane-active" id="paneDetails">
+          <h6 class="text-white fs-7 fw-bold mb-2">Joining info</h6>
+          <p class="text-white-50 fs-8 mb-2">Share this clinical link with the specialist or remote clinician:</p>
+          <div class="input-group input-group-sm mb-3">
+            <input type="text" class="form-control bg-dark border-secondary text-white fs-9" id="drawerShareLink" readonly value="{{ request.url }}">
+            <button class="btn btn-outline-info" onclick="window.pcTele.copyRoomLink()">
+              <i class="bi bi-clipboard"></i>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 fs-8" onclick="window.pcTele.copyRoomLink()">
-              <i class="bi bi-clipboard-check me-1"></i>Copy Room Link
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 fs-8" onclick="window.pcTele.retryConnection()">
-              <i class="bi bi-arrow-clockwise me-1"></i>Force Connect
-            </button>
+          </div>
+
+          <h6 class="text-white fs-7 fw-bold mt-2 mb-2">Patient Information</h6>
+          <div class="p-2 rounded bg-black bg-opacity-30 border border-secondary border-opacity-25 fs-8">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-white-50">Patient Name:</span>
+              <strong class="text-white">{{ tele.first_name }} {{ tele.last_name }}</strong>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-white-50">ABHA ID:</span>
+              <span class="badge bg-primary bg-opacity-50 text-white">{{ tele.abha_id or 'ABHA Pending' }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-white-50">Village / Tier:</span>
+              <span class="text-light">{{ tele.village or 'Rural Facility' }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-white-50">Blood Group:</span>
+              <strong class="text-danger">{{ tele.blood_group or 'N/A' }}</strong>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span class="text-white-50">Allergies:</span>
+              <span class="text-warning">{{ tele.allergies or 'None Reported' }}</span>
+            </div>
           </div>
         </div>
 
-        <!-- ═════════════════════════════════════════════════════════
-             GOOGLE MEET IN-CALL CHAT DRAWER
-        ═════════════════════════════════════════════════════════ -->
-        <div id="teleChatDrawer" class="tele-drawer">
-          <!-- Drawer Header -->
-          <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center bg-black bg-opacity-40">
-            <div>
-              <h6 class="mb-0 fw-bold text-white fs-7">
-                <i class="bi bi-chat-dots-fill text-info me-2"></i>In-Call Messages
-              </h6>
-              <small class="text-white-50 fs-9">Visible to all attendees in this chamber</small>
-            </div>
-            <button type="button" class="btn btn-sm btn-outline-light rounded-circle p-1" style="width:28px;height:28px;" onclick="window.pcTele.toggleChat(false)" title="Close Chat">
-              <i class="bi bi-x-lg"></i>
-            </button>
+        <!-- TAB 2: PEOPLE PANE -->
+        <div class="meet-tab-pane" id="panePeople">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="text-white-50 fs-8">In call (<span id="drawerPeopleCount2">1</span>)</span>
           </div>
 
+          <!-- Local User -->
+          <div class="d-flex align-items-center justify-content-between p-2 rounded bg-white bg-opacity-10 mb-2">
+            <div class="d-flex align-items-center gap-2">
+              <div class="rounded-circle bg-primary text-white fw-bold d-flex align-items-center justify-content-center" style="width:34px;height:34px;font-size:0.85rem;">
+                {{ session.get('full_name', 'U')[0].upper() }}
+              </div>
+              <div>
+                <div class="fs-8 fw-bold text-white">{{ session.get('full_name', 'You') }} (You)</div>
+                <div class="text-white-50 fs-9 text-uppercase">{{ session.get('user_role', 'Participant') }}</div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span id="drawerLocalMicIcon" class="text-success fs-8"><i class="bi bi-mic-fill"></i></span>
+              <span id="drawerLocalCamIcon" class="text-info fs-8"><i class="bi bi-camera-video-fill"></i></span>
+            </div>
+          </div>
+
+          <!-- Dynamic Connected Peers -->
+          <div id="dynamicPeersList" class="d-flex flex-column gap-2"></div>
+        </div>
+
+        <!-- TAB 3: CHAT PANE -->
+        <div class="meet-tab-pane" id="paneChat">
           <!-- Quick Clinical Chips -->
-          <div class="px-3 py-2 border-bottom border-secondary border-opacity-25 d-flex gap-1 overflow-x-auto bg-black bg-opacity-20" style="scrollbar-width:none;">
+          <div class="d-flex gap-1 overflow-x-auto pb-2 mb-2 border-bottom border-secondary border-opacity-25" style="scrollbar-width:none;">
             <span class="chat-chip" onclick="window.pcTele.sendQuickChat('🩺 BP Recorded: {{ vitals.bp or '120/80' }}')">🩺 BP</span>
             <span class="chat-chip" onclick="window.pcTele.sendQuickChat('📊 SpO2: {{ vitals.spo2 or '98' }}%')">📊 SpO2</span>
             <span class="chat-chip" onclick="window.pcTele.sendQuickChat('💊 Prescription drafted in registry')">💊 Rx Done</span>
             <span class="chat-chip" onclick="window.pcTele.sendQuickChat('👂 Audio & video are crystal clear')">👂 Clear Audio</span>
-            <span class="chat-chip" onclick="window.pcTele.sendQuickChat('⚠️ Please examine patient vitals immediately')">⚠️ Urgent</span>
           </div>
 
-          <!-- Messages Scrollable Body -->
-          <div class="flex-grow-1 p-3 overflow-y-auto d-flex flex-column gap-2" id="chatMessagesContainer">
+          <!-- Messages Container -->
+          <div class="flex-grow-1 overflow-y-auto d-flex flex-column gap-2 pe-1" id="chatMessagesContainer" style="min-height: 200px;">
             <div class="text-center my-auto text-white-50 p-3" id="chatEmptyState">
-              <i class="bi bi-chat-quote fs-1 text-info opacity-50 mb-2 d-block"></i>
+              <i class="bi bi-chat-quote fs-2 text-info opacity-50 mb-2 d-block"></i>
               <p class="fs-8 mb-1 fw-semibold text-white">No messages yet</p>
-              <p class="fs-9 text-muted mb-0">Send clinical notes, reading confirmations, or quick queries to everyone.</p>
+              <p class="fs-9 text-muted mb-0">Messages sent here are visible to all chamber attendees.</p>
             </div>
           </div>
 
-          <!-- Message Input Bar -->
-          <div class="p-3 border-top border-secondary border-opacity-25 bg-black bg-opacity-50">
+          <!-- Chat Input -->
+          <div class="pt-2 mt-auto border-top border-secondary border-opacity-25">
             <form id="chatForm" onsubmit="event.preventDefault(); window.pcTele.submitChatForm();" class="d-flex gap-2 align-items-center">
-              <input type="text" id="chatInput" class="form-control form-control-sm bg-dark border-secondary text-white rounded-pill px-3" placeholder="Send a message to everyone..." autocomplete="off">
-              <button type="submit" class="btn btn-sm btn-primary rounded-circle d-flex align-items-center justify-content-center" style="width:34px;height:34px;flex-shrink:0;" title="Send Message">
+              <input type="text" id="chatInput" class="form-control form-control-sm bg-dark border-secondary text-white rounded-pill px-3" placeholder="Send a message..." autocomplete="off">
+              <button type="submit" class="btn btn-sm btn-primary rounded-circle d-flex align-items-center justify-content-center" style="width:34px;height:34px;flex-shrink:0;">
                 <i class="bi bi-send-fill" style="font-size:0.85rem;"></i>
               </button>
             </form>
           </div>
-        </div><!-- /teleChatDrawer -->
+        </div>
 
-        <!-- ═════════════════════════════════════════════════════════
-             GOOGLE MEET PARTICIPANTS DRAWER
-        ═════════════════════════════════════════════════════════ -->
-        <div id="teleParticipantsDrawer" class="tele-drawer">
-          <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center bg-black bg-opacity-40">
+        <!-- TAB 4: CLINICAL ASSESSMENT & E-PRESCRIPTION FORM -->
+        <div class="meet-tab-pane" id="paneActivities">
+          <form method="POST" action="{{ url_for('teleconsult_update', session_id=tele.id) }}" id="teleRxForm" class="d-flex flex-column gap-3">
             <div>
-              <h6 class="mb-0 fw-bold text-white fs-7">
-                <i class="bi bi-people-fill text-primary me-2"></i>Participants (<span id="drawerPeopleCount">1</span>)
-              </h6>
-              <small class="text-white-50 fs-9">Active clinicians &amp; patients in chamber</small>
+              <label class="form-label text-white fs-8 fw-semibold mb-1">
+                Specialist Clinical Advice &amp; Directions <span class="text-danger">*</span>
+              </label>
+              <textarea name="specialist_advice" class="form-control form-control-sm bg-dark border-secondary text-white" rows="3" required
+                placeholder="Provide clinical diagnosis, emergency stabilization, or referral notes…">{{ tele.specialist_advice or '' }}</textarea>
             </div>
-            <button type="button" class="btn btn-sm btn-outline-light rounded-circle p-1" style="width:28px;height:28px;" onclick="window.pcTele.toggleParticipants(false)" title="Close Participants">
-              <i class="bi bi-x-lg"></i>
-            </button>
-          </div>
 
-          <!-- Participants List -->
-          <div class="flex-grow-1 p-3 overflow-y-auto d-flex flex-column gap-2" id="participantsListContainer">
-            <!-- Local User Item -->
-            <div class="d-flex align-items-center justify-content-between p-2 rounded bg-white bg-opacity-10 border border-secondary border-opacity-25">
-              <div class="d-flex align-items-center gap-2">
-                <div class="rounded-circle bg-primary text-white fw-bold d-flex align-items-center justify-content-center" style="width:34px;height:34px;font-size:0.8rem;">
-                  {{ session.get('full_name', 'U')[0].upper() }}
-                </div>
-                <div>
-                  <div class="fs-8 fw-bold text-white leading-tight">{{ session.get('full_name', 'You') }} (You)</div>
-                  <div class="text-white-50 fs-9 text-uppercase">{{ session.get('user_role', 'Participant') }}</div>
+            <!-- Dynamic E-Prescription Builder -->
+            <div>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label text-white fs-8 fw-semibold mb-0">Prescribe Essential Medications</label>
+                <button type="button" class="btn btn-xs btn-outline-info rounded-pill" id="addRxItemBtn">
+                  <i class="bi bi-plus"></i> Add
+                </button>
+              </div>
+              <div id="rxItemsContainer" class="border border-secondary border-opacity-25 rounded p-2 bg-dark bg-opacity-50">
+                <div class="row g-1 mb-2 rx-item-row">
+                  <div class="col-12">
+                    <select name="med_id[]" class="form-select form-select-sm bg-dark border-secondary text-white fs-8">
+                      <option value="">-- Choose Medicine --</option>
+                      {% for m in medicines %}
+                      <option value="{{ m.id }}">{{ m.brand_name }} ({{ m.strength }})</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-6 mt-1">
+                    <input type="text" name="dosage[]" class="form-control form-control-sm bg-dark border-secondary text-white fs-8" placeholder="Dosage (1 Tab)" value="1 Tab">
+                  </div>
+                  <div class="col-6 mt-1">
+                    <input type="text" name="frequency[]" class="form-control form-control-sm bg-dark border-secondary text-white fs-8" placeholder="Freq (1-0-1)" value="1-0-1">
+                  </div>
+                  <div class="col-4 mt-1">
+                    <input type="number" name="duration_days[]" class="form-control form-control-sm bg-dark border-secondary text-white fs-8" placeholder="Days" value="5">
+                  </div>
+                  <div class="col-6 mt-1">
+                    <input type="text" name="instructions[]" class="form-control form-control-sm bg-dark border-secondary text-white fs-8" placeholder="Instructions" value="After food">
+                  </div>
+                  <div class="col-2 mt-1 text-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="this.closest('.rx-item-row').remove()">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div class="d-flex align-items-center gap-2">
-                <span id="drawerLocalMicIcon" class="text-success fs-8"><i class="bi bi-mic-fill"></i></span>
-                <span id="drawerLocalCamIcon" class="text-info fs-8"><i class="bi bi-camera-video-fill"></i></span>
-              </div>
             </div>
 
-            <!-- Dynamic Remote Peers will be injected here -->
-            <div id="dynamicPeersList" class="d-flex flex-column gap-2"></div>
-          </div>
-        </div><!-- /teleParticipantsDrawer -->
+            <div>
+              <label class="form-label text-white fs-8 fw-semibold mb-1">Update Status</label>
+              <select name="status" class="form-select form-select-sm bg-dark border-secondary text-white fs-8" id="selectCallStatus">
+                <option value="Completed" {% if tele.status == 'Completed' %}selected{% endif %}>Completed &amp; Transmit E-Prescription</option>
+                <option value="In-Call"   {% if tele.status == 'In-Call'   %}selected{% endif %}>Keep In-Call</option>
+                <option value="Escalated" {% if tele.status == 'Escalated' %}selected{% endif %}>Escalated to District Hospital</option>
+              </select>
+            </div>
 
-        <!-- Call Concluded Overlay -->
-        <div id="callEndedOverlay"
-             class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center text-center p-4"
-             style="background: rgba(11, 15, 25, 0.96); z-index: 30;">
-          <div class="rounded-circle bg-success bg-opacity-25 p-3 mb-3 border border-success border-opacity-50">
-            <i class="bi bi-check2-circle text-success fs-1"></i>
-          </div>
-          <h4 class="text-white fw-bold mb-1">Teleconsultation Completed</h4>
-          <p class="text-white-50 fs-8 mb-2">Session <strong class="text-info">{{ tele.session_uid }}</strong> has been officially closed and recorded in the clinical registry.</p>
-          <div class="badge bg-dark border border-secondary text-light py-2 px-3 fs-7 mb-4">
-            <i class="bi bi-clock-history text-warning me-1"></i> Total Call Time: <strong id="finalCallDuration">00:00</strong>
-          </div>
-          <div class="d-flex flex-wrap gap-2 justify-content-center">
-            <a href="#rxSection" class="btn btn-sm btn-primary fw-bold px-3">
-              <i class="bi bi-prescription2 me-1"></i>Complete &amp; Submit Prescription
-            </a>
-            <a href="{{ url_for('teleconsult_index') }}" class="btn btn-sm btn-outline-light px-3">
-              <i class="bi bi-arrow-left me-1"></i>Return to Registry
-            </a>
-            <button type="button" class="btn btn-sm btn-outline-secondary px-2" onclick="window.pcTele.reconnectCall()">
-              <i class="bi bi-arrow-clockwise me-1"></i>Re-open Room
-            </button>
-          </div>
+            <div class="d-grid gap-2 pt-2">
+              <button type="submit" class="btn btn-sm btn-primary fw-bold">
+                <i class="bi bi-send-check me-1"></i>Save Advice &amp; Transmit Digital E-Prescription
+              </button>
+              <a href="{{ url_for('referrals_index') }}" class="btn btn-xs btn-outline-warning text-light">
+                <i class="bi bi-arrow-left-right me-1"></i>Initiate Referral Slip
+              </a>
+            </div>
+          </form>
         </div>
 
-      </div><!-- /videoViewport -->
+      </div><!-- /meet-drawer-body -->
+    </div><!-- /meetRightDrawer -->
 
-      <!-- ── Floating Google Meet Bottom Control Toolbar ── -->
-      <div class="card-footer bg-black py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <!-- Media Controls -->
-        <div class="d-flex gap-1 gap-sm-2 align-items-center flex-wrap">
-          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 px-sm-3 d-inline-flex align-items-center justify-content-center" id="btnToggleMic" onclick="window.pcTele.toggleMic()" title="Toggle Microphone (M)">
-            <i class="bi bi-mic-fill" id="micIcon"></i><span id="micText" class="d-none d-sm-inline ms-1">Mute</span>
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 px-sm-3 d-inline-flex align-items-center justify-content-center" id="btnToggleCam" onclick="window.pcTele.toggleCam()" title="Toggle Camera (V)">
-            <i class="bi bi-camera-video-fill" id="camIcon"></i><span id="camText" class="d-none d-sm-inline ms-1">Camera</span>
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-2 px-sm-3 text-white d-inline-flex align-items-center justify-content-center" style="min-width: 38px;" id="btnSwitchCam" onclick="window.pcTele.switchCamera()" title="Switch Front/Rear Camera (Useful for examining patients)">
-            <i class="bi bi-arrow-repeat text-warning" id="switchCamIcon"></i><span id="switchCamText" class="d-none d-md-inline ms-1">Flip Cam</span>
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 px-sm-3 d-none d-lg-inline-flex align-items-center justify-content-center" id="btnShareScreen" onclick="window.pcTele.toggleScreenShare()" title="Share Screen / ECG">
-            <i class="bi bi-display" id="shareScreenIcon"></i><span class="d-none d-xl-inline ms-1">Share Screen</span>
-          </button>
-        </div>
-
-        <!-- Meet View & Feature Controls -->
-        <div class="d-flex gap-1 gap-sm-2 align-items-center flex-wrap">
-          <!-- All Cams Grid Toggle -->
-          <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 px-sm-3 d-inline-flex align-items-center justify-content-center" id="btnToggleLayout" onclick="window.pcTele.toggleLayout()" title="Switch to All Cams Grid / Focus Mode (G)">
-            <i class="bi bi-grid-3x3-gap-fill" id="layoutIcon"></i><span id="layoutText" class="d-none d-sm-inline ms-1">All Cams</span>
-          </button>
-
-          <!-- Fullscreen Button -->
-          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 px-sm-3 d-inline-flex align-items-center justify-content-center" id="btnToggleFullscreen" onclick="window.pcTele.toggleFullscreen()" title="Toggle Fullscreen (F)">
-            <i class="bi bi-fullscreen" id="fullscreenIcon"></i><span class="d-none d-md-inline ms-1" id="fullscreenLabel">Fullscreen</span>
-          </button>
-
-          <!-- In-Call Chat Drawer Toggle -->
-          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 px-sm-3 position-relative d-inline-flex align-items-center justify-content-center" id="btnToggleChat" onclick="window.pcTele.toggleChat()" title="In-Call Chat (C)">
-            <i class="bi bi-chat-dots-fill" id="chatIcon"></i><span class="d-none d-md-inline ms-1">Chat</span>
-            <span id="chatBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size:0.65rem;">0</span>
-          </button>
-
-          <!-- Participants Drawer Toggle -->
-          <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-2 px-sm-3 d-inline-flex align-items-center justify-content-center" id="btnToggleParticipants" onclick="window.pcTele.toggleParticipants()" title="Participants List (P)">
-            <i class="bi bi-people-fill" id="peopleIcon"></i><span class="d-none d-md-inline ms-1">People</span><span class="ms-1 fs-9">(<span id="peopleCountBadge">1</span>)</span>
-          </button>
-        </div>
-
-        <!-- Call Termination & Emergency -->
-        <div class="d-flex gap-1 gap-sm-2 align-items-center">
-          <button type="button" class="btn btn-sm btn-danger fw-bold rounded-pill px-2 px-sm-3 d-inline-flex align-items-center justify-content-center" id="btnEndCall" onclick="window.pcTele.endCall()" title="End this teleconsultation">
-            <i class="bi bi-telephone-x-fill" id="endCallIcon"></i><span class="d-none d-sm-inline ms-1">End Call</span>
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-danger fw-bold rounded-pill px-2 d-inline-flex align-items-center justify-content-center" data-bs-toggle="modal" data-bs-target="#emergencyModal" title="Escalate to 108 Emergency Ambulance">
-            <i class="bi bi-telephone-outbound-fill me-1"></i>108
-          </button>
-        </div>
+    <!-- Call Concluded Overlay -->
+    <div id="callEndedOverlay"
+         class="position-absolute top-0 start-0 w-100 h-100 d-none flex-column align-items-center justify-content-center text-center p-4"
+         style="background: rgba(18, 19, 22, 0.97); z-index: 60;">
+      <div class="rounded-circle bg-success bg-opacity-25 p-3 mb-3 border border-success border-opacity-50">
+        <i class="bi bi-check2-circle text-success fs-1"></i>
       </div>
-    </div><!-- /teleMeetStage -->
-
-    <!-- ── Live Point-of-Care Vitals Telemetry Card ── -->
-    {% set vitals = tele.vitals_snapshot_json | fromjson %}
-    <div class="card border-0 shadow-sm rounded-3 mb-3">
-      <div class="card-header bg-white py-2 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <h6 class="mb-0 fw-bold fs-7 text-dark">
-          <i class="bi bi-activity text-danger me-2"></i>Live Point-of-Care Vitals Telemetry
-        </h6>
-        <div class="d-flex align-items-center gap-2">
-          <button type="button" class="btn btn-xs btn-outline-primary btn-speak-text"
-            data-speak="Live Point of Care Vitals for patient {{ tele.first_name }} {{ tele.last_name }}. Blood Pressure {{ vitals.bp if vitals and vitals.bp else '162 by 105' }}, Pulse {{ vitals.pulse if vitals and vitals.pulse else '98' }} beats per minute, SpO2 {{ vitals.spo2 if vitals and vitals.spo2 else '97' }} percent, Temperature {{ vitals.temp if vitals and vitals.temp else '37' }} degrees Celsius.">
-            <i class="bi bi-volume-up-fill me-1"></i>Listen Vitals
-          </button>
-          <span class="badge bg-light text-dark border">Transmitted from {{ tele.from_facility_tier or 'Facility' }}</span>
-        </div>
-      </div>
-      <div class="card-body p-3">
-        <div class="row g-2 text-center">
-
-          <div class="col-6 col-md-3">
-            <div class="border rounded p-2 bg-light">
-              <div class="text-muted fs-8 text-uppercase">Blood Pressure</div>
-              <div class="fs-5 fw-bold text-danger">{{ vitals.bp if vitals and vitals.bp else '162/105' }} <small class="fs-9 text-muted">mmHg</small></div>
-              {% set bp_sys = ((vitals.bp or '162/105').split('/')[0])|int %}
-              <span class="badge {{ 'bg-danger' if bp_sys > 140 else 'bg-success' }} fs-9">{{ 'Elevated' if bp_sys > 140 else 'Normal' }}</span>
-            </div>
-          </div>
-
-          <div class="col-6 col-md-3">
-            <div class="border rounded p-2 bg-light">
-              <div class="text-muted fs-8 text-uppercase">Pulse / Heart Rate</div>
-              <div class="fs-5 fw-bold text-dark">{{ vitals.pulse if vitals and vitals.pulse else '98' }} <small class="fs-9 text-muted">bpm</small></div>
-              {% set pulse = (vitals.pulse or '98')|int %}
-              <span class="badge {{ 'bg-danger' if pulse > 100 or pulse < 60 else 'bg-success' }} fs-9">
-                {{ 'Tachycardia' if pulse > 100 else 'Bradycardia' if pulse < 60 else 'Normal' }}
-              </span>
-            </div>
-          </div>
-
-          <div class="col-6 col-md-3">
-            <div class="border rounded p-2 bg-light">
-              <div class="text-muted fs-8 text-uppercase">Oxygen Saturation</div>
-              <div class="fs-5 fw-bold text-primary">{{ vitals.spo2 if vitals and vitals.spo2 else '97' }}% <small class="fs-9 text-muted">SpO2</small></div>
-              {% set spo2 = (vitals.spo2 or '97')|int %}
-              <span class="badge {{ 'bg-danger' if spo2 < 90 else 'bg-warning text-dark' if spo2 < 95 else 'bg-success' }} fs-9">
-                {{ 'Critical Low' if spo2 < 90 else 'Low' if spo2 < 95 else 'Optimal' }}
-              </span>
-            </div>
-          </div>
-
-          <div class="col-6 col-md-3">
-            <div class="border rounded p-2 bg-light">
-              {% if vitals and vitals.fhr %}
-                <div class="text-muted fs-8 text-uppercase">Fetal HR</div>
-                <div class="fs-5 fw-bold text-info">{{ vitals.fhr }} <small class="fs-9 text-muted">bpm FHR</small></div>
-                <span class="badge bg-info fs-9">ANC Monitoring</span>
-              {% elif vitals and vitals.hb %}
-                <div class="text-muted fs-8 text-uppercase">Hemoglobin</div>
-                <div class="fs-5 fw-bold text-warning">{{ vitals.hb }} <small class="fs-9 text-muted">g/dL</small></div>
-                <span class="badge {{ 'bg-danger' if (vitals.hb|float) < 8 else 'bg-warning text-dark' if (vitals.hb|float) < 11 else 'bg-success' }} fs-9">
-                  {{ 'Severe Anemia' if (vitals.hb|float) < 8 else 'Mild Anemia' if (vitals.hb|float) < 11 else 'Normal' }}
-                </span>
-              {% else %}
-                <div class="text-muted fs-8 text-uppercase">Temperature</div>
-                <div class="fs-5 fw-bold text-secondary">{{ vitals.temp if vitals and vitals.temp else '37.0' }} <small class="fs-9 text-muted">°C</small></div>
-                {% set temp = (vitals.temp or '37.0')|float %}
-                <span class="badge {{ 'bg-danger' if temp > 38.5 else 'bg-warning text-dark' if temp > 37.5 else 'bg-success' }} fs-9">
-                  {{ 'High Fever' if temp > 38.5 else 'Low-Grade Fever' if temp > 37.5 else 'Afebrile' }}
-                </span>
-              {% endif %}
-            </div>
-          </div>
-
-        </div>
-
-        {% if tele.clinical_findings %}
-        <div class="mt-3 p-2 bg-light rounded border fs-8">
-          <strong><i class="bi bi-clipboard2-pulse-fill text-primary me-1"></i>Frontline Physical Findings:</strong>
-          {{ tele.clinical_findings }}
-        </div>
-        {% endif %}
-
-        {% if tele.chief_complaint %}
-        <div class="mt-2 p-2 bg-warning bg-opacity-10 rounded border border-warning fs-8">
-          <strong><i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>Chief Complaint:</strong>
-          {{ tele.chief_complaint }}
-        </div>
-        {% endif %}
+      <h4 class="text-white fw-bold mb-1">Teleconsultation Completed</h4>
+      <p class="text-white-50 fs-8 mb-3">Session <strong class="text-info">{{ tele.session_uid }}</strong> has concluded.</p>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-primary px-3" onclick="window.pcTele.openDrawerTab('activities')">
+          <i class="bi bi-prescription2 me-1"></i>View / Edit Prescription
+        </button>
+        <a href="{{ url_for('teleconsult_index') }}" class="btn btn-sm btn-outline-light px-3">
+          <i class="bi bi-arrow-left me-1"></i>Return to Registry
+        </a>
       </div>
     </div>
 
-    <!-- ── Share Room Link Card ── -->
-    <div class="card border-0 shadow-sm rounded-3 mb-3">
-      <div class="card-body p-3 fs-8">
-        <div class="fw-bold text-dark mb-1">
-          <i class="bi bi-share-fill text-info me-2"></i>Share This Teleconsult Room
-        </div>
-        <p class="text-muted mb-2 fs-9">Send this URL to the specialist or patient — they join the same encrypted call directly in browser:</p>
-        <div class="input-group input-group-sm">
-          <input type="text" class="form-control bg-light" id="shareLink" readonly value="{{ request.url }}">
-          <button class="btn btn-outline-primary" onclick="window.pcTele.copyShareLink()">
-            <i class="bi bi-clipboard me-1"></i>Copy
-          </button>
-        </div>
-        <div class="text-muted fs-9 mt-1">
-          <i class="bi bi-lock-fill text-success me-1"></i>Native peer-to-peer encrypted stream. No external accounts or downloads needed.
-        </div>
-      </div>
+  </div><!-- /meet-stage-canvas -->
+
+  <!-- ── 3. Exact Google Meet Floating Bottom Dock (Toolbar) ── -->
+  <div class="meet-bottom-dock">
+    <!-- Left: Time & Meeting Code -->
+    <div class="meet-dock-left">
+      <span class="meet-dock-time" id="meetLiveTime">10:45 AM</span>
+      <span class="text-white-50 d-none d-sm-inline">&bull;</span>
+      <span class="meet-dock-code" id="meetSessionCode">{{ tele.session_uid }}</span>
     </div>
 
-  </div><!-- /col-lg-7 -->
+    <!-- Center: The 7 Google Meet Action Buttons -->
+    <div class="meet-dock-center">
+      <!-- 1. Mic -->
+      <button type="button" class="meet-round-btn" id="btnToggleMic" onclick="window.pcTele.toggleMic()" title="Toggle microphone (M)">
+        <i class="bi bi-mic-fill" id="micIcon"></i>
+      </button>
 
+      <!-- 2. Camera -->
+      <button type="button" class="meet-round-btn" id="btnToggleCam" onclick="window.pcTele.toggleCam()" title="Toggle camera (V)">
+        <i class="bi bi-camera-video-fill" id="camIcon"></i>
+      </button>
 
-  <!-- ═══════════════════════════════════════════════════════════
-       RIGHT COLUMN: PATIENT SUMMARY + E-PRESCRIPTION FORM
-  ═══════════════════════════════════════════════════════════ -->
-  <div class="col-lg-5 d-none d-lg-block" id="colRx">
+      <!-- 3. Closed Captions (CC) -->
+      <button type="button" class="meet-round-btn" id="btnToggleCaptions" onclick="window.pcTele.toggleCaptions()" title="Turn on captions (C)">
+        <i class="bi bi-badge-cc" id="captionsIcon"></i>
+      </button>
 
-    <!-- ── Patient Summary Card ── -->
-    <div class="card border-0 shadow-sm rounded-3 mb-3">
-      <div class="card-header bg-white py-2 border-bottom">
-        <h6 class="mb-0 fw-bold fs-7 text-dark">
-          <i class="bi bi-person-badge-fill text-primary me-2"></i>Patient Summary
-        </h6>
+      <!-- 4. Raise Hand -->
+      <button type="button" class="meet-round-btn" id="btnToggleRaiseHand" onclick="window.pcTele.toggleRaiseHand()" title="Raise or lower hand (H)">
+        <i class="bi bi-hand-index-thumb-fill" id="raiseHandIcon"></i>
+      </button>
+
+      <!-- 5. Screen Share / Present -->
+      <button type="button" class="meet-round-btn" id="btnShareScreen" onclick="window.pcTele.toggleScreenShare()" title="Present now">
+        <i class="bi bi-arrow-up-circle-fill"></i>
+      </button>
+
+      <!-- 6. More Options (3 Dots Dropdown) -->
+      <div class="dropdown">
+        <button type="button" class="meet-round-btn" id="btnMoreOptions" data-bs-toggle="dropdown" aria-expanded="false" title="More options">
+          <i class="bi bi-three-dots-vertical"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow-lg" aria-labelledby="btnMoreOptions">
+          <li>
+            <a class="dropdown-item fs-8" href="javascript:void(0)" onclick="window.pcTele.switchCamera()">
+              <i class="bi bi-camera-reverse me-2 text-warning"></i>Flip Front/Rear Camera
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item fs-8" href="javascript:void(0)" onclick="window.pcTele.toggleFullscreen()">
+              <i class="bi bi-fullscreen me-2 text-info"></i>Fullscreen Chamber
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item fs-8" href="javascript:void(0)" onclick="window.pcTele.copyRoomLink()">
+              <i class="bi bi-clipboard-check me-2 text-success"></i>Copy Chamber Link
+            </a>
+          </li>
+          <li><hr class="dropdown-divider border-secondary"></li>
+          <li>
+            <a class="dropdown-item fs-8 text-danger" href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#emergencyModal">
+              <i class="bi bi-telephone-outbound-fill me-2"></i>Escalate to 108 Emergency
+            </a>
+          </li>
+        </ul>
       </div>
-      <div class="card-body p-3">
-        <div class="d-flex justify-content-between align-items-start mb-2">
-          <div>
-            <h6 class="fw-bold text-dark mb-0">{{ tele.first_name }} {{ tele.last_name }}</h6>
-            <div class="text-muted fs-8">
-              <i class="bi bi-geo-alt me-1"></i>{{ tele.village or 'Rural Centre' }} &bull; {{ tele.gender }}, {{ tele.dob }}
-            </div>
-          </div>
-          <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">
-            <i class="bi bi-qr-code me-1"></i>{{ tele.abha_id or 'ABHA Pending' }}
+
+      <!-- 7. End Call (Red Pill) -->
+      <button type="button" class="meet-end-call-pill" id="btnEndCall" onclick="window.pcTele.endCall()" title="Leave call">
+        <i class="bi bi-telephone-x-fill"></i>
+      </button>
+    </div>
+
+    <!-- Right: The 4 Side Panel Toggles (Info, People, Chat, Activities) -->
+    <div class="meet-dock-right">
+      <!-- Panel 1: Details (i) -->
+      <button type="button" class="meet-panel-icon-btn" id="btnPanelDetails" onclick="window.pcTele.openDrawerTab('details')" title="Meeting details">
+        <i class="bi bi-info-circle"></i>
+      </button>
+
+      <!-- Panel 2: People -->
+      <button type="button" class="meet-panel-icon-btn" id="btnPanelPeople" onclick="window.pcTele.openDrawerTab('people')" title="People">
+        <i class="bi bi-people-fill"></i>
+        <span class="meet-badge-count" id="panelPeopleCount">1</span>
+      </button>
+
+      <!-- Panel 3: In-Call Chat -->
+      <button type="button" class="meet-panel-icon-btn" id="btnPanelChat" onclick="window.pcTele.openDrawerTab('chat')" title="Chat with everyone">
+        <i class="bi bi-chat-dots-fill"></i>
+        <span class="meet-badge-count d-none" id="panelChatCount">0</span>
+      </button>
+
+      <!-- Panel 4: Activities / Clinical Rx -->
+      <button type="button" class="meet-panel-icon-btn" id="btnPanelActivities" onclick="window.pcTele.openDrawerTab('activities')" title="Activities & Clinical Rx">
+        <i class="bi bi-grid-fill"></i>
+      </button>
+    </div>
+  </div>
+
+</div><!-- /google-meet-container -->
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     LIVE POINT-OF-CARE VITALS TELEMETRY & CLINICAL CARD
+══════════════════════════════════════════════════════════════ -->
+<div class="card border-0 shadow-sm rounded-3 mb-3">
+  <div class="card-header bg-white py-2 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h6 class="mb-0 fw-bold fs-7 text-dark">
+      <i class="bi bi-activity text-danger me-2"></i>Live Point-of-Care Vitals Telemetry
+    </h6>
+    <div class="d-flex align-items-center gap-2">
+      <button type="button" class="btn btn-xs btn-outline-primary btn-speak-text"
+        data-speak="Live Point of Care Vitals for patient {{ tele.first_name }} {{ tele.last_name }}. Blood Pressure {{ vitals.bp if vitals and vitals.bp else '162 by 105' }}, Pulse {{ vitals.pulse if vitals and vitals.pulse else '98' }} beats per minute, SpO2 {{ vitals.spo2 if vitals and vitals.spo2 else '97' }} percent, Temperature {{ vitals.temp if vitals and vitals.temp else '37' }} degrees Celsius.">
+        <i class="bi bi-volume-up-fill me-1"></i>Listen Vitals
+      </button>
+      <span class="badge bg-light text-dark border">Transmitted from {{ tele.from_facility_tier or 'Facility' }}</span>
+    </div>
+  </div>
+  <div class="card-body p-3">
+    <div class="row g-2 text-center">
+
+      <div class="col-6 col-md-3">
+        <div class="border rounded p-2 bg-light">
+          <div class="text-muted fs-8 text-uppercase">Blood Pressure</div>
+          <div class="fs-5 fw-bold text-danger">{{ vitals.bp if vitals and vitals.bp else '162/105' }} <small class="fs-9 text-muted">mmHg</small></div>
+          {% set bp_sys = ((vitals.bp or '162/105').split('/')[0])|int %}
+          <span class="badge {{ 'bg-danger' if bp_sys > 140 else 'bg-success' }} fs-9">{{ 'Elevated' if bp_sys > 140 else 'Normal' }}</span>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="border rounded p-2 bg-light">
+          <div class="text-muted fs-8 text-uppercase">Pulse / Heart Rate</div>
+          <div class="fs-5 fw-bold text-dark">{{ vitals.pulse if vitals and vitals.pulse else '98' }} <small class="fs-9 text-muted">bpm</small></div>
+          {% set pulse = (vitals.pulse or '98')|int %}
+          <span class="badge {{ 'bg-danger' if pulse > 100 or pulse < 60 else 'bg-success' }} fs-9">
+            {{ 'Tachycardia' if pulse > 100 else 'Bradycardia' if pulse < 60 else 'Normal' }}
           </span>
         </div>
-        <div class="row g-1 fs-8 pt-2 border-top">
-          <div class="col-6"><span class="text-muted">Blood Group:</span> <strong class="text-danger">{{ tele.blood_group or 'N/A' }}</strong></div>
-          <div class="col-6"><span class="text-muted">Phone:</span> <strong>{{ tele.phone or '—' }}</strong></div>
-          <div class="col-12 mt-1">
-            <span class="text-muted">Allergies:</span>
-            <span class="badge bg-danger-subtle text-danger">{{ tele.allergies or 'None Reported' }}</span>
-          </div>
-          <div class="col-12 mt-1">
-            <span class="text-muted">Chronic / Risk:</span>
-            <strong>{{ tele.chronic_conditions or 'None' }}</strong>
-          </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="border rounded p-2 bg-light">
+          <div class="text-muted fs-8 text-uppercase">Oxygen Saturation</div>
+          <div class="fs-5 fw-bold text-primary">{{ vitals.spo2 if vitals and vitals.spo2 else '97' }}% <small class="fs-9 text-muted">SpO2</small></div>
+          {% set spo2 = (vitals.spo2 or '97')|int %}
+          <span class="badge {{ 'bg-danger' if spo2 < 90 else 'bg-warning text-dark' if spo2 < 95 else 'bg-success' }} fs-9">
+            {{ 'Critical Low' if spo2 < 90 else 'Low' if spo2 < 95 else 'Optimal' }}
+          </span>
         </div>
-        <div class="mt-2 pt-2 border-top d-flex flex-wrap gap-2 fs-9">
-          <span class="badge bg-light text-dark border">
-            <i class="bi bi-building me-1"></i>{{ tele.from_facility_name }}
-          </span>
-          <span class="text-muted">→</span>
-          <span class="badge bg-primary-subtle text-primary border">
-            <i class="bi bi-hospital me-1"></i>{{ tele.to_facility_name }}
-          </span>
-          {% if tele.specialist_name %}
-          <span class="badge bg-success-subtle text-success border">
-            <i class="bi bi-person-badge me-1"></i>{{ tele.specialist_name }}
-          </span>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="border rounded p-2 bg-light">
+          {% if vitals and vitals.fhr %}
+            <div class="text-muted fs-8 text-uppercase">Fetal HR</div>
+            <div class="fs-5 fw-bold text-info">{{ vitals.fhr }} <small class="fs-9 text-muted">bpm FHR</small></div>
+            <span class="badge bg-info fs-9">ANC Monitoring</span>
+          {% elif vitals and vitals.hb %}
+            <div class="text-muted fs-8 text-uppercase">Hemoglobin</div>
+            <div class="fs-5 fw-bold text-warning">{{ vitals.hb }} <small class="fs-9 text-muted">g/dL</small></div>
+            <span class="badge {{ 'bg-danger' if (vitals.hb|float) < 8 else 'bg-warning text-dark' if (vitals.hb|float) < 11 else 'bg-success' }} fs-9">
+              {{ 'Severe Anemia' if (vitals.hb|float) < 8 else 'Mild Anemia' if (vitals.hb|float) < 11 else 'Normal' }}
+            </span>
+          {% else %}
+            <div class="text-muted fs-8 text-uppercase">Temperature</div>
+            <div class="fs-5 fw-bold text-secondary">{{ vitals.temp if vitals and vitals.temp else '37.0' }} <small class="fs-9 text-muted">°C</small></div>
+            {% set temp = (vitals.temp or '37.0')|float %}
+            <span class="badge {{ 'bg-danger' if temp > 38.5 else 'bg-warning text-dark' if temp > 37.5 else 'bg-success' }} fs-9">
+              {{ 'High Fever' if temp > 38.5 else 'Low-Grade Fever' if temp > 37.5 else 'Afebrile' }}
+            </span>
           {% endif %}
         </div>
       </div>
+
     </div>
 
-    <!-- ── Clinical Assessment & E-Prescription Form ── -->
-    <div class="card border-0 shadow-sm rounded-3 mb-3">
-      <div class="card-header bg-white py-2 border-bottom">
-        <h6 class="mb-0 fw-bold fs-7 text-dark">
-          <i class="bi bi-file-earmark-medical text-primary me-2"></i>Specialist Clinical Assessment &amp; Prescription
-        </h6>
-      </div>
-      <div class="card-body p-3 fs-7">
-        <form method="POST" action="{{ url_for('teleconsult_update', session_id=tele.id) }}" id="teleRxForm">
-
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Specialist Clinical Advice &amp; Directions <span class="text-danger">*</span></label>
-            <textarea name="specialist_advice" class="form-control form-control-sm" rows="4" required
-              placeholder="Provide clinical diagnosis, emergency stabilization steps, dosage titration, or referral guidelines…">{{ tele.specialist_advice or '' }}</textarea>
-          </div>
-
-          <!-- Dynamic E-Prescription Builder -->
-          <div class="mb-3">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <label class="form-label fw-semibold mb-0">Prescribe Essential Medications</label>
-              <button type="button" class="btn btn-xs btn-outline-primary" id="addRxItemBtn">
-                <i class="bi bi-plus"></i> Add Medicine
-              </button>
-            </div>
-            <div id="rxItemsContainer" class="border rounded p-2 bg-light">
-              <div class="row g-1 mb-2 rx-item-row">
-                <div class="col-5">
-                  <select name="med_id[]" class="form-select form-select-sm">
-                    <option value="">-- Choose Medicine --</option>
-                    {% for m in medicines %}
-                    <option value="{{ m.id }}">{{ m.brand_name }} ({{ m.strength }})</option>
-                    {% endfor %}
-                  </select>
-                </div>
-                <div class="col-3">
-                  <input type="text" name="dosage[]" class="form-control form-control-sm" placeholder="e.g. 100mg" value="1 Tab">
-                </div>
-                <div class="col-4">
-                  <input type="text" name="frequency[]" class="form-control form-control-sm" placeholder="1-0-1 (BID)" value="1-0-1">
-                </div>
-                <div class="col-4 mt-1">
-                  <input type="number" name="duration_days[]" class="form-control form-control-sm" placeholder="Days" value="5">
-                </div>
-                <div class="col-6 mt-1">
-                  <input type="text" name="instructions[]" class="form-control form-control-sm" placeholder="Instructions" value="After food with water">
-                </div>
-                <div class="col-2 mt-1 text-end">
-                  <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="this.closest('.rx-item-row').remove()">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Update Teleconsult Status</label>
-            <select name="status" class="form-select form-select-sm" id="selectCallStatus">
-              <option value="Completed" {% if tele.status == 'Completed' %}selected{% endif %}>Completed &amp; Transmit E-Prescription</option>
-              <option value="In-Call"   {% if tele.status == 'In-Call'   %}selected{% endif %}>Keep In-Call</option>
-              <option value="Escalated" {% if tele.status == 'Escalated' %}selected{% endif %}>Escalated to District Hospital</option>
-            </select>
-          </div>
-
-          <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-sm btn-primary fw-bold">
-              <i class="bi bi-send-check me-1"></i>Save Advice &amp; Transmit Digital E-Prescription
-            </button>
-            <a href="{{ url_for('referrals_index') }}" class="btn btn-sm btn-outline-warning text-dark fw-semibold">
-              <i class="bi bi-arrow-left-right me-1"></i>Initiate Inter-Facility Referral Slip
-            </a>
-          </div>
-
-        </form>
-      </div>
+    {% if tele.clinical_findings %}
+    <div class="mt-3 p-2 bg-light rounded border fs-8">
+      <strong><i class="bi bi-clipboard2-pulse-fill text-primary me-1"></i>Frontline Physical Findings:</strong>
+      {{ tele.clinical_findings }}
     </div>
+    {% endif %}
 
-  </div><!-- /col-lg-5 -->
+    {% if tele.chief_complaint %}
+    <div class="mt-2 p-2 bg-warning bg-opacity-10 rounded border border-warning fs-8">
+      <strong><i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>Chief Complaint:</strong>
+      {{ tele.chief_complaint }}
+    </div>
+    {% endif %}
+  </div>
+</div>
 
-</div><!-- /row -->
+<!-- ── Share Room Link Card ── -->
+<div class="card border-0 shadow-sm rounded-3 mb-3">
+  <div class="card-body p-3 fs-8">
+    <div class="fw-bold text-dark mb-1">
+      <i class="bi bi-share-fill text-info me-2"></i>Share This Teleconsult Room
+    </div>
+    <p class="text-muted mb-2 fs-9">Send this URL to the specialist or patient — they join the same encrypted Google Meet chamber directly in browser:</p>
+    <div class="input-group input-group-sm">
+      <input type="text" class="form-control bg-light" id="shareLink" readonly value="{{ request.url }}">
+      <button class="btn btn-outline-primary" onclick="window.pcTele.copyShareLink()">
+        <i class="bi bi-clipboard me-1"></i>Copy
+      </button>
+    </div>
+    <div class="text-muted fs-9 mt-1">
+      <i class="bi bi-lock-fill text-success me-1"></i>Direct peer-to-peer encrypted stream. No plugins or downloads needed.
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 
 {# ══════════════════════════════════════════════════════════════
-   PULSECARE HIGH-PERFORMANCE WebRTC ENGINE (100% P2P)
+   PULSECARE GOOGLE MEET WEBRTC ENGINE & UI CONTROLLER
 ══════════════════════════════════════════════════════════════ #}
 {% block page_scripts %}
 <script>
@@ -1031,11 +1372,12 @@
   let remoteStream      = null;
   let peerConnection    = null;
   let pollInterval      = null;
-  let timerInterval     = null;
-  let callSeconds       = 0;
+  let clockInterval     = null;
   let isMuted           = false;
   let isCamOff          = false;
   let isSharingScreen   = false;
+  let isCaptionsOn      = false;
+  let isHandRaised      = false;
   let callActive        = false;
   let currentFacingMode = "user"; // "user" (front) or "environment" (rear)
   let videoDevices      = [];
@@ -1044,15 +1386,15 @@
   let hasInitiatedOffer = false;
   let iceQueue          = [];
 
-  // Google Meet Layout & Feature States
-  let currentLayout      = "grid"; // "grid" (all cams) or "focus" (spotlight)
-  let isChatOpen         = false;
-  let isParticipantsOpen = false;
+  // Google Meet UI States
+  let activeDrawerTab    = null; // null or 'details' | 'people' | 'chat' | 'activities'
   let unreadChatCount    = 0;
   let renderedChatIds    = new Set();
   let knownPeers         = {};
+  let pinnedTarget       = null;
 
   document.addEventListener("DOMContentLoaded", async function () {
+    initClock();
     initRxBuilder();
     initKeyboardShortcuts();
     initFullscreenListeners();
@@ -1066,7 +1408,22 @@
   });
 
   /* ─────────────────────────────────────────────────────────────
-     1. Local Media Stream Initialization & Dual View Binding
+     1. Live Clock & Top Presentation Bar
+  ───────────────────────────────────────────────────────────── */
+  function initClock() {
+    function update() {
+      const el = document.getElementById("meetLiveTime");
+      if (el) {
+        const now = new Date();
+        el.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    }
+    update();
+    clockInterval = setInterval(update, 1000);
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     2. Local Media Stream Initialization
   ───────────────────────────────────────────────────────────── */
   async function initLocalMedia(preferredFacingMode) {
     const facing = preferredFacingMode || currentFacingMode;
@@ -1080,7 +1437,6 @@
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
       attachLocalStream(localStream);
-      updateCameraBadge(facing);
     } catch (errVideo) {
       console.warn("[Media] Video camera unavailable, attempting audio-only...", errVideo);
       try {
@@ -1088,30 +1444,21 @@
         const canvasStream = createVirtualCanvasStream("Diagnostic Audio Mode");
         canvasStream.getVideoTracks().forEach(t => localStream.addTrack(t));
         attachLocalStream(localStream);
-        showToast("<i class='bi bi-mic me-1'></i>Joined in Audio Mode (Webcam unavailable).", "info");
       } catch (errAudio) {
         console.warn("[Media] Audio hardware unavailable, generating synthetic clinical stream...", errAudio);
         localStream = createVirtualCanvasStream("PulseCare HD Clinical Feed");
         attachLocalStream(localStream);
-        showToast("<i class='bi bi-info-circle me-1'></i>Virtual Clinical Stream Active.", "info");
       }
     }
   }
 
   function attachLocalStream(stream) {
-    // Bind to all local video elements (Grid, PiP, Filmstrip)
-    const vids = [
-      document.getElementById("gridLocalVideo"),
-      document.getElementById("localVideo"),
-      document.getElementById("filmstripLocalVid")
-    ];
-    vids.forEach(vid => {
-      if (vid) {
-        vid.srcObject = stream;
-        vid.play().catch(e => console.log(e));
-        vid.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
-      }
-    });
+    const vid = document.getElementById("gridLocalVideo");
+    if (vid) {
+      vid.srcObject = stream;
+      vid.play().catch(e => console.log(e));
+      vid.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
+    }
 
     if (peerConnection) {
       ensureTracksAttached(peerConnection);
@@ -1135,14 +1482,13 @@
       if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
       const devices = await navigator.mediaDevices.enumerateDevices();
       videoDevices = devices.filter(d => d.kind === "videoinput");
-      console.log("[Cameras found]", videoDevices.length, videoDevices);
     } catch (e) {
       console.log("[Camera enum note]", e);
     }
   }
 
   /* ─────────────────────────────────────────────────────────────
-     2. Camera Switch / Flip (Front ⇄ Rear)
+     3. Camera Flip (Front ⇄ Rear)
   ───────────────────────────────────────────────────────────── */
   async function switchCamera() {
     if (!localStream) {
@@ -1151,12 +1497,7 @@
     }
 
     const currentVideoTrack = localStream.getVideoTracks()[0];
-    const btn = document.getElementById("btnSwitchCam");
-    const switchText = document.getElementById("switchCamText");
-
     currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
-    updateCameraBadge(currentFacingMode);
-    if (btn) btn.disabled = true;
 
     try {
       let newConstraints = {
@@ -1196,26 +1537,13 @@
           }
         }
 
-        const label = (currentFacingMode === "user") ? "Front Camera (Selfie)" : "Rear Camera (Patient View)";
-        if (switchText) switchText.textContent = (currentFacingMode === "user") ? "Rear Cam" : "Front Cam";
+        const label = (currentFacingMode === "user") ? "Front Camera" : "Rear Camera (Patient View)";
         showToast("<i class='bi bi-camera me-1 text-warning'></i>Switched to " + label + ".", "info");
       }
     } catch (err) {
       console.warn("[Switch camera fallback]", err);
       currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
-      updateCameraBadge(currentFacingMode);
       showToast("Could not switch camera: " + (err.message || "Hardware unavailable"), "warning");
-    } finally {
-      if (btn) btn.disabled = false;
-    }
-  }
-
-  function updateCameraBadge(mode) {
-    const badge = document.getElementById("cameraModeBadge");
-    if (badge) {
-      badge.textContent = (mode === "user") ? "FRONT" : "REAR";
-      badge.className = (mode === "user") ? "position-absolute top-0 start-0 m-1 badge bg-dark bg-opacity-75 border border-secondary text-white p-1"
-                                          : "position-absolute top-0 start-0 m-1 badge bg-warning text-dark fw-bold p-1";
     }
   }
 
@@ -1228,15 +1556,15 @@
 
     function render() {
       step = (step + 1) % 360;
-      ctx.fillStyle = "#070b14";
+      ctx.fillStyle = "#202124";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.strokeStyle = "rgba(14, 165, 233, 0.12)";
+      ctx.strokeStyle = "rgba(138, 180, 248, 0.15)";
       ctx.lineWidth = 1;
       for (let x = 0; x < canvas.width; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
       for (let y = 0; y < canvas.height; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
 
-      ctx.strokeStyle = "#10b981";
+      ctx.strokeStyle = "#34a853";
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       for (let x = 0; x < canvas.width; x += 4) {
@@ -1251,8 +1579,8 @@
 
       ctx.fillStyle = "#ffffff"; ctx.font = "bold 16px sans-serif";
       ctx.fillText(USER_NAME + " (" + USER_ROLE.toUpperCase() + ")", 20, 35);
-      ctx.fillStyle = "#38bdf8"; ctx.font = "12px sans-serif";
-      ctx.fillText("PulseCare Clinical Stream • " + label, 20, 58);
+      ctx.fillStyle = "#8ab4f8"; ctx.font = "12px sans-serif";
+      ctx.fillText("Google Meet Telehealth Chamber • " + label, 20, 58);
       ctx.fillText("Session: " + SESSION_UID, 20, 76);
 
       requestAnimationFrame(render);
@@ -1273,7 +1601,7 @@
   }
 
   /* ─────────────────────────────────────────────────────────────
-     3. WebRTC Peer Connection Management
+     4. WebRTC Peer Connection Management
   ───────────────────────────────────────────────────────────── */
   function getOrCreatePeerConnection() {
     if (peerConnection) {
@@ -1300,25 +1628,23 @@
       if (evt.streams && evt.streams[0]) {
         remoteStream = evt.streams[0];
         
-        // Bind to all remote video elements (Grid, Focus main, Filmstrip)
         const vids = [
-          document.getElementById("gridRemoteVideo"),
           document.getElementById("remoteVideo"),
-          document.getElementById("filmstripRemoteVid")
+          document.getElementById("gridRemoteVideo")
         ];
         vids.forEach(v => {
           if (v) {
             v.srcObject = remoteStream;
-            v.style.display = "block";
             v.play().catch(e => console.log(e));
           }
         });
 
-        const overlay = document.getElementById("remoteWaitingOverlay");
-        if (overlay) overlay.style.display = "none";
+        dismissWaitingOverlay();
         
         const gridOff = document.getElementById("gridRemoteCamOff");
         if (gridOff) gridOff.classList.add("d-none");
+        const focusOff = document.getElementById("focusRemoteCamOff");
+        if (focusOff) focusOff.classList.add("d-none");
       }
       onCallConnected();
     };
@@ -1329,7 +1655,6 @@
         onCallConnected();
       } else if (peerConnection.connectionState === "disconnected" || peerConnection.connectionState === "failed") {
         document.getElementById("callStatusDot").className = "status-dot bg-danger rounded-circle d-inline-block";
-        document.getElementById("linkageTitle").textContent = "RECONNECTING CLINICAL LINK…";
         setTimeout(retryConnection, 2000);
       }
     };
@@ -1340,9 +1665,8 @@
   function onCallConnected() {
     callActive = true;
     dismissWaitingOverlay();
-    document.getElementById("callStatusDot").className = "status-dot bg-success rounded-circle d-inline-block pulse-animation";
-    document.getElementById("linkageTitle").textContent = "TWO-WAY AUDIO/VIDEO LINK ACTIVE (HD)";
-    startCallTimer();
+    const dot = document.getElementById("callStatusDot");
+    if (dot) dot.className = "status-dot bg-success rounded-circle d-inline-block pulse-animation";
   }
 
   function dismissWaitingOverlay() {
@@ -1355,7 +1679,7 @@
   }
 
   /* ─────────────────────────────────────────────────────────────
-     4. Signaling Loop & Real-Time Sync
+     5. Signaling Loop & Real-Time Sync
   ───────────────────────────────────────────────────────────── */
   function startSignaling() {
     sendSignal({ type: "join", restart: true });
@@ -1493,44 +1817,8 @@
   }
 
   /* ─────────────────────────────────────────────────────────────
-     5. Google Meet Layout Modes (All Cams Grid vs Focus View)
+     6. Spotlight Pinning & Views
   ───────────────────────────────────────────────────────────── */
-  function toggleLayout(preferredMode) {
-    if (preferredMode) {
-      currentLayout = preferredMode;
-    } else {
-      currentLayout = (currentLayout === "grid") ? "focus" : "grid";
-    }
-
-    const gridEl  = document.getElementById("participantsGridView");
-    const focusEl = document.getElementById("focusView");
-    const btnText = document.getElementById("layoutText");
-    const btnIcon = document.getElementById("layoutIcon");
-    const topText = document.getElementById("topLayoutText");
-    const topIcon = document.getElementById("topLayoutIcon");
-
-    if (currentLayout === "grid") {
-      dismissWaitingOverlay();
-      if (gridEl)  gridEl.style.display = "grid";
-      if (focusEl) focusEl.style.display = "none";
-      if (btnText) btnText.textContent = "Focus View";
-      if (btnIcon) btnIcon.className = "bi bi-person-badge-fill me-1";
-      if (topText) topText.textContent = "Focus";
-      if (topIcon) topIcon.className = "bi bi-person-badge-fill me-1";
-      showToast("<i class='bi bi-grid-3x3-gap-fill text-info me-1'></i>Switched to All Participants Camera Grid.", "info");
-    } else {
-      if (gridEl)  gridEl.style.display = "none";
-      if (focusEl) focusEl.style.display = "block";
-      if (btnText) btnText.textContent = "All Cams";
-      if (btnIcon) btnIcon.className = "bi bi-grid-3x3-gap-fill me-1";
-      if (topText) topText.textContent = "Grid";
-      if (topIcon) topIcon.className = "bi bi-grid-3x3-gap-fill me-1";
-      showToast("<i class='bi bi-person-badge-fill text-info me-1'></i>Switched to Focus / Spotlight View.", "info");
-    }
-  }
-
-  let pinnedTarget = null; // null, 'local', 'remote', or peer id
-
   function pinParticipant(target) {
     if (pinnedTarget === target) {
       unpinParticipant();
@@ -1538,123 +1826,61 @@
     }
 
     pinnedTarget = target;
-    dismissWaitingOverlay();
-    toggleLayout("focus");
+    const spotlightVideo = document.getElementById("remoteVideo");
+    const spotlightLabel = document.getElementById("spotlightNameLabel");
+    const unpinBtn = document.getElementById("btnSpotlightUnpin");
+    const focusOff = document.getElementById("focusRemoteCamOff");
 
-    const mainRemote = document.getElementById("remoteVideo");
-    const pipVideo = document.getElementById("localVideo");
-    const pipContainer = document.getElementById("localVideoContainer");
-    const pipLabel = pipContainer ? pipContainer.querySelector("div") : null;
-    const focusCamOff = document.getElementById("focusRemoteCamOff");
-    const focusPinnedBadge = document.getElementById("focusPinnedBadge");
-    const focusPinnedLabel = document.getElementById("focusPinnedLabel");
-    const btnFocusUnpin = document.getElementById("btnFocusUnpin");
+    if (unpinBtn) unpinBtn.style.display = "inline-flex";
 
-    if (btnFocusUnpin) btnFocusUnpin.classList.remove("d-none");
-    if (focusPinnedBadge) {
-      focusPinnedBadge.classList.remove("d-none");
-      focusPinnedBadge.classList.add("d-inline-flex");
-    }
-
-    // Reset pin highlight on grid cards
-    document.querySelectorAll(".tele-cam-card").forEach(c => c.classList.remove("is-pinned"));
+    // Highlight border on cards
+    document.querySelectorAll(".meet-tile-card").forEach(c => c.classList.remove("is-pinned"));
 
     if (target === "local") {
       const tileLocal = document.getElementById("gridTileLocal");
       if (tileLocal) tileLocal.classList.add("is-pinned");
-      if (focusPinnedLabel) focusPinnedLabel.textContent = "You (Pinned)";
-
-      if (mainRemote && localStream) {
-        mainRemote.srcObject = localStream;
-        mainRemote.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
+      if (spotlightLabel) spotlightLabel.textContent = `${USER_NAME} (You - Pinned)`;
+      if (spotlightVideo && localStream) {
+        spotlightVideo.srcObject = localStream;
+        spotlightVideo.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
       }
-      if (pipVideo) {
-        if (remoteStream) {
-          pipVideo.srcObject = remoteStream;
-          pipVideo.style.transform = "none";
-        }
-      }
-      if (pipLabel) pipLabel.innerHTML = `<i class="bi bi-person-video3 text-info me-1"></i>Remote Peer`;
-      if (focusCamOff) {
-        focusCamOff.classList.add("d-none");
-        focusCamOff.classList.remove("d-flex");
-      }
-      showToast("<i class='bi bi-pin-fill text-warning me-1'></i>Pinned your camera to main screen.", "info");
+      if (focusOff) focusOff.classList.add("d-none");
+      showToast("<i class='bi bi-pin-fill text-warning me-1'></i>Pinned your camera to spotlight.", "info");
 
     } else if (target === "remote") {
       const tileRemote = document.getElementById("gridTileRemote");
       if (tileRemote) tileRemote.classList.add("is-pinned");
-      if (focusPinnedLabel) focusPinnedLabel.textContent = "Remote Peer (Pinned)";
-
-      if (mainRemote) {
-        if (remoteStream) {
-          mainRemote.srcObject = remoteStream;
-          mainRemote.style.transform = "none";
-        }
+      if (spotlightLabel) spotlightLabel.textContent = "Remote Peer (Pinned)";
+      if (spotlightVideo) {
+        if (remoteStream) spotlightVideo.srcObject = remoteStream;
+        spotlightVideo.style.transform = "none";
       }
-      if (pipVideo && localStream) {
-        pipVideo.srcObject = localStream;
-        pipVideo.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
-      }
-      if (pipLabel) pipLabel.innerHTML = `<i class="bi bi-person-fill text-primary me-1"></i>${USER_NAME} (You)`;
-      showToast("<i class='bi bi-pin-fill text-warning me-1'></i>Pinned remote participant to main screen.", "info");
-
-    } else {
-      // Dynamic extra peer
-      const tileDyn = document.getElementById("gridTile_" + target);
-      if (tileDyn) tileDyn.classList.add("is-pinned");
-      if (focusPinnedLabel) focusPinnedLabel.textContent = "Attendee (Pinned)";
-
-      const dynVid = document.getElementById("dynVid_" + target);
-      if (mainRemote && dynVid && dynVid.srcObject) {
-        mainRemote.srcObject = dynVid.srcObject;
-        mainRemote.style.transform = "none";
-      } else if (mainRemote && remoteStream) {
-        mainRemote.srcObject = remoteStream;
-        mainRemote.style.transform = "none";
-      }
-      if (pipVideo && localStream) {
-        pipVideo.srcObject = localStream;
-        pipVideo.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
-      }
-      if (pipLabel) pipLabel.innerHTML = `<i class="bi bi-person-fill text-primary me-1"></i>${USER_NAME} (You)`;
-      showToast("<i class='bi bi-pin-fill text-warning me-1'></i>Pinned attendee to main screen.", "info");
+      showToast("<i class='bi bi-pin-fill text-warning me-1'></i>Pinned remote participant to spotlight.", "info");
     }
   }
 
   function unpinParticipant() {
     pinnedTarget = null;
-    document.querySelectorAll(".tele-cam-card").forEach(c => c.classList.remove("is-pinned"));
+    document.querySelectorAll(".meet-tile-card").forEach(c => c.classList.remove("is-pinned"));
 
-    const btnFocusUnpin = document.getElementById("btnFocusUnpin");
-    const focusPinnedBadge = document.getElementById("focusPinnedBadge");
-    if (btnFocusUnpin) btnFocusUnpin.classList.add("d-none");
-    if (focusPinnedBadge) {
-      focusPinnedBadge.classList.add("d-none");
-      focusPinnedBadge.classList.remove("d-inline-flex");
+    const unpinBtn = document.getElementById("btnSpotlightUnpin");
+    if (unpinBtn) unpinBtn.style.display = "none";
+
+    const spotlightVideo = document.getElementById("remoteVideo");
+    const spotlightLabel = document.getElementById("spotlightNameLabel");
+
+    if (spotlightVideo) {
+      if (remoteStream) spotlightVideo.srcObject = remoteStream;
+      spotlightVideo.style.transform = "none";
     }
-
-    // Restore standard focus view streams
-    const mainRemote = document.getElementById("remoteVideo");
-    const pipVideo = document.getElementById("localVideo");
-    const pipContainer = document.getElementById("localVideoContainer");
-    const pipLabel = pipContainer ? pipContainer.querySelector("div") : null;
-
-    if (mainRemote && remoteStream) {
-      mainRemote.srcObject = remoteStream;
-      mainRemote.style.transform = "none";
+    if (spotlightLabel) {
+      spotlightLabel.textContent = IS_DOCTOR ? "{{ tele.initiator_name or 'Peripheral Chamber' }}" : "{{ tele.specialist_name or 'Doctor Specialist' }}";
     }
-    if (pipVideo && localStream) {
-      pipVideo.srcObject = localStream;
-      pipVideo.style.transform = (currentFacingMode === "user") ? "scaleX(-1)" : "none";
-    }
-    if (pipLabel) pipLabel.innerHTML = `<i class="bi bi-person-fill text-primary me-1"></i>${USER_NAME} (You)`;
-
-    showToast("<i class='bi bi-pin-angle me-1'></i>Unpinned camera. Default view restored.", "info");
+    showToast("<i class='bi bi-pin-angle me-1'></i>Default spotlight restored.", "info");
   }
 
   /* ─────────────────────────────────────────────────────────────
-     6. Fullscreen Mode (Google Meet Experience & Specific Cameras)
+     7. Fullscreen Controls (Stage & Specific Cams)
   ───────────────────────────────────────────────────────────── */
   function toggleFullscreen() {
     const stage = document.getElementById("teleMeetStage");
@@ -1662,10 +1888,7 @@
 
     if (!document.fullscreenElement && !document.webkitFullscreenElement) {
       if (stage.requestFullscreen) {
-        stage.requestFullscreen().catch(err => {
-          console.warn("[Fullscreen error]", err);
-          showToast("Fullscreen restricted: " + err.message, "warning");
-        });
+        stage.requestFullscreen().catch(err => console.log(err));
       } else if (stage.webkitRequestFullscreen) {
         stage.webkitRequestFullscreen();
       }
@@ -1682,35 +1905,22 @@
     let el = null;
     let camName = "Camera";
 
-    // If already in fullscreen, exit
     if (document.fullscreenElement || document.webkitFullscreenElement || document.querySelector(".is-cam-fullscreen")) {
       exitCamFullscreen();
       return;
     }
 
     if (target === "local") {
-      if (currentLayout === "focus") {
-        el = document.getElementById("localVideoContainer");
-      } else {
-        el = document.getElementById("gridTileLocal");
-      }
+      el = document.getElementById("gridTileLocal");
       camName = "Your Camera";
     } else if (target === "remote") {
-      if (currentLayout === "focus") {
-        el = document.getElementById("focusView") || document.getElementById("remoteVideo");
-      } else {
-        el = document.getElementById("gridTileRemote");
-      }
-      camName = "Remote Clinical Camera";
-    } else if (target === "mainFocus") {
-      el = document.getElementById("focusView") || document.getElementById("remoteVideo");
-      camName = "Main Video Stream";
+      el = document.getElementById("gridTileRemote");
+      camName = "Remote Participant Camera";
+    } else if (target === "spotlight") {
+      el = document.getElementById("meetSpotlightCard");
+      camName = "Spotlight Presentation Feed";
     } else if (typeof target === "string") {
       el = document.getElementById(target);
-      camName = "Camera Feed";
-    } else if (target instanceof HTMLElement) {
-      el = target;
-      camName = "Camera Feed";
     }
 
     if (!el) return;
@@ -1727,7 +1937,6 @@
         ensureFullscreenExitBtn(el);
         showToast("<i class='bi bi-arrows-fullscreen text-info me-1'></i>" + camName + " is now Fullscreen. Press [Esc] to exit.", "info");
       }).catch(err => {
-        console.warn("[Native Fullscreen rejected, falling back to CSS maximize]", err);
         applyCssFullscreen();
       });
     } else {
@@ -1766,29 +1975,16 @@
   function initFullscreenListeners() {
     function onFsChange() {
       const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
-      const fsIcon = document.getElementById("fullscreenIcon");
       const topFsIcon = document.getElementById("topFullscreenIcon");
-      const fsLabel = document.getElementById("fullscreenLabel");
-      const stage = document.getElementById("teleMeetStage");
-
-      if (isFs) {
-        if (fsIcon) fsIcon.className = "bi bi-fullscreen-exit me-1";
-        if (topFsIcon) topFsIcon.className = "bi bi-fullscreen-exit";
-        if (fsLabel) fsLabel.textContent = "Exit Fullscreen";
-        if (stage) stage.classList.add("in-fullscreen");
-      } else {
-        if (fsIcon) fsIcon.className = "bi bi-fullscreen me-1";
-        if (topFsIcon) topFsIcon.className = "bi bi-fullscreen";
-        if (fsLabel) fsLabel.textContent = "Fullscreen";
-        if (stage) stage.classList.remove("in-fullscreen");
-
-        // Clean up camera fullscreen exit button if native FS closed
+      if (topFsIcon) {
+        topFsIcon.className = isFs ? "bi bi-fullscreen-exit" : "bi bi-fullscreen";
+      }
+      if (!isFs) {
         const btn = document.getElementById("camFullscreenExitBtn");
         if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
         document.querySelectorAll(".is-cam-fullscreen").forEach(el => el.classList.remove("is-cam-fullscreen"));
       }
     }
-
     document.addEventListener("fullscreenchange", onFsChange);
     document.addEventListener("webkitfullscreenchange", onFsChange);
 
@@ -1799,36 +1995,83 @@
     });
   }
 
-
   /* ─────────────────────────────────────────────────────────────
-     7. In-Call Chat Box (Google Meet Experience)
+     8. Google Meet Sliding Right Drawer (Tabs: Details, People, Chat, Activities)
   ───────────────────────────────────────────────────────────── */
-  function toggleChat(forceState) {
-    if (forceState !== undefined) {
-      isChatOpen = forceState;
-    } else {
-      isChatOpen = !isChatOpen;
+  function openDrawerTab(tab) {
+    const drawer = document.getElementById("meetRightDrawer");
+    if (!drawer) return;
+
+    if (activeDrawerTab === tab) {
+      closeRightDrawer();
+      return;
     }
 
-    const drawer = document.getElementById("teleChatDrawer");
-    const badge = document.getElementById("chatBadge");
-    const topBadge = document.getElementById("topChatBadge");
+    activeDrawerTab = tab;
+    drawer.classList.add("drawer-active");
+    switchDrawerTab(tab);
 
-    if (isChatOpen) {
-      toggleParticipants(false); // Close participants if open
-      if (drawer) drawer.classList.add("drawer-open");
+    // Update bottom dock panel icon highlights
+    updatePanelIconStates();
+
+    if (tab === "chat") {
       unreadChatCount = 0;
-      if (badge) badge.classList.add("d-none");
-      if (topBadge) topBadge.classList.add("d-none");
-
+      const pChat = document.getElementById("panelChatCount");
+      if (pChat) pChat.classList.add("d-none");
       const input = document.getElementById("chatInput");
       if (input) setTimeout(() => input.focus(), 150);
       scrollChatToBottom();
-    } else {
-      if (drawer) drawer.classList.remove("drawer-open");
     }
   }
 
+  function closeRightDrawer() {
+    const drawer = document.getElementById("meetRightDrawer");
+    if (drawer) drawer.classList.remove("drawer-active");
+    activeDrawerTab = null;
+    updatePanelIconStates();
+  }
+
+  function switchDrawerTab(tab) {
+    activeDrawerTab = tab;
+    const titleEl = document.getElementById("drawerHeaderTitle");
+    const titles = {
+      details: "Meeting details",
+      people: "People",
+      chat: "In-call messages",
+      activities: "Activities & Clinical Rx"
+    };
+    if (titleEl) titleEl.textContent = titles[tab] || "Meeting details";
+
+    // Tab buttons
+    document.querySelectorAll(".meet-drawer-tab-btn").forEach(b => b.classList.remove("tab-active"));
+    const activeBtn = document.getElementById("tabBtn" + tab.charAt(0).toUpperCase() + tab.slice(1));
+    if (activeBtn) activeBtn.classList.add("tab-active");
+
+    // Tab panes
+    document.querySelectorAll(".meet-tab-pane").forEach(p => p.classList.remove("pane-active"));
+    const activePane = document.getElementById("pane" + tab.charAt(0).toUpperCase() + tab.slice(1));
+    if (activePane) activePane.classList.add("pane-active");
+
+    updatePanelIconStates();
+  }
+
+  function updatePanelIconStates() {
+    const panels = ["details", "people", "chat", "activities"];
+    panels.forEach(p => {
+      const btn = document.getElementById("btnPanel" + p.charAt(0).toUpperCase() + p.slice(1));
+      if (btn) {
+        if (activeDrawerTab === p) {
+          btn.classList.add("is-panel-open");
+        } else {
+          btn.classList.remove("is-panel-open");
+        }
+      }
+    });
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     9. In-Call Chat Engine
+  ───────────────────────────────────────────────────────────── */
   function submitChatForm() {
     const input = document.getElementById("chatInput");
     if (!input) return;
@@ -1843,7 +2086,6 @@
   }
 
   async function sendChatMessage(text) {
-    // Optimistic UI append
     const tempId = "msg_local_" + Date.now();
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const localMsg = {
@@ -1882,24 +2124,16 @@
         renderedChatIds.add(msg.id);
         const isSelf = (msg.sender_id === CLIENT_ID);
         appendChatMessageUI(msg, isSelf);
-
-        if (!isSelf) {
-          hasNewFromRemote = true;
-        }
+        if (!isSelf) hasNewFromRemote = true;
       }
     });
 
-    if (hasNewFromRemote && !isChatOpen) {
+    if (hasNewFromRemote && activeDrawerTab !== "chat") {
       unreadChatCount++;
-      const badge = document.getElementById("chatBadge");
-      const topBadge = document.getElementById("topChatBadge");
-      if (badge) {
-        badge.textContent = unreadChatCount;
-        badge.classList.remove("d-none");
-      }
-      if (topBadge) {
-        topBadge.textContent = unreadChatCount;
-        topBadge.classList.remove("d-none");
+      const pChat = document.getElementById("panelChatCount");
+      if (pChat) {
+        pChat.textContent = unreadChatCount;
+        pChat.classList.remove("d-none");
       }
       playChatChime();
     }
@@ -1921,18 +2155,12 @@
     nameSpan.className = "fw-semibold " + (isSelf ? "text-info" : "text-light");
     nameSpan.textContent = isSelf ? "You" : msg.sender_name;
 
-    const roleSpan = document.createElement("span");
-    roleSpan.className = "badge " + (isSelf ? "bg-primary" : "bg-secondary") + " bg-opacity-50 py-0 px-1 text-uppercase";
-    roleSpan.style.fontSize = "0.6rem";
-    roleSpan.textContent = msg.sender_role || "User";
-
     const timeSpan = document.createElement("span");
     timeSpan.className = "text-muted ms-1";
     timeSpan.style.fontSize = "0.62rem";
     timeSpan.textContent = msg.timestamp || "";
 
     senderHeader.appendChild(nameSpan);
-    senderHeader.appendChild(roleSpan);
     senderHeader.appendChild(timeSpan);
 
     const bubble = document.createElement("div");
@@ -1948,9 +2176,7 @@
 
   function scrollChatToBottom() {
     const container = document.getElementById("chatMessagesContainer");
-    if (container) {
-      container.scrollTop = container.scrollHeight;
-    }
+    if (container) container.scrollTop = container.scrollHeight;
   }
 
   function playChatChime() {
@@ -1961,8 +2187,8 @@
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
       gain.gain.setValueAtTime(0.1, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
       osc.connect(gain);
@@ -1973,70 +2199,45 @@
   }
 
   /* ─────────────────────────────────────────────────────────────
-     8. Participants Drawer & Multi-Cam Grid State
+     10. Participants Sync & Dynamic Grid Tiles
   ───────────────────────────────────────────────────────────── */
-  function toggleParticipants(forceState) {
-    if (forceState !== undefined) {
-      isParticipantsOpen = forceState;
-    } else {
-      isParticipantsOpen = !isParticipantsOpen;
-    }
-
-    const drawer = document.getElementById("teleParticipantsDrawer");
-    if (isParticipantsOpen) {
-      toggleChat(false); // Close chat if open
-      if (drawer) drawer.classList.add("drawer-open");
-    } else {
-      if (drawer) drawer.classList.remove("drawer-open");
-    }
-  }
-
   function updateParticipantsUI(peers, otherPeers) {
     knownPeers = peers;
     const totalCount = otherPeers.length + 1;
 
     // Badges
-    const p1 = document.getElementById("peerCount");
-    const p2 = document.getElementById("topPeerCount");
-    const p3 = document.getElementById("peopleCountBadge");
-    const p4 = document.getElementById("drawerPeopleCount");
+    const p1 = document.getElementById("drawerPeopleCount");
+    const p2 = document.getElementById("drawerPeopleCount2");
+    const p3 = document.getElementById("panelPeopleCount");
     if (p1) p1.textContent = totalCount;
     if (p2) p2.textContent = totalCount;
     if (p3) p3.textContent = totalCount;
-    if (p4) p4.textContent = totalCount;
 
-    // Adjust Grid Column Classes
-    const gridContainer = document.getElementById("participantsGridView");
-    if (gridContainer) {
-      gridContainer.className = "tele-grid-container w-100 h-100 " +
-        (totalCount === 1 ? "tele-grid-1" :
-         totalCount === 2 ? "tele-grid-2" :
-         totalCount <= 4  ? "tele-grid-4" : "tele-grid-6");
-    }
-
-    // Dismiss waiting overlay when peers connect
     if (otherPeers.length > 0) {
       dismissWaitingOverlay();
-    }
-
-    // Update Primary Remote Peer Status in Grid
-    if (otherPeers.length > 0) {
       const primaryPeer = otherPeers[0];
       const nameDisp = document.getElementById("gridRemoteNameDisplay");
       const labelEl  = document.getElementById("gridRemoteLabel");
       const micDot   = document.getElementById("gridRemoteMicDot");
       const statusTx = document.getElementById("gridRemoteStatusText");
+      const spotlightPill = document.getElementById("spotlightNameLabel");
+      const spotlightDot = document.getElementById("spotlightMicDot");
 
       if (nameDisp) nameDisp.textContent = primaryPeer.name;
-      if (labelEl)  labelEl.textContent = primaryPeer.name + " (" + (primaryPeer.role || "").toUpperCase() + ")";
-      if (statusTx && callActive) statusTx.textContent = "Live Encrypted Feed Active";
+      if (labelEl)  labelEl.textContent = primaryPeer.name;
+      if (spotlightPill && !pinnedTarget) spotlightPill.textContent = primaryPeer.name;
+      if (statusTx && callActive) statusTx.textContent = "Live Stream";
 
       if (micDot) {
-        micDot.className = (primaryPeer.mic_on === false) ? "text-danger" : "text-success";
+        micDot.className = (primaryPeer.mic_on === false) ? "mic-dot text-danger" : "mic-dot text-success";
         micDot.innerHTML = (primaryPeer.mic_on === false) ? "<i class='bi bi-mic-mute-fill'></i>" : "<i class='bi bi-mic-fill'></i>";
       }
+      if (spotlightDot) {
+        spotlightDot.className = (primaryPeer.mic_on === false) ? "mic-dot text-danger" : "mic-dot text-success";
+        spotlightDot.innerHTML = (primaryPeer.mic_on === false) ? "<i class='bi bi-mic-mute-fill'></i>" : "<i class='bi bi-mic-fill'></i>";
+      }
 
-      // Sync Remote Cam Off Overlays
+      // Cam off overlays
       const focusCamOff = document.getElementById("focusRemoteCamOff");
       const focusName   = document.getElementById("focusRemoteNameDisplay");
       const focusAvatar = document.getElementById("focusRemoteAvatarInitial");
@@ -2054,51 +2255,32 @@
       }
     }
 
-    // Update Dynamic Grid Tiles for extra peers (>1 remote)
+    // Dynamic Extra Peer Tiles
     const dynamicGrid = document.getElementById("dynamicGridTiles");
     if (dynamicGrid) {
       dynamicGrid.innerHTML = "";
       otherPeers.slice(1).forEach((p, idx) => {
         const tileId = `gridTile-peer-${p.user_id || idx}`;
         const card = document.createElement("div");
-        card.className = "tele-cam-card";
+        card.className = "meet-tile-card";
         card.id = tileId;
         card.innerHTML = `
-          <div class="tele-cam-placeholder ${p.cam_on === false ? '' : 'd-none'}" id="camOff-${tileId}">
-            <div class="tele-avatar-ring bg-info bg-opacity-25 border-info mb-2">${(p.name || 'U')[0].toUpperCase()}</div>
-            <span class="fs-8 fw-bold text-white">${p.name}</span>
-            <span class="text-warning fs-9">Camera Off</span>
+          <div class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-dark text-white text-center p-2">
+            <div class="meet-avatar-circle meet-avatar-circle-sm bg-info text-dark">${(p.name || 'U')[0].toUpperCase()}</div>
+            <span class="fs-9 fw-bold text-truncate" style="max-width:90%;">${p.name}</span>
+            <span class="text-white-50" style="font-size:0.65rem;">${p.role || 'Peer'}</span>
           </div>
-          <div class="tele-card-actions">
-            <button type="button" class="btn btn-xs btn-dark bg-opacity-75 border border-secondary text-white rounded-circle p-1" onclick="window.pcTele.fullscreenCam('${tileId}')" title="Fullscreen this Camera">
-              <i class="bi bi-arrows-fullscreen text-info"></i>
+          <div class="meet-tile-name-pill">
+            <span class="mic-dot ${p.mic_on === false ? 'text-danger' : 'text-success'}"><i class="bi ${p.mic_on === false ? 'bi-mic-mute-fill' : 'bi-mic-fill'}"></i></span>
+            <span>${p.name}</span>
+          </div>
+          <div class="meet-tile-actions">
+            <button type="button" class="meet-action-btn-xs" onclick="window.pcTele.fullscreenCam('${tileId}')" title="Fullscreen">
+              <i class="bi bi-arrows-fullscreen"></i>
             </button>
-          </div>
-          <div class="tele-cam-label">
-            <span class="${p.mic_on === false ? 'text-danger' : 'text-success'}"><i class="bi ${p.mic_on === false ? 'bi-mic-mute-fill' : 'bi-mic-fill'}"></i></span>
-            <span class="fw-bold">${p.name}</span>
-            <span class="badge bg-secondary text-white fs-9 py-0 text-uppercase">${p.role || 'Peer'}</span>
           </div>
         `;
         dynamicGrid.appendChild(card);
-      });
-    }
-
-    // Update Dynamic Filmstrip Thumbnails
-    const dynamicFilmstrip = document.getElementById("dynamicFilmstripItems");
-    if (dynamicFilmstrip) {
-      dynamicFilmstrip.innerHTML = "";
-      otherPeers.slice(1).forEach((p, idx) => {
-        const item = document.createElement("div");
-        item.className = "tele-filmstrip-item";
-        item.title = `Focus ${p.name}`;
-        item.innerHTML = `
-          <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-white fw-bold fs-8">
-            ${(p.name || 'U')[0].toUpperCase()}
-          </div>
-          <span class="position-absolute bottom-0 start-0 bg-dark bg-opacity-75 text-white px-1" style="font-size: 0.6rem;">${p.name.split(' ')[0]}</span>
-        `;
-        dynamicFilmstrip.appendChild(item);
       });
     }
 
@@ -2132,28 +2314,15 @@
         micIcon.className = (p.mic_on === false) ? "text-danger fs-8" : "text-success fs-8";
         micIcon.innerHTML = (p.mic_on === false) ? "<i class='bi bi-mic-mute-fill'></i>" : "<i class='bi bi-mic-fill'></i>";
 
-        const camIcon = document.createElement("span");
-        camIcon.className = (p.cam_on === false) ? "text-muted fs-8" : "text-info fs-8";
-        camIcon.innerHTML = (p.cam_on === false) ? "<i class='bi bi-camera-video-off-fill'></i>" : "<i class='bi bi-camera-video-fill'></i>";
-
         const pinBtn = document.createElement("button");
         pinBtn.type = "button";
         pinBtn.className = "btn btn-xs btn-outline-light rounded-circle p-1";
-        pinBtn.title = "Pin to Main View";
+        pinBtn.title = "Pin to spotlight";
         pinBtn.innerHTML = "<i class='bi bi-pin-angle-fill'></i>";
         pinBtn.onclick = () => pinParticipant("remote");
 
         right.appendChild(micIcon);
-        right.appendChild(camIcon);
         right.appendChild(pinBtn);
-
-        const fsBtn = document.createElement("button");
-        fsBtn.type = "button";
-        fsBtn.className = "btn btn-xs btn-outline-light rounded-circle p-1";
-        fsBtn.title = "Fullscreen this Camera";
-        fsBtn.innerHTML = "<i class='bi bi-arrows-fullscreen'></i>";
-        fsBtn.onclick = () => fullscreenCam("remote");
-        right.appendChild(fsBtn);
 
         item.appendChild(left);
         item.appendChild(right);
@@ -2163,7 +2332,7 @@
   }
 
   /* ─────────────────────────────────────────────────────────────
-     9. Media Hardware Controls (Mic, Camera, Screen Share)
+     11. Media Hardware Actions (Mic, Cam, Captions, Hand)
   ───────────────────────────────────────────────────────────── */
   function toggleMic() {
     if (!localStream) return;
@@ -2173,27 +2342,21 @@
     isMuted = !isMuted;
     audioTracks.forEach(t => { t.enabled = !isMuted; });
 
-    const btn   = document.getElementById("btnToggleMic");
-    const icon  = document.getElementById("micIcon");
-    const text  = document.getElementById("micText");
-    const badge = document.getElementById("localMuteBadge");
-    const gDot  = document.getElementById("gridLocalMicDot");
-    const dMic  = document.getElementById("drawerLocalMicIcon");
+    const btn  = document.getElementById("btnToggleMic");
+    const icon = document.getElementById("micIcon");
+    const gDot = document.getElementById("gridLocalMicDot");
+    const dMic = document.getElementById("drawerLocalMicIcon");
 
     if (isMuted) {
-      btn.className = "btn btn-sm btn-danger rounded-pill px-3";
-      icon.className = "bi bi-mic-mute-fill me-1";
-      if (text) text.textContent = "Unmute";
-      if (badge) badge.style.display = "block";
-      if (gDot) { gDot.className = "text-danger"; gDot.innerHTML = "<i class='bi bi-mic-mute-fill'></i>"; }
+      btn.classList.add("is-muted-red");
+      icon.className = "bi bi-mic-mute-fill";
+      if (gDot) { gDot.className = "mic-dot text-danger"; gDot.innerHTML = "<i class='bi bi-mic-mute-fill'></i>"; }
       if (dMic) { dMic.className = "text-danger fs-8"; dMic.innerHTML = "<i class='bi bi-mic-mute-fill'></i>"; }
       showToast("<i class='bi bi-mic-mute-fill me-1 text-danger'></i>Microphone muted.", "warning");
     } else {
-      btn.className = "btn btn-sm btn-outline-light rounded-pill px-3";
-      icon.className = "bi bi-mic-fill me-1";
-      if (text) text.textContent = "Mute";
-      if (badge) badge.style.display = "none";
-      if (gDot) { gDot.className = "text-success"; gDot.innerHTML = "<i class='bi bi-mic-fill'></i>"; }
+      btn.classList.remove("is-muted-red");
+      icon.className = "bi bi-mic-fill";
+      if (gDot) { gDot.className = "mic-dot text-success"; gDot.innerHTML = "<i class='bi bi-mic-fill'></i>"; }
       if (dMic) { dMic.className = "text-success fs-8"; dMic.innerHTML = "<i class='bi bi-mic-fill'></i>"; }
       showToast("<i class='bi bi-mic-fill me-1 text-success'></i>Microphone active.", "success");
     }
@@ -2207,29 +2370,58 @@
     isCamOff = !isCamOff;
     videoTracks.forEach(t => { t.enabled = !isCamOff; });
 
-    const btn      = document.getElementById("btnToggleCam");
-    const icon     = document.getElementById("camIcon");
-    const text     = document.getElementById("camText");
-    const pipOff   = document.getElementById("localCamOffOverlay");
-    const gridOff  = document.getElementById("gridLocalCamOff");
-    const drawerCam = document.getElementById("drawerLocalCamIcon");
+    const btn     = document.getElementById("btnToggleCam");
+    const icon    = document.getElementById("camIcon");
+    const gridOff = document.getElementById("gridLocalCamOff");
+    const dCam    = document.getElementById("drawerLocalCamIcon");
 
     if (isCamOff) {
-      btn.className = "btn btn-sm btn-danger rounded-pill px-3";
-      icon.className = "bi bi-camera-video-off-fill me-1";
-      if (text) text.textContent = "Cam Off";
-      if (pipOff) pipOff.classList.remove("d-none");
+      btn.classList.add("is-muted-red");
+      icon.className = "bi bi-camera-video-off-fill";
       if (gridOff) gridOff.classList.remove("d-none");
-      if (drawerCam) { drawerCam.className = "text-muted fs-8"; drawerCam.innerHTML = "<i class='bi bi-camera-video-off-fill'></i>"; }
-      showToast("<i class='bi bi-camera-video-off-fill me-1 text-danger'></i>Camera feed stopped.", "warning");
+      if (dCam) { dCam.className = "text-muted fs-8"; dCam.innerHTML = "<i class='bi bi-camera-video-off-fill'></i>"; }
+      showToast("<i class='bi bi-camera-video-off-fill me-1 text-danger'></i>Camera stopped.", "warning");
     } else {
-      btn.className = "btn btn-sm btn-outline-light rounded-pill px-3";
-      icon.className = "bi bi-camera-video-fill me-1";
-      if (text) text.textContent = "Camera";
-      if (pipOff) pipOff.classList.add("d-none");
+      btn.classList.remove("is-muted-red");
+      icon.className = "bi bi-camera-video-fill";
       if (gridOff) gridOff.classList.add("d-none");
-      if (drawerCam) { drawerCam.className = "text-info fs-8"; drawerCam.innerHTML = "<i class='bi bi-camera-video-fill'></i>"; }
-      showToast("<i class='bi bi-camera-video-fill me-1 text-success'></i>Camera feed resumed.", "success");
+      if (dCam) { dCam.className = "text-info fs-8"; dCam.innerHTML = "<i class='bi bi-camera-video-fill'></i>"; }
+      showToast("<i class='bi bi-camera-video-fill me-1 text-success'></i>Camera resumed.", "success");
+    }
+  }
+
+  function toggleCaptions() {
+    isCaptionsOn = !isCaptionsOn;
+    const btn = document.getElementById("btnToggleCaptions");
+    const icon = document.getElementById("captionsIcon");
+    const bar = document.getElementById("meetCaptionsBar");
+
+    if (isCaptionsOn) {
+      if (btn) btn.classList.add("is-active-blue");
+      if (icon) icon.className = "bi bi-badge-cc-fill";
+      if (bar) bar.classList.remove("d-none");
+      showToast("<i class='bi bi-badge-cc-fill me-1 text-info'></i>Closed captions turned on.", "info");
+    } else {
+      if (btn) btn.classList.remove("is-active-blue");
+      if (icon) icon.className = "bi bi-badge-cc";
+      if (bar) bar.classList.add("d-none");
+      showToast("<i class='bi bi-badge-cc me-1'></i>Captions turned off.", "info");
+    }
+  }
+
+  function toggleRaiseHand() {
+    isHandRaised = !isHandRaised;
+    const btn = document.getElementById("btnToggleRaiseHand");
+    const badge = document.getElementById("meetRaisedHandBadge");
+
+    if (isHandRaised) {
+      if (btn) btn.classList.add("is-active-blue");
+      if (badge) badge.classList.remove("d-none");
+      showToast("<i class='bi bi-hand-index-thumb-fill me-1 text-info'></i>You raised your hand.", "info");
+    } else {
+      if (btn) btn.classList.remove("is-active-blue");
+      if (badge) badge.classList.add("d-none");
+      showToast("Hand lowered.", "info");
     }
   }
 
@@ -2251,12 +2443,13 @@
         attachLocalStream(screenStream);
 
         isSharingScreen = true;
-        document.getElementById("btnShareScreen").className = "btn btn-sm btn-info rounded-pill px-3";
+        const btn = document.getElementById("btnShareScreen");
+        if (btn) btn.classList.add("is-active-blue");
 
         screenTrack.onended = function () {
           stopScreenShare(videoSender);
         };
-        showToast("<i class='bi bi-display me-1'></i>Screen sharing started.", "info");
+        showToast("<i class='bi bi-arrow-up-circle-fill me-1'></i>Screen presentation started.", "info");
       } catch (e) {
         console.log("[Screen share note]", e);
       }
@@ -2268,18 +2461,19 @@
   function stopScreenShare(videoSender) {
     if (!isSharingScreen) return;
     isSharingScreen = false;
-    document.getElementById("btnShareScreen").className = "btn btn-sm btn-outline-light rounded-pill px-3";
+    const btn = document.getElementById("btnShareScreen");
+    if (btn) btn.classList.remove("is-active-blue");
 
     if (localStream) {
       const origVideoTrack = localStream.getVideoTracks()[0];
       if (videoSender && origVideoTrack) videoSender.replaceTrack(origVideoTrack);
       attachLocalStream(localStream);
     }
-    showToast("Screen sharing ended.", "info");
+    showToast("Screen presentation stopped.", "info");
   }
 
   /* ─────────────────────────────────────────────────────────────
-     10. Call Cleanup & Timer
+     12. Call Termination & Cleanup
   ───────────────────────────────────────────────────────────── */
   async function endCall() {
     try {
@@ -2290,20 +2484,17 @@
     } catch (e) {
       console.log(e);
     }
-    performCallCleanup("You ended the teleconsultation call.");
+    performCallCleanup("You left the teleconsultation chamber.");
   }
 
   function handleCallEndedByRemote() {
-    performCallCleanup("The teleconsultation was concluded by the remote participant.");
+    performCallCleanup("The teleconsultation was concluded by the remote clinician.");
   }
 
   function performCallCleanup(msg) {
     callActive = false;
-    stopCallTimer();
 
-    if (localStream) {
-      localStream.getTracks().forEach(t => t.stop());
-    }
+    if (localStream) localStream.getTracks().forEach(t => t.stop());
     if (peerConnection) {
       peerConnection.close();
       peerConnection = null;
@@ -2314,14 +2505,10 @@
     }
 
     const endedOverlay = document.getElementById("callEndedOverlay");
-    const durationEl   = document.getElementById("finalCallDuration");
-    const currentTimer = document.getElementById("callTimer");
-
-    if (durationEl && currentTimer) durationEl.textContent = currentTimer.textContent;
     if (endedOverlay) endedOverlay.classList.remove("d-none");
 
-    document.getElementById("callStatusDot").className = "status-dot bg-secondary rounded-circle d-inline-block";
-    document.getElementById("linkageTitle").textContent = "TELECONSULTATION CONCLUDED";
+    const dot = document.getElementById("callStatusDot");
+    if (dot) dot.className = "status-dot bg-secondary rounded-circle d-inline-block";
 
     const statusSelect = document.getElementById("selectCallStatus");
     if (statusSelect) statusSelect.value = "Completed";
@@ -2329,43 +2516,13 @@
     showToast("<i class='bi bi-telephone-x-fill text-danger me-1'></i>" + msg, "warning");
   }
 
-  function reconnectCall() {
-    const endedOverlay = document.getElementById("callEndedOverlay");
-    if (endedOverlay) endedOverlay.classList.add("d-none");
-    hasInitiatedOffer = false;
-    initLocalMedia();
-    startSignaling();
-    showToast("Reconnecting to room...", "info");
-  }
-
-  function startCallTimer() {
-    if (timerInterval) return;
-    const timerEl = document.getElementById("callTimer");
-    timerInterval = setInterval(function () {
-      callSeconds++;
-      const m = String(Math.floor(callSeconds / 60)).padStart(2, "0");
-      const s = String(callSeconds % 60).padStart(2, "0");
-      if (timerEl) timerEl.textContent = m + ":" + s;
-    }, 1000);
-  }
-
-  function stopCallTimer() {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
-  }
-
   /* ─────────────────────────────────────────────────────────────
-     11. Keyboard Shortcuts & Utilities
+     13. Keyboard Shortcuts & Utilities
   ───────────────────────────────────────────────────────────── */
   function initKeyboardShortcuts() {
     document.addEventListener("keydown", function (e) {
-      // Don't trigger shortcuts if typing inside an input or textarea
       if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) {
-        if (e.key === "Escape") {
-          document.activeElement.blur();
-        }
+        if (e.key === "Escape") document.activeElement.blur();
         return;
       }
 
@@ -2375,28 +2532,24 @@
       } else if (e.key === "v" || e.key === "V") {
         e.preventDefault();
         toggleCam();
-      } else if (e.key === "g" || e.key === "G") {
+      } else if (e.key === "c" || e.key === "C") {
         e.preventDefault();
-        toggleLayout();
+        toggleCaptions();
+      } else if (e.key === "h" || e.key === "H") {
+        e.preventDefault();
+        toggleRaiseHand();
       } else if (e.key === "f" || e.key === "F") {
         e.preventDefault();
         toggleFullscreen();
-      } else if (e.key === "c" || e.key === "C") {
-        e.preventDefault();
-        toggleChat();
-      } else if (e.key === "p" || e.key === "P") {
-        e.preventDefault();
-        toggleParticipants();
       } else if (e.key === "Escape") {
-        toggleChat(false);
-        toggleParticipants(false);
+        closeRightDrawer();
       }
     });
   }
 
   function copyRoomLink() {
     navigator.clipboard.writeText(window.location.href).then(function () {
-      showToast("<i class='bi bi-clipboard-check-fill text-success me-1'></i>Room URL copied to clipboard!", "success");
+      showToast("<i class='bi bi-clipboard-check-fill text-success me-1'></i>Chamber URL copied to clipboard!", "success");
     });
   }
 
@@ -2437,28 +2590,6 @@
     });
   }
 
-  function showTab(tab) {
-    const colVideo = document.getElementById("colVideo");
-    const colRx = document.getElementById("colRx");
-    const btnVideo = document.getElementById("tabBtnVideo");
-    const btnRx = document.getElementById("tabBtnRx");
-    if (!colVideo || !colRx) return;
-
-    if (tab === "video") {
-      colVideo.classList.remove("d-none");
-      colRx.classList.add("d-none");
-      colRx.classList.remove("d-block");
-      if (btnVideo) { btnVideo.classList.add("active"); btnVideo.classList.remove("text-muted"); }
-      if (btnRx) { btnRx.classList.remove("active"); btnRx.classList.add("text-muted"); }
-    } else {
-      colVideo.classList.add("d-none");
-      colRx.classList.remove("d-none");
-      colRx.classList.add("d-block");
-      if (btnRx) { btnRx.classList.add("active"); btnRx.classList.remove("text-muted"); }
-      if (btnVideo) { btnVideo.classList.remove("active"); btnVideo.classList.add("text-muted"); }
-    }
-  }
-
   // Export public methods on window.pcTele
   window.pcTele = {
     getClientId: () => CLIENT_ID,
@@ -2468,23 +2599,23 @@
     toggleCam: toggleCam,
     switchCamera: switchCamera,
     toggleScreenShare: toggleScreenShare,
-    toggleLayout: toggleLayout,
+    toggleCaptions: toggleCaptions,
+    toggleRaiseHand: toggleRaiseHand,
     toggleFullscreen: toggleFullscreen,
     fullscreenCam: fullscreenCam,
     exitCamFullscreen: exitCamFullscreen,
-    toggleChat: toggleChat,
-    toggleParticipants: toggleParticipants,
+    openDrawerTab: openDrawerTab,
+    closeRightDrawer: closeRightDrawer,
+    switchDrawerTab: switchDrawerTab,
     submitChatForm: submitChatForm,
     sendQuickChat: sendQuickChat,
     pinParticipant: pinParticipant,
     unpinParticipant: unpinParticipant,
     dismissWaitingOverlay: dismissWaitingOverlay,
     endCall: endCall,
-    reconnectCall: reconnectCall,
     retryConnection: retryConnection,
     copyRoomLink: copyRoomLink,
-    copyShareLink: copyShareLink,
-    showTab: showTab
+    copyShareLink: copyShareLink
   };
 
 })();

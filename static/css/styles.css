@@ -462,7 +462,7 @@ font[style] {
 /* 🔊 Speak Aloud & Voice Accessibility Widget */
 .voice-assist-container {
   position: fixed;
-  bottom: 38px;
+  bottom: 96px;
   right: 24px;
   z-index: 1060;
   font-family: 'Inter', sans-serif;
